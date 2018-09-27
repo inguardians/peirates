@@ -1,0 +1,39 @@
+kubelet_runtime_operations{operation_type="attach"} 1
+kubelet_runtime_operations{operation_type="container_status"} 121
+kubelet_runtime_operations{operation_type="create_container"} 12
+kubelet_runtime_operations{operation_type="exec"} 1
+kubelet_runtime_operations{operation_type="exec_sync"} 1085
+kubelet_runtime_operations{operation_type="image_status"} 61
+kubelet_runtime_operations{operation_type="list_containers"} 20072
+kubelet_runtime_operations{operation_type="list_images"} 1513
+kubelet_runtime_operations{operation_type="list_podsandbox"} 19891
+kubelet_runtime_operations{operation_type="podsandbox_status"} 630
+kubelet_runtime_operations{operation_type="remove_container"} 2
+kubelet_runtime_operations{operation_type="run_podsandbox"} 60
+kubelet_runtime_operations{operation_type="start_container"} 12
+kubelet_runtime_operations{operation_type="status"} 2171
+kubelet_runtime_operations{operation_type="stop_podsandbox"} 457
+kubelet_runtime_operations{operation_type="version"} 1136
+attach
+container_status
+create_container
+exec
+exec_sync
+image_status
+list_containers
+list_images
+list_podsandbox
+podsandbox_status
+remove_container
+run_podsandbox
+start_container
+status
+stop_podsandbox
+version
+metrics
+secrets
+events
+nodes
+status
+services
+
