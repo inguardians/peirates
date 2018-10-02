@@ -19,7 +19,7 @@ import (
 //	my_config   string
 //	}
 
-type serverInfo struct {
+type ServerInfo struct {
 	rIPAddress string
 	rPort      string
 	token      string // token ASCII text

@@ -23,11 +23,12 @@ import (
 // Struct type definition to contain our options. This is
 // different from the original python code that had each
 // of the options as top-level variables
-type serverInfo struct {
+type ServerInfo struct {
 	rIPAddress string
 	rPort      string
 	token      string //pass token  via command line
-    caPath     string //path to ca certificate
+	caPath     string //path to ca certificate
+	namespace  string // namespace that this pod's service account is tied to
 }
 
 // Create a global variable named "connectionString" initialized to
@@ -42,7 +43,7 @@ func parseOptions() {
 	// example) to bind flags to variables
 	flag.StringVar(&connectionString.rIPAddress, "i", "127.0.0.1", "Remote IP address: ex. 10.22.34.67")
 	flag.StringVar(&connectionString.rPort, "p", "6443", "Remote Port: ex 10255, 10250")
-//	flag.BoolVar(&connectionString.infoPods, "e", false, "Export pod information from remote Kubernetes server via curl")
+	//	flag.BoolVar(&connectionString.infoPods, "e", false, "Export pod information from remote Kubernetes server via curl")
 	flag.StringVar(&connectionString.token, "t", "", "Token to be used for accessing Kubernetes server")
 	flag.StringVar(&connectionString.caPath, "c", "", "Path to CA certificate")
 
@@ -66,34 +67,53 @@ func parseOptions() {
 	}
 }
 
-func getHostname(PodName string){
-	out, err := exec.Command("kubectl", "--token="+connectionString.token, "--certificate-authority="+connectionString.caPath, "--server=https://"+connectionString.rIPAddress+":"+connectionString.rPort,"exec", "-it", PodName, "hostname").Output()
+// getPods() returns an array of pod names, parsed from kubectl get pods
+func getPods() []string {
+
+	var pods []string
+
+	get_pods_raw, err := exec.Command("kubectl", "--token="+connectionString.token, "--certificate-authority="+connectionString.caPath, "--server=https://"+connectionString.rIPAddress+":"+connectionString.rPort, "get", "pods").Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Iterate over kubectl get pods, stripping off the first line which matches NAME and then grabbing the first column
+
+	get_pods_lines := strings.Split(string(get_pods_raw), "\n")
+	for _, line := range get_pods_lines {
+		pod := strings.Fields(line)[0]
+		println(pod)
+		pods = append(pods, pod)
+	}
+	return pods
+}
+
+func getHostname(PodName string) {
+	out, err := exec.Command("kubectl", "--token="+connectionString.token, "--certificate-authority="+connectionString.caPath, "--server=https://"+connectionString.rIPAddress+":"+connectionString.rPort, "exec", "-it", PodName, "hostname").Output()
 	if err != nil {
 		log.Fatal(err)
 	}
 	println("Hostname of pod is: " + string(out))
 }
 
-func createPods(){
-	out, err := exec.Command("kubectl", "--token="+connectionString.token, "--certificate-authority="+connectionString.caPath, "--server=https://"+connectionString.rIPAddress+":"+connectionString.rPort,"auth", "can-i", "create", "pod").Output()
-        if err != nil {
-                log.Fatal(err)
-        }
-        println("Can this token create pods: " + string(out))
+func createPods() {
+	out, err := exec.Command("kubectl", "--token="+connectionString.token, "--certificate-authority="+connectionString.caPath, "--server=https://"+connectionString.rIPAddress+":"+connectionString.rPort, "auth", "can-i", "create", "pod").Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+	println("Can this token create pods: " + string(out))
 
 }
 
-func inAPod(){
-        out, err := exec.Command("mount").Output()
-        if err != nil {
-                log.Fatal(err)
-        }
-	mountout:= string(out)
-	inpod := strings.Contains(mountout,"kubernetes")
+func inAPod() {
+	out, err := exec.Command("mount").Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+	mountout := string(out)
+	inpod := strings.Contains(mountout, "kubernetes")
 	println("Are we currently running on a pod: ", inpod)
 
 }
-
 
 // Here's the requestme equivalent.
 func requestme(location string) {
@@ -129,27 +149,30 @@ func main() {
 	// Run the option parser to initialize connectionStrings
 	println("\n\nStarting periates...")
 	parseOptions()
-	getHostname("attack-daemonset-6fmjc")
+	all_pods := get_pod_list()
+	for _, pod := range all_pods {
+		getHostname(pod)
+	}
 	createPods()
 	inAPod()
 	// This part is direct conversion from the python
 	// Note that we use println() instead of print().
 	// In go, print() does not add a newline while
 	// println() does.
-/*	if connectionString.infoPods {
-		requestme("pods")
-		println("---------------------------")
-		println("Extracting Pods via Curl  | ")
-		println("--------------------------------------------------------------------------------------->")
-		requestme("pods")
-		println("--------------------------------------------------------------------------------------->")
-		requestme("stats")
-		requestme("stats/summary")
-		requestme("stats/container")
-		requestme("metrics")
-		requestme("healthz")
-	}
-*/
+	/*	if connectionString.infoPods {
+			requestme("pods")
+			println("---------------------------")
+			println("Extracting Pods via Curl  | ")
+			println("--------------------------------------------------------------------------------------->")
+			requestme("pods")
+			println("--------------------------------------------------------------------------------------->")
+			requestme("stats")
+			requestme("stats/summary")
+			requestme("stats/container")
+			requestme("metrics")
+			requestme("healthz")
+		}
+	*/
 }
 
 // Example of a multi-line comment
