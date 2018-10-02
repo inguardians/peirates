@@ -1,23 +1,8 @@
 //Build API configuration (svc account token, namespace, API server) -- automated prereq for other steps
-
-// Locations of the svc account and token for i/o reads
-// account token -  /run/secrets/kubernetes.io/serviceaccount
-// name space
-package config
-
 import (
-	//	"os/exec"
 	"fmt"
 	"io/ioutil"
 )
-
-// WAS
-// type Config_Info struct {
-//	token       []byte
-//	ca_crt_path []byte
-//	namespaces  []byte
-//	my_config   string
-//	}
 
 type ServerInfo struct {
 	rIPAddress string
@@ -33,26 +18,24 @@ func Builder() ServerInfo {
 	var config_InfoVars ServerInfo
 
 	// Reading token file and storing in variable token
-	config_InfoVars.token, config_InfoVars.err_Read = ioutil.ReadFile("/run/secrets/kubernetes.io/serviceaccount/token")
+	token, err_Read := ioutil.ReadFile("/run/secrets/kubernetes.io/serviceaccount/token")
+    config_InfoVars.token = string(token)
 
 	//Error message If statement based on failure to read the file
-	if config_InfoVars.err_Read != nil {
-		fmt.Println("Token location error: ", config_InfoVars.err_Read)
+	if err_Read != nil {
+		fmt.Println("Token location error: ", err_Read)
 	}
 
-	// Reading namespaces file and storing in variable namespaces
-	namespaces, err_Read := ioutil.ReadFile("/run/secrets/kubernetes.io/serviceaccount/namespace")
+	// Reading namespace file and storing in variable namespace
+	namespace, err_Read := ioutil.ReadFile("/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err_Read != nil {
 		fmt.Println("Namespaces location error", err_Read)
 	}
-	config_InfoVars.namespaces = string(namespaces)
+	config_InfoVars.namespace = string(namespace)
 
 	//Reading Ca.Crt File and storing in variable ca_crt
-	config_InfoVars.ca_crt, config_InfoVars.err_Read = ioutil.ReadFile("/run/secrets/kubernetes.io/serviceaccount/ca.crt")
-	if config_InfoVars.err_Read != nil {
-		fmt.Println("Ca.Crt location error: ", config_InfoVars.err_Read)
-	}
+	config_InfoVars.caPath = "/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 
 	return config_InfoVars
-
 }
+
