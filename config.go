@@ -27,10 +27,10 @@ type ServerInfo struct {
 	namespace  string // namespace that this pod's service account is tied to
 }
 
-func Builder() {
+func Builder() ServerInfo {
 
 	//creating config_Info type and storing in a variable
-	var config_InfoVars = config_Info{}
+	var config_InfoVars ServerInfo
 
 	// Reading token file and storing in variable token
 	config_InfoVars.token, config_InfoVars.err_Read = ioutil.ReadFile("/run/secrets/kubernetes.io/serviceaccount/token")
@@ -52,6 +52,8 @@ func Builder() {
 	if config_InfoVars.err_Read != nil {
 		fmt.Println("Ca.Crt location error: ", config_InfoVars.err_Read)
 	}
+
+	return config_InfoVars
 
 }
 
