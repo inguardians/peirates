@@ -26,7 +26,7 @@ type serverInfo struct {
 	rIPAddress string
 	rPort      string
 	token      string //pass token  via command line
-        caPath     string //path to ca certificate
+    caPath     string //path to ca certificate
 }
 
 // Create a global variable named "connectionString" initialized to
