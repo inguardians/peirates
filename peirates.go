@@ -16,30 +16,34 @@ import (
 	"io/ioutil" // Utils for dealing with IO streams
 	"log"       // Logging utils
 	"net/http"  // HTTP client/server
+	"os/exec"
 )
 
 // Struct type definition to contain our options. This is
 // different from the original python code that had each
 // of the options as top-level variables
-type options struct {
+type serverInfo struct {
 	rIPAddress string
 	rPort      string
-	infoPods   bool
+	token      string //pass token  via command line
+        caPath     string //path to ca certificate
 }
 
-// Create a global variable named "opts" initialized to
+// Create a global variable named "connectionString" initialized to
 // default values
-var opts = options{}
+var connectionString = serverInfo{}
 
 // Function to parse options. We call it in main()
 func parseOptions() {
 	// This is like the parser.add_option stuff except
 	// it works implicitly on a global parser instance.
-	// Notice the use of pointers (&opts.rIPAddress for
+	// Notice the use of pointers (&connectionString.rIPAddress for
 	// example) to bind flags to variables
-	flag.StringVar(&opts.rIPAddress, "i", "127.0.0.1", "Remote IP address: ex. 10.22.34.67")
-	flag.StringVar(&opts.rPort, "p", "6443", "Remote Port: ex 10255, 10250")
-	flag.BoolVar(&opts.infoPods, "e", false, "Export pod information from remote Kubernetes server via curl")
+	flag.StringVar(&connectionString.rIPAddress, "i", "127.0.0.1", "Remote IP address: ex. 10.22.34.67")
+	flag.StringVar(&connectionString.rPort, "p", "6443", "Remote Port: ex 10255, 10250")
+//	flag.BoolVar(&connectionString.infoPods, "e", false, "Export pod information from remote Kubernetes server via curl")
+	flag.StringVar(&connectionString.token, "t", "", "Token to be used for accessing Kubernetes server")
+	flag.StringVar(&connectionString.caPath, "c", "", "Path to CA certificate")
 
 	// This is the function that actually runs the parser
 	// once you've defined all your options.
@@ -48,24 +52,42 @@ func parseOptions() {
 	// If the IP or Port are their empty string, we want
 	// to just print out usage and crash because they have
 	// to be defined
-	if opts.rIPAddress == "" {
+	if connectionString.rIPAddress == "" {
 		// flag.Usage() prints out an auto-generated usage string.
 		flag.Usage()
 		// log.Fatal prints a message to stderr and crashes the program.
 		log.Fatal("Error: must provide remote IP address (-i)")
 	}
-	if opts.rPort == "" {
+	if connectionString.rPort == "" {
 		// Same as before
 		flag.Usage()
 		log.Fatal("Error: must provide remote Port (-p)")
 	}
 }
 
+func getHostname(PodName string){
+	out, err := exec.Command("kubectl", "--token="+connectionString.token, "--certificate-authority="+connectionString.caPath, "--server=https://"+connectionString.rIPAddress+":"+connectionString.rPort,"exec", "-it", PodName, "hostname").Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+	println("Hostname of pod is: " + string(out))
+}
+
+func createPods(){
+	out, err := exec.Command("kubectl", "--token="+connectionString.token, "--certificate-authority="+connectionString.caPath, "--server=https://"+connectionString.rIPAddress+":"+connectionString.rPort,"auth", "can-i", "create", "pod").Output()
+        if err != nil {
+                log.Fatal(err)
+        }
+        println("Can this token create pods: " + string(out))
+
+}
+
+
 // Here's the requestme equivalent.
 func requestme(location string) {
 	// Make a request, getting a response and possibly an error.
 	// fmt.Sprintf is a function which acts like printf() except it returns a string.
-	res, err := http.Get(fmt.Sprintf("http://%s:%s/%s", opts.rIPAddress, opts.rPort, location))
+	res, err := http.Get(fmt.Sprintf("http://%s:%s/%s", connectionString.rIPAddress, connectionString.rPort, location))
 
 	// These three lines are a common idiom when you just want to crash if an error happens.
 	if err != nil {
@@ -92,14 +114,16 @@ func requestme(location string) {
 }
 
 func main() {
-	// Run the option parser to initialize opts
+	// Run the option parser to initialize connectionStrings
+	println("\n\nStarting periates...")
 	parseOptions()
-
+	getHostname("attack-daemonset-6fmjc")
+	createPods()
 	// This part is direct conversion from the python
 	// Note that we use println() instead of print().
 	// In go, print() does not add a newline while
 	// println() does.
-	if opts.infoPods {
+/*	if connectionString.infoPods {
 		requestme("pods")
 		println("---------------------------")
 		println("Extracting Pods via Curl  | ")
@@ -112,7 +136,7 @@ func main() {
 		requestme("metrics")
 		requestme("healthz")
 	}
-
+*/
 }
 
 // Example of a multi-line comment
