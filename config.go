@@ -3,7 +3,7 @@
 // Locations of the svc account and token for i/o reads
 // account token -  /run/secrets/kubernetes.io/serviceaccount
 // name space
-package main
+package config
 
 import (
 	//	"os/exec"
