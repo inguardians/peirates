@@ -6,18 +6,25 @@
 package main
 
 import (
-//	"os/exec"
+	//	"os/exec"
 	"fmt"
 	"io/ioutil"
 )
 
-type config_Info struct {
-	token []byte
-	ca_crt []byte
-	namespaces []byte
-	my_config string
-	err_Read error
-	err_Write error
+// WAS
+// type Config_Info struct {
+//	token       []byte
+//	ca_crt_path []byte
+//	namespaces  []byte
+//	my_config   string
+//	}
+
+type serverInfo struct {
+	rIPAddress string
+	rPort      string
+	token      string // token ASCII text
+	caPath     string // path to ca certificate
+	namespace  string // namespace that this pod's service account is tied to
 }
 
 func Builder() {
@@ -34,10 +41,11 @@ func Builder() {
 	}
 
 	// Reading namespaces file and storing in variable namespaces
-	config_InfoVars.namespaces, config_InfoVars.err_Read = ioutil.ReadFile("/run/secrets/kubernetes.io/serviceaccount/namespace")
-	if config_InfoVars.err_Read != nil {
-		fmt.Println("Namespaces location error", config_InfoVars.err_Read)
+	namespaces, err_Read := ioutil.ReadFile("/run/secrets/kubernetes.io/serviceaccount/namespace")
+	if err_Read != nil {
+		fmt.Println("Namespaces location error", err_Read)
 	}
+	config_InfoVars.namespaces = string(namespaces)
 
 	//Reading Ca.Crt File and storing in variable ca_crt
 	config_InfoVars.ca_crt, config_InfoVars.err_Read = ioutil.ReadFile("/run/secrets/kubernetes.io/serviceaccount/ca.crt")
@@ -45,15 +53,10 @@ func Builder() {
 		fmt.Println("Ca.Crt location error: ", config_InfoVars.err_Read)
 	}
 
-	//Creating variable to write to file output
-	config_InfoVars.my_config = fmt.Sprintf("KUBE_TOKEN=%s\nKUBE_NAMESPACES=%s\nKUBE_CA_CRT=%s", string(config_InfoVars.token), string(config_InfoVars.namespaces), string(config_InfoVars.ca_crt))
-
-	//Output config to specified location
-	ioutil.WriteFile(".peirates.conf", []byte(config_InfoVars.my_config), 0700)
 }
+
 // Main Fucntion of the program
 
 func main() {
 	Builder()
 }
-
