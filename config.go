@@ -56,9 +56,3 @@ func Builder() ServerInfo {
 	return config_InfoVars
 
 }
-
-// Main Fucntion of the program
-
-func main() {
-	Builder()
-}
