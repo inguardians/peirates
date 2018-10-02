@@ -18,22 +18,25 @@ import (
 	"net/http"  // HTTP client/server
 	"os/exec"
 	"strings"
+
+	// Packages belonging to Peirates go here
+	"config"
 )
 
 // Struct type definition to contain our options. This is
 // different from the original python code that had each
 // of the options as top-level variables
-type ServerInfo struct {
-	rIPAddress string
-	rPort      string
-	token      string //pass token  via command line
-	caPath     string //path to ca certificate
-	namespace  string // namespace that this pod's service account is tied to
-}
+// type ServerInfo struct {
+// 	rIPAddress string
+// 	rPort      string
+// 	token      string //pass token  via command line
+// 	caPath     string //path to ca certificate
+// 	namespace  string // namespace that this pod's service account is tied to
+// }
 
 // Create a global variable named "connectionString" initialized to
 // default values
-var connectionString = serverInfo{}
+var connectionString := config.Builder()
 
 // Function to parse options. We call it in main()
 func parseOptions() {
