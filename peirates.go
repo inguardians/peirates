@@ -1,5 +1,9 @@
+// Peirates - an Attack tool for Kubernetes clusters
+//
 // You need to use "package main" for executables
+//
 // BTW always run `go fmt` before you check in code. go fmt is law.
+//
 package main
 
 // Imports. If you don't use an import that's an error so
