@@ -17,6 +17,7 @@ import (
 	"log"       // Logging utils
 	"net/http"  // HTTP client/server
 	"os/exec"
+	"strings"
 )
 
 // Struct type definition to contain our options. This is
@@ -82,6 +83,17 @@ func createPods(){
 
 }
 
+func inAPod(){
+        out, err := exec.Command("mount").Output()
+        if err != nil {
+                log.Fatal(err)
+        }
+	mountout:= string(out)
+	inpod := strings.Contains(mountout,"kubernetes")
+	println("Are we currently running on a pod: ", inpod)
+
+}
+
 
 // Here's the requestme equivalent.
 func requestme(location string) {
@@ -119,6 +131,7 @@ func main() {
 	parseOptions()
 	getHostname("attack-daemonset-6fmjc")
 	createPods()
+	inAPod()
 	// This part is direct conversion from the python
 	// Note that we use println() instead of print().
 	// In go, print() does not add a newline while
