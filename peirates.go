@@ -70,12 +70,12 @@ func parseOptions() {
 	}
 }
 
-// getPods() returns an array of pod names, parsed from kubectl get pods
-func getPods() []string {
+// get_pod_list() returns an array of pod names, parsed from kubectl get pods
+func get_pod_list() []string {
 
 	var pods []string
 
-	get_pods_raw, err := exec.Command("kubectl", "--token="+connectionString.token, "--certificate-authority="+connectionString.caPath, "--server=https://"+connectionString.rIPAddress+":"+connectionString.rPort, "get", "pods").Output()
+	get_pods_raw, err := exec.Command("kubectl", "-n",namespace,"--token="+connectionString.token, "--certificate-authority="+connectionString.caPath, "--server=https://"+connectionString.rIPAddress+":"+connectionString.rPort, "get", "pods").Output() 
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -85,13 +85,14 @@ func getPods() []string {
 	for _, line := range get_pods_lines {
 		pod := strings.Fields(line)[0]
 		println(pod)
+		// Later, add  if pod == "NAME" then don't append
 		pods = append(pods, pod)
 	}
 	return pods
 }
 
 func getHostname(PodName string) {
-	out, err := exec.Command("kubectl", "--token="+connectionString.token, "--certificate-authority="+connectionString.caPath, "--server=https://"+connectionString.rIPAddress+":"+connectionString.rPort, "exec", "-it", PodName, "hostname").Output()
+	out, err := exec.Command("kubectl", "-n",namespace,"--token="+connectionString.token, "--certificate-authority="+connectionString.caPath, "--server=https://"+connectionString.rIPAddress+":"+connectionString.rPort, "exec", "-it", PodName, "hostname").Output()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -99,7 +100,7 @@ func getHostname(PodName string) {
 }
 
 func createPods() {
-	out, err := exec.Command("kubectl", "--token="+connectionString.token, "--certificate-authority="+connectionString.caPath, "--server=https://"+connectionString.rIPAddress+":"+connectionString.rPort, "auth", "can-i", "create", "pod").Output()
+	out, err := exec.Command("kubectl", "-n",namespace,"--token="+connectionString.token, "--certificate-authority="+connectionString.caPath, "--server=https://"+connectionString.rIPAddress+":"+connectionString.rPort, "auth", "can-i", "create", "pod").Output()
 	if err != nil {
 		log.Fatal(err)
 	}
