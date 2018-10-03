@@ -96,6 +96,7 @@ func get_pod_list(connectionString config.ServerInfo) []string {
 	return pods
 }
 
+// getHostname() runs kubectl with connection string to get hostname from pod
 func getHostname(connectionString config.ServerInfo, PodName string) {
 	println("DEBUG: started getHostname on " + PodName)
 	println("DEBUG: about to run")
@@ -108,6 +109,7 @@ func getHostname(connectionString config.ServerInfo, PodName string) {
 	}
 }
 
+// createPods() runs kubectlt to check if current token can create a pod
 func createPods(connectionString config.ServerInfo) {
 	out, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "auth", "can-i", "create", "pod").Output()
 	if err != nil {
@@ -118,6 +120,7 @@ func createPods(connectionString config.ServerInfo) {
 
 }
 
+// inAPod() runs mount on the local system and then checks if output contains kubernetes
 func inAPod(connectionString config.ServerInfo) {
 	out, err := exec.Command("mount").Output()
 	if err != nil {
