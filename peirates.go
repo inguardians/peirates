@@ -98,9 +98,6 @@ func get_pod_list(connectionString config.ServerInfo) []string {
 
 // getHostname() runs kubectl with connection string to get hostname from pod
 func getHostname(connectionString config.ServerInfo, PodName string) {
-	println("DEBUG: started getHostname on " + PodName)
-	println("DEBUG: about to run")
-	println("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "exec", "-it", PodName, "hostname")
 	out, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "exec", "-it", PodName, "hostname").Output()
 	if err != nil {
 		fmt.Println("Checking for hostname of pod "+PodName+" failed: ", err)
