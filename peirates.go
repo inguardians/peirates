@@ -86,9 +86,12 @@ func get_pod_list(connectionString config.ServerInfo) []string {
 			log.Fatal(err)
 		}
 		if !matched {
-			pod := strings.Fields(line)[0]
-			if pod != "NAME" {
-				pods = append(pods, pod)
+			//added checking to only enumerate running pods
+			if strings.Fields(line)[2] == "Running" {
+				pod := strings.Fields(line)[0]
+				if pod != "NAME" {
+					pods = append(pods, pod)
+				}
 			}
 		}
 	}
