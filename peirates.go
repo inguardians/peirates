@@ -19,9 +19,11 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+    "os"
 
     // kubernetes client
-    "k8s.io/client-go/tools/clientcmd"
+    //"k8s.io/client-go/tools/clientcmd"
+    kubectl "k8s.io/kubernetes/pkg/kubectl/cmd"
 
 	// Packages belonging to Peirates go here
 	"gitlab.inguardians.com/agents/peirates/config"
@@ -113,18 +115,31 @@ func getHostname(connectionString config.ServerInfo, PodName string) string {
 	}
 }
 
-func execCommand() {
-    //RESTConfigFromKubeConfig
-    loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-    cfg, err := loadingRules.DefaultClientConfig.RawConfig()
+func execCommand(cfg config.ServerInfo, podName string) {
+	cmdArgs := []string{
+		"exec", "-i",
+        "--token=" + cfg.Token,
+        "--certificate-authority=" + cfg.CAPath,
+        "--server=https://" + cfg.RIPAddress + ":" + cfg.RPort,
+        podName,
+        "hostname",
+	}
+	cmd := kubectl.NewDefaultKubectlCommandWithArgs(nil, cmdArgs, os.Stdin, os.Stdout, os.Stderr)
+    err := cmd.Execute()
     if err != nil {
-        log.Fatal("Error: could not load default config")
-    }
-    clientConfig := clientcmd.NewDefaultClientConfig(cfg, nil)
-    // TODO make this set the host and port please!!
+        log.Fatal(err)
+	}
+	//RESTConfigFromKubeConfig
+	//loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	//cfg, err := loadingRules.DefaultClientConfig.RawConfig()
+	//if err != nil {
+	//log.Fatal("Error: could not load default config")
+	//}
+	//clientConfig := clientcmd.NewDefaultClientConfig(cfg, nil)
+	// TODO make this set the host and port please!!
 
-    // TODO manual error handling with NewForConfig instead of NewForConfigOrDie
-    clientset := kubernetes.NewForConfigOrDie(config)
+	// TODO manual error handling with NewForConfig instead of NewForConfigOrDie
+	//clientset := kubernetes.NewForConfigOrDie(config)
 }
 
 // canCreatePods() runs kubectl to check if current token can create a pod
@@ -214,6 +229,12 @@ func main() {
 	} else {
 		println(" This token cannot create pods on the cluster")
 	}
+
+    for _, pod := range all_pods {
+        println("Testing `hostname` execution via kubectl library: ")
+        println("Testing against pod: " + pod)
+        execCommand(connectionString, pod)
+    }
 	// This part is direct conversion from the python
 	// Note that we use println() instead of print().
 	// In go, print() does not add a newline while
