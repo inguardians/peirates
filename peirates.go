@@ -100,35 +100,40 @@ func get_pod_list(connectionString config.ServerInfo) []string {
 }
 
 // getHostname() runs kubectl with connection string to get hostname from pod
-func getHostname(connectionString config.ServerInfo, PodName string) {
-	out, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "exec", "-it", PodName, "hostname").Output()
+func getHostname(connectionString config.ServerInfo, PodName string) string {
+	pod_hostname, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "exec", "-it", PodName, "hostname").Output()
 	if err != nil {
 		fmt.Println("Checking for hostname of pod "+PodName+" failed: ", err)
+		return "- Hostname failed"
 	} else {
-		println("Hostname of pod is: " + string(out))
+		return "+ Hostname is " + string(pod_hostname)
 	}
 }
 
-// createPods() runs kubectlt to check if current token can create a pod
-func createPods(connectionString config.ServerInfo) {
-	out, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "auth", "can-i", "create", "pod").Output()
+// canCreatePods() runs kubectl to check if current token can create a pod
+func canCreatePods(connectionString config.ServerInfo) bool {
+	can_I_raw, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "auth", "can-i", "create", "pod").Output()
 	if err != nil {
-		fmt.Println("Checking for Pod creation failed: ", err)
+		return false
 	} else {
-		println("Can this token create pods: " + string(out))
+		if strings.Contains(string(can_I_raw), "yes") {
+			return true
+		} else {
+			return false
+		}
 	}
 
 }
 
 // inAPod() runs mount on the local system and then checks if output contains kubernetes
-func inAPod(connectionString config.ServerInfo) {
-	out, err := exec.Command("mount").Output()
+func inAPod(connectionString config.ServerInfo) bool {
+	mount_output_bs, err := exec.Command("mount").Output()
 	if err != nil {
 		fmt.Println("Checking if we are running in a Pod failed: ", err)
+		return false
 	} else {
-		mountout := string(out)
-		inpod := strings.Contains(mountout, "kubernetes")
-		println("Are we currently running on a pod: ", inpod)
+		mount_output := string(mount_output_bs)
+		return strings.Contains(mount_output, "kubernetes")
 	}
 
 }
@@ -173,15 +178,25 @@ func main() {
 	println("\n\nStarting periates...")
 	parseOptions(&connectionString)
 
+	if inAPod(connectionString) {
+		println("+ You are in a pod.")
+	} else {
+		println("- You are not in a Kubernetes pod.")
+	}
+
 	all_pods := get_pod_list(connectionString)
 
 	for _, pod := range all_pods {
 		println("Checking out pod: " + pod)
-		getHostname(connectionString, pod)
+		println(getHostname(connectionString, pod))
 	}
 
-	createPods(connectionString)
-	inAPod(connectionString)
+	pod_creation := canCreatePods(connectionString)
+	if pod_creation {
+		println("- This token can create pods on the cluster")
+	} else {
+		println(" This token cannot create pods on the cluster")
+	}
 	// This part is direct conversion from the python
 	// Note that we use println() instead of print().
 	// In go, print() does not add a newline while
