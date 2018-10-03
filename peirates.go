@@ -17,6 +17,7 @@ import (
 	"log"       // Logging utils
 	"net/http"  // HTTP client/server
 	"os/exec"
+	"regexp"
 	"strings"
 
 	// Packages belonging to Peirates go here
@@ -80,17 +81,25 @@ func get_pod_list(connectionString config.ServerInfo) []string {
 
 	get_pods_lines := strings.Split(string(get_pods_raw), "\n")
 	for _, line := range get_pods_lines {
-		pod := strings.Fields(line)[0]
-		println(pod)
-		// Later, add  if pod == "NAME" then don't append
-		pods = append(pods, pod)
+		matched, err := regexp.MatchString(`^\s*$`, line)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if !matched {
+			pod := strings.Fields(line)[0]
+			if pod != "NAME" {
+				pods = append(pods, pod)
+			}
+		}
 	}
-	println("Made it as far as returning pods")
-	println(pods)
+
 	return pods
 }
 
 func getHostname(connectionString config.ServerInfo, PodName string) {
+	println("DEBUG: started getHostname on " + PodName)
+	println("DEBUG: about to run")
+	println("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "exec", "-it", PodName, "hostname")
 	out, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "exec", "-it", PodName, "hostname").Output()
 	if err != nil {
 		log.Fatal(err)
@@ -161,8 +170,10 @@ func main() {
 	all_pods := get_pod_list(connectionString)
 
 	for _, pod := range all_pods {
+		println("Checking out pod: " + pod)
 		getHostname(connectionString, pod)
 	}
+
 	createPods(connectionString)
 	inAPod(connectionString)
 	// This part is direct conversion from the python
