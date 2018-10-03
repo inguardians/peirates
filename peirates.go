@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	// Packages belonging to Peirates go here
-	"config"
+	"gitlab.inguardians.com/agents/peirates/config"
 )
 
 // Struct type definition to contain our options. This is
