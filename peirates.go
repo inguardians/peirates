@@ -20,6 +20,9 @@ import (
 	"regexp"
 	"strings"
 
+    // kubernetes client
+    "k8s.io/client-go/tools/clientcmd"
+
 	// Packages belonging to Peirates go here
 	"gitlab.inguardians.com/agents/peirates/config"
 )
@@ -108,6 +111,20 @@ func getHostname(connectionString config.ServerInfo, PodName string) string {
 	} else {
 		return "+ Hostname is " + string(pod_hostname)
 	}
+}
+
+func execCommand() {
+    //RESTConfigFromKubeConfig
+    loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+    cfg, err := loadingRules.DefaultClientConfig.RawConfig()
+    if err != nil {
+        log.Fatal("Error: could not load default config")
+    }
+    clientConfig := clientcmd.NewDefaultClientConfig(cfg, nil)
+    // TODO make this set the host and port please!!
+
+    // TODO manual error handling with NewForConfig instead of NewForConfigOrDie
+    clientset := kubernetes.NewForConfigOrDie(config)
 }
 
 // canCreatePods() runs kubectl to check if current token can create a pod
