@@ -102,28 +102,31 @@ func getHostname(connectionString config.ServerInfo, PodName string) {
 	println("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "exec", "-it", PodName, "hostname")
 	out, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "exec", "-it", PodName, "hostname").Output()
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("Checking for hostname of pod "+PodName+" failed: ", err)
+	} else {
+		println("Hostname of pod is: " + string(out))
 	}
-	println("Hostname of pod is: " + string(out))
 }
 
 func createPods(connectionString config.ServerInfo) {
 	out, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "auth", "can-i", "create", "pod").Output()
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("Checking for Pod creation failed: ", err)
+	} else {
+		println("Can this token create pods: " + string(out))
 	}
-	println("Can this token create pods: " + string(out))
 
 }
 
 func inAPod(connectionString config.ServerInfo) {
 	out, err := exec.Command("mount").Output()
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("Checking if we are running in a Pod failed: ", err)
+	} else {
+		mountout := string(out)
+		inpod := strings.Contains(mountout, "kubernetes")
+		println("Are we currently running on a pod: ", inpod)
 	}
-	mountout := string(out)
-	inpod := strings.Contains(mountout, "kubernetes")
-	println("Are we currently running on a pod: ", inpod)
 
 }
 
