@@ -27,28 +27,25 @@ import (
 // different from the original python code that had each
 // of the options as top-level variables
 // type ServerInfo struct {
-// 	rIPAddress string
-// 	rPort      string
-// 	token      string //pass token  via command line
-// 	caPath     string //path to ca certificate
-// 	namespace  string // namespace that this pod's service account is tied to
+// 	RIPAddress string
+// 	RPort      string
+// 	Token      string //pass token  via command line
+// 	CAPath     string //path to ca certificate
+// 	Namespace  string // namespace that this pod's service account is tied to
 // }
 
-// Create a global variable named "connectionString" initialized to
-// default values
-var connectionString := config.Builder()
-
 // Function to parse options. We call it in main()
-func parseOptions() {
+func parseOptions(connectionString *config.ServerInfo) {
 	// This is like the parser.add_option stuff except
 	// it works implicitly on a global parser instance.
-	// Notice the use of pointers (&connectionString.rIPAddress for
+	// Notice the use of pointers (&connectionString.RIPAddress for
 	// example) to bind flags to variables
-	flag.StringVar(&connectionString.rIPAddress, "i", "127.0.0.1", "Remote IP address: ex. 10.22.34.67")
-	flag.StringVar(&connectionString.rPort, "p", "6443", "Remote Port: ex 10255, 10250")
-	//	flag.BoolVar(&connectionString.infoPods, "e", false, "Export pod information from remote Kubernetes server via curl")
-	flag.StringVar(&connectionString.token, "t", "", "Token to be used for accessing Kubernetes server")
-	flag.StringVar(&connectionString.caPath, "c", "", "Path to CA certificate")
+	flag.StringVar(&connectionString.RIPAddress, "i", "10.23.58.40", "Remote IP address: ex. 10.22.34.67")
+	flag.StringVar(&connectionString.RPort, "p", "6443", "Remote Port: ex 10255, 10250")
+	// flag.BoolVar(&connectionString.infoPods, "e", false, "Export pod information from remote Kubernetes server via curl")
+	println("FIXME: parseOptions clobbers config.Builder()")
+	// flag.StringVar(&connectionString.Token, "t", "", "Token to be used for accessing Kubernetes server")
+	// flag.StringVar(&connectionString.CAPath, "c", "", "Path to CA certificate")
 
 	// This is the function that actually runs the parser
 	// once you've defined all your options.
@@ -57,13 +54,13 @@ func parseOptions() {
 	// If the IP or Port are their empty string, we want
 	// to just print out usage and crash because they have
 	// to be defined
-	if connectionString.rIPAddress == "" {
+	if connectionString.RIPAddress == "" {
 		// flag.Usage() prints out an auto-generated usage string.
 		flag.Usage()
 		// log.Fatal prints a message to stderr and crashes the program.
 		log.Fatal("Error: must provide remote IP address (-i)")
 	}
-	if connectionString.rPort == "" {
+	if connectionString.RPort == "" {
 		// Same as before
 		flag.Usage()
 		log.Fatal("Error: must provide remote Port (-p)")
@@ -71,11 +68,11 @@ func parseOptions() {
 }
 
 // get_pod_list() returns an array of pod names, parsed from kubectl get pods
-func get_pod_list() []string {
+func get_pod_list(connectionString config.ServerInfo) []string {
 
 	var pods []string
 
-	get_pods_raw, err := exec.Command("kubectl", "-n",namespace,"--token="+connectionString.token, "--certificate-authority="+connectionString.caPath, "--server=https://"+connectionString.rIPAddress+":"+connectionString.rPort, "get", "pods").Output() 
+	get_pods_raw, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "get", "pods").Output()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -88,19 +85,21 @@ func get_pod_list() []string {
 		// Later, add  if pod == "NAME" then don't append
 		pods = append(pods, pod)
 	}
+	println("Made it as far as returning pods")
+	println(pods)
 	return pods
 }
 
-func getHostname(PodName string) {
-	out, err := exec.Command("kubectl", "-n",namespace,"--token="+connectionString.token, "--certificate-authority="+connectionString.caPath, "--server=https://"+connectionString.rIPAddress+":"+connectionString.rPort, "exec", "-it", PodName, "hostname").Output()
+func getHostname(connectionString config.ServerInfo, PodName string) {
+	out, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "exec", "-it", PodName, "hostname").Output()
 	if err != nil {
 		log.Fatal(err)
 	}
 	println("Hostname of pod is: " + string(out))
 }
 
-func createPods() {
-	out, err := exec.Command("kubectl", "-n",namespace,"--token="+connectionString.token, "--certificate-authority="+connectionString.caPath, "--server=https://"+connectionString.rIPAddress+":"+connectionString.rPort, "auth", "can-i", "create", "pod").Output()
+func createPods(connectionString config.ServerInfo) {
+	out, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "auth", "can-i", "create", "pod").Output()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -108,7 +107,7 @@ func createPods() {
 
 }
 
-func inAPod() {
+func inAPod(connectionString config.ServerInfo) {
 	out, err := exec.Command("mount").Output()
 	if err != nil {
 		log.Fatal(err)
@@ -120,10 +119,10 @@ func inAPod() {
 }
 
 // Here's the requestme equivalent.
-func requestme(location string) {
+func requestme(connectionString config.ServerInfo, location string) {
 	// Make a request, getting a response and possibly an error.
 	// fmt.Sprintf is a function which acts like printf() except it returns a string.
-	res, err := http.Get(fmt.Sprintf("http://%s:%s/%s", connectionString.rIPAddress, connectionString.rPort, location))
+	res, err := http.Get(fmt.Sprintf("http://%s:%s/%s", connectionString.RIPAddress, connectionString.RPort, location))
 
 	// These three lines are a common idiom when you just want to crash if an error happens.
 	if err != nil {
@@ -150,15 +149,22 @@ func requestme(location string) {
 }
 
 func main() {
+
+	// Create a global variable named "connectionString" initialized to
+	// default values
+	var connectionString config.ServerInfo = config.Builder()
+
 	// Run the option parser to initialize connectionStrings
 	println("\n\nStarting periates...")
-	parseOptions()
-	all_pods := get_pod_list()
+	parseOptions(&connectionString)
+
+	all_pods := get_pod_list(connectionString)
+
 	for _, pod := range all_pods {
-		getHostname(pod)
+		getHostname(connectionString, pod)
 	}
-	createPods()
-	inAPod()
+	createPods(connectionString)
+	inAPod(connectionString)
 	// This part is direct conversion from the python
 	// Note that we use println() instead of print().
 	// In go, print() does not add a newline while
