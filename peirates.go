@@ -11,8 +11,9 @@ package main
 // Also, number one rule of Go: Try to stick to the
 // standard library as much as possible
 import (
-	"flag"      // Command line flag parsing
-	"fmt"       // String formatting (Printf, Sprintf)
+	"flag" // Command line flag parsing
+	"fmt"  // String formatting (Printf, Sprintf)
+	"io"
 	"io/ioutil" // Utils for dealing with IO streams
 	"log"       // Logging utils
 	"math/rand" // Random module for creating random string building
@@ -21,11 +22,10 @@ import (
 	"regexp"
 	"strings"
 	"time" // Time modules
-    "io"
 
-    // kubernetes client
-    //"k8s.io/client-go/tools/clientcmd"
-    kubectl "k8s.io/kubernetes/pkg/kubectl/cmd"
+	// kubernetes client
+	//"k8s.io/client-go/tools/clientcmd"
+	kubectl "k8s.io/kubernetes/pkg/kubectl/cmd"
 
 	// Packages belonging to Peirates go here
 	"gitlab.inguardians.com/agents/peirates/config"
@@ -122,49 +122,49 @@ func getHostname(connectionString config.ServerInfo, PodName string) string {
 func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
 	// Based on code from https://github.com/kubernetes/kubernetes/blob/2e0e1681a6ca7fe795f3bd5ec8696fb14687b9aa/cmd/kubectl/kubectl.go#L44
 
-    // NewKubectlCommand adds the global flagset for some reason, so we have to
-    // copy it, temporarily replace it, and then restore it.
-    oldFlagSet := flag.CommandLine
-    flag.CommandLine = flag.NewFlagSet("kubectl", flag.ExitOnError)
-    cmd := kubectl.NewKubectlCommand(stdin, stdout, stderr)
-    flag.CommandLine = oldFlagSet
-    cmd.SetArgs(cmdArgs)
-    return cmd.Execute()
+	// NewKubectlCommand adds the global flagset for some reason, so we have to
+	// copy it, temporarily replace it, and then restore it.
+	oldFlagSet := flag.CommandLine
+	flag.CommandLine = flag.NewFlagSet("kubectl", flag.ExitOnError)
+	cmd := kubectl.NewKubectlCommand(stdin, stdout, stderr)
+	flag.CommandLine = oldFlagSet
+	cmd.SetArgs(cmdArgs)
+	return cmd.Execute()
 }
 
 // runKubectlWithConfig takes a server config, and a list of arguments. It executes kubectl internally,
 // setting the namespace, token, certificate authority, and server based on the provided config, and
 // appending the supplied arguments to the end of the command.
 func runKubectlWithConfig(cfg config.ServerInfo, stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
-    connArgs := []string{
+	connArgs := []string{
 		"-n", cfg.Namespace,
 		"--token=" + cfg.Token,
 		"--certificate-authority=" + cfg.CAPath,
 		"--server=https://" + cfg.RIPAddress + ":" + cfg.RPort,
-    }
-    return runKubectl(stdin, stdout, stderr, append(connArgs, cmdArgs...)...)
+	}
+	return runKubectl(stdin, stdout, stderr, append(connArgs, cmdArgs...)...)
 }
 
 // runKubectlSimple executes runKubectlWithConfig, but supplies nothing for stdin, and aggregates
 // the stdout and stderr streams into strings. It returns (stdout, stderr, execution error).
 // This function is what you want to use most of the time.
 func runKubectlSimple(cfg config.ServerInfo, cmdArgs ...string) (string, string, error) {
-    stdin := strings.NewReader("")
-    stdout := strings.Builder{}
-    stderr := strings.Builder{}
+	stdin := strings.NewReader("")
+	stdout := strings.Builder{}
+	stderr := strings.Builder{}
 
-    err := runKubectlWithConfig(cfg, stdin, &stdout, &stderr, cmdArgs...)
+	err := runKubectlWithConfig(cfg, stdin, &stdout, &stderr, cmdArgs...)
 
-    return stdout.String(), stderr.String(), err
+	return stdout.String(), stderr.String(), err
 }
 
 func runKubectlExec(cfg config.ServerInfo, pod string, cmdArgs ...string) (string, string, error) {
-    execArgs := []string {
-        "exec",
-        "-it",
-        pod,
-    }
-    return runKubectlSimple(cfg, append(execArgs, cmdArgs...)...)
+	execArgs := []string{
+		"exec",
+		"-it",
+		pod,
+	}
+	return runKubectlSimple(cfg, append(execArgs, cmdArgs...)...)
 }
 
 // canCreatePods() runs kubectl to check if current token can create a pod
@@ -394,12 +394,12 @@ func main() {
 		println(" This token cannot create pods on the cluster")
 	}
 
-    println("Testing `hostname` execution via kubectl library: ")
-    for _, pod := range all_pods {
-        println("Testing against pod: " + pod)
-        host, _, _ := runKubectlExec(connectionString, pod, "hostname")
-        print(host)
-    }
+	println("Testing `hostname` execution via kubectl library: ")
+	for _, pod := range all_pods {
+		println("Testing against pod: " + pod)
+		host, _, _ := runKubectlExec(connectionString, pod, "hostname")
+		print(host)
+	}
 
 	Mount_RootFS(all_pods, connectionString)
 
