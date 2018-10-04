@@ -26,6 +26,7 @@ import (
     // kubernetes client
     //"k8s.io/client-go/tools/clientcmd"
     kubectl "k8s.io/kubernetes/pkg/kubectl/cmd"
+    "github.com/spf13/pflag"
 
 	// Packages belonging to Peirates go here
 	"gitlab.inguardians.com/agents/peirates/config"
@@ -135,11 +136,23 @@ func (h *defaultPluginHandler) Lookup(filename string) (string, error) {
 func (h *defaultPluginHandler) Execute(executablePath string, cmdArgs, environment []string) error {
 	return syscall.Exec(executablePath, cmdArgs, environment)
 }
+// === End Copy
+
+// Copied from https://github.com/kubernetes/apiserver/blob/e9e4beec4b157a40f6c742782d74faf45c2b280e/pkg/util/flag/flags.go#L27
+func wordSepNormalizeFunc(f *pflag.FlagSet, name string) pflag.NormalizedName {
+	if strings.Contains(name, "_") {
+		return pflag.NormalizedName(strings.Replace(name, "_", "-", -1))
+	}
+	return pflag.NormalizedName(name)
+}
+
+
 // === End copy
 
 func execCommand(cfg config.ServerInfo, podName string) {
+	// Based on code from https://github.com/kubernetes/kubernetes/blob/2e0e1681a6ca7fe795f3bd5ec8696fb14687b9aa/cmd/kubectl/kubectl.go#L44
 	cmdArgs := []string{
-        "kubectl",
+        //"kubectl",
 		"-n", cfg.Namespace,
 		"--token=" + cfg.Token,
 		"--certificate-authority=" + cfg.CAPath,
@@ -149,7 +162,24 @@ func execCommand(cfg config.ServerInfo, podName string) {
 		podName,
 		"hostname",
 	}
-	cmd := kubectl.NewDefaultKubectlCommandWithArgs(&defaultPluginHandler{}, cmdArgs, os.Stdin, os.Stdout, os.Stderr)
+    //flagSet := flag.NewFlagSet(cmdArgs[0], flag.ExitOnError)
+
+	//cmd := kubectl.NewDefaultKubectlCommandWithArgs(&defaultPluginHandler{}, cmdArgs, os.Stdin, os.Stdout, os.Stderr)
+    // NewKubectlCommand adds the global flagset for some reason, so we have to
+    // copy it, temporarily replace it, and then set it back.
+    oldFlagSet := flag.CommandLine
+    flag.CommandLine = flag.NewFlagSet("kubectl", flag.ExitOnError)
+    cmd := kubectl.NewKubectlCommand(os.Stdin, os.Stdout, os.Stderr)
+    flag.CommandLine = oldFlagSet
+
+
+    // kubectl operates with the global pflag CommandLine instance, so we always need to
+    // re-initialize it before running kubectl
+    pflag.CommandLine = pflag.NewFlagSet("kubectl", pflag.ExitOnError)
+	pflag.CommandLine.SetNormalizeFunc(wordSepNormalizeFunc)
+    cmd.SetArgs(cmdArgs)
+	//pflag.CommandLine.AddGoFlagSet(flagSet)
+
     err := cmd.Execute()
     if err != nil {
         log.Fatal(err)
