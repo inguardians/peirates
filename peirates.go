@@ -162,22 +162,20 @@ func execCommand(cfg config.ServerInfo, podName string) {
 		podName,
 		"hostname",
 	}
-    //flagSet := flag.NewFlagSet(cmdArgs[0], flag.ExitOnError)
 
-	//cmd := kubectl.NewDefaultKubectlCommandWithArgs(&defaultPluginHandler{}, cmdArgs, os.Stdin, os.Stdout, os.Stderr)
     // NewKubectlCommand adds the global flagset for some reason, so we have to
     // copy it, temporarily replace it, and then set it back.
     oldFlagSet := flag.CommandLine
     flag.CommandLine = flag.NewFlagSet("kubectl", flag.ExitOnError)
     cmd := kubectl.NewKubectlCommand(os.Stdin, os.Stdout, os.Stderr)
     flag.CommandLine = oldFlagSet
+    cmd.SetArgs(cmdArgs)
 
 
     // kubectl operates with the global pflag CommandLine instance, so we always need to
     // re-initialize it before running kubectl
-    pflag.CommandLine = pflag.NewFlagSet("kubectl", pflag.ExitOnError)
-	pflag.CommandLine.SetNormalizeFunc(wordSepNormalizeFunc)
-    cmd.SetArgs(cmdArgs)
+    //pflag.CommandLine = pflag.NewFlagSet("kubectl", pflag.ExitOnError)
+	//pflag.CommandLine.SetNormalizeFunc(wordSepNormalizeFunc)
 	//pflag.CommandLine.AddGoFlagSet(flagSet)
 
     err := cmd.Execute()
