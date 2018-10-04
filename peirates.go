@@ -11,6 +11,7 @@ package main
 // Also, number one rule of Go: Try to stick to the
 // standard library as much as possible
 import (
+	"bytes"
 	"flag" // Command line flag parsing
 	"fmt"  // String formatting (Printf, Sprintf)
 	"io"
@@ -21,7 +22,6 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
-	"bytes"
 	"time" // Time modules
 
 	// kubernetes client
