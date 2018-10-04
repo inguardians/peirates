@@ -187,6 +187,21 @@ func inAPod(connectionString config.ServerInfo) bool {
 
 }
 
+// execInAllPods() runs CmdToRun in all running pods
+func execInAllPods(connectionString config.ServerInfo, cmdToRun string) {
+	runningPods := get_pod_list(connectionString)
+	for _, execPod := range runningPods {
+		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, cmdToRun)
+		if err != nil {
+			fmt.Println("- Executing "+cmdToRun+" in Pod "+execPod+" failed: ", err)
+		} else {
+			fmt.Println("+ Executing " + cmdToRun + " in Pod " + execPod + " succeded: ")
+			fmt.Println("\t" + string(execInPodOut))
+		}
+	}
+
+}
+
 // Here's the requestme equivalent.
 func requestme(connectionString config.ServerInfo, location string) {
 	// Make a request, getting a response and possibly an error.
@@ -390,6 +405,8 @@ func main() {
 	}
 
 	Mount_RootFS(all_pods, connectionString)
+
+	execInAllPods(connectionString, "id")
 
 	// This part is direct conversion from the python
 	// Note that we use println() instead of print().
