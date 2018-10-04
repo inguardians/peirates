@@ -17,9 +17,11 @@ import (
 	"log"       // Logging utils
 	"net/http"  // HTTP client/server
 	"os/exec"
+	"syscall"
 	"regexp"
 	"strings"
     "os"
+	"runtime"
 
     // kubernetes client
     //"k8s.io/client-go/tools/clientcmd"
@@ -115,16 +117,39 @@ func getHostname(connectionString config.ServerInfo, PodName string) string {
 	}
 }
 
+// === Copied from https://github.com/kubernetes/kubernetes/blob/5589c5b3cb0349319d6e248764d3beafaa5651f3/pkg/kubectl/cmd/cmd.go#L305
+type defaultPluginHandler struct{}
+
+// Lookup implements PluginHandler
+func (h *defaultPluginHandler) Lookup(filename string) (string, error) {
+	// if on Windows, append the "exe" extension
+	// to the filename that we are looking up.
+	if runtime.GOOS == "windows" {
+		filename = filename + ".exe"
+	}
+
+	return exec.LookPath(filename)
+}
+
+// Execute implements PluginHandler
+func (h *defaultPluginHandler) Execute(executablePath string, cmdArgs, environment []string) error {
+	return syscall.Exec(executablePath, cmdArgs, environment)
+}
+// === End copy
+
 func execCommand(cfg config.ServerInfo, podName string) {
 	cmdArgs := []string{
-		"exec", "-i",
-        "--token=" + cfg.Token,
-        "--certificate-authority=" + cfg.CAPath,
-        "--server=https://" + cfg.RIPAddress + ":" + cfg.RPort,
-        podName,
-        "hostname",
+        "kubectl",
+		"-n", cfg.Namespace,
+		"--token=" + cfg.Token,
+		"--certificate-authority=" + cfg.CAPath,
+		"--server=https://" + cfg.RIPAddress + ":" + cfg.RPort,
+		"exec",
+		"-it",
+		podName,
+		"hostname",
 	}
-	cmd := kubectl.NewDefaultKubectlCommandWithArgs(nil, cmdArgs, os.Stdin, os.Stdout, os.Stderr)
+	cmd := kubectl.NewDefaultKubectlCommandWithArgs(&defaultPluginHandler{}, cmdArgs, os.Stdin, os.Stdout, os.Stderr)
     err := cmd.Execute()
     if err != nil {
         log.Fatal(err)
@@ -230,8 +255,8 @@ func main() {
 		println(" This token cannot create pods on the cluster")
 	}
 
+    println("Testing `hostname` execution via kubectl library: ")
     for _, pod := range all_pods {
-        println("Testing `hostname` execution via kubectl library: ")
         println("Testing against pod: " + pod)
         execCommand(connectionString, pod)
     }
