@@ -270,23 +270,19 @@ func Mount_RootFS(all_pods_listme []string, connectionString config.ServerInfo) 
 	//# Parse yaml output to get the image name
 	//image_name = `grep "- image" yaml_output | awk '{print $3}'`
 
-	get_images_raw, _, err := runKubectlSimple(connectionString, "get", "pods", all_pods_listme[3], "-o", "yaml")
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	get_images_raw, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "get", "deployments", "-o", "wide", "--sort-by" ,"metadata.creationTimestamp").Output()
 	get_image_lines := strings.Split(string(get_images_raw), "\n")
-
 	for _, line := range get_image_lines {
-		matched, err := regexp.MatchString(`^\s*- image`, line)
+		matched, err := regexp.MatchString(`^\s*$`, line)
 		if err != nil {
 			log.Fatal(err)
 		}
-		if matched {
+		if !matched {
 			//added checking to only enumerate running pods
-			Mount_InfoVars.image = strings.Fields(line)[2]
+			Mount_InfoVars.image = strings.Fields(line)[7]
+			fmt.Println("[+] This is the Mount_InfoVars.Image output: ", Mount_InfoVars.image)
+			}
 		}
-	}
 
 	if err != nil {
 		log.Fatal(err)
@@ -352,6 +348,10 @@ func main() {
 	// Run the option parser to initialize connectionStrings
 	println(`Peirates
 	________________________________________
+	|  ___  ____ _ ____ ____ ___ ____ ____ |
+	|  |__] |___ | |__/ |__|  |  |___ [__  |
+	|  |    |___ | |  \ |  |  |  |___ ___] |
+	|______________________________________|
 	,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 	,,,,,,,,,,,,,.............:,,,,,,,,,,,,,
 	,,,,,,,,,,...,IIIIIIIIIII+...,,,,,,,,,,,
@@ -441,3 +441,4 @@ https://10.23.58.40:6443/version
 https://10.23.58.40:6443/apis/apps/v1/proxy (500)
 https://10.23.58.40:6443/apis/apps/v1/watch (500)
 */
+
