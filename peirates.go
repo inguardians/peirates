@@ -44,13 +44,15 @@ import (
 // }
 
 // Function to parse options. We call it in main()
-func parseOptions(connectionString *config.ServerInfo) {
+func parseOptions(connectionString *config.ServerInfo, podList *Pod_List) {
 	// This is like the parser.add_option stuff except
 	// it works implicitly on a global parser instance.
 	// Notice the use of pointers (&connectionString.RIPAddress for
 	// example) to bind flags to variables
 	flag.StringVar(&connectionString.RIPAddress, "i", "10.23.58.40", "Remote IP address: ex. 10.22.34.67")
 	flag.StringVar(&connectionString.RPort, "p", "6443", "Remote Port: ex 10255, 10250")
+	flag.StringVar(&podList.arg, "L", "", "List of comma seperated Pods: ex pod1,pod2,pod3")
+	flag.StringVar(&podList.command, "c", "hostname", "Command to run in pods")
 	// flag.BoolVar(&connectionString.infoPods, "e", false, "Export pod information from remote Kubernetes server via curl")
 
 	// JAY / TODO: println("FIXME: parseOptions clobbers config.Builder()")
@@ -76,6 +78,13 @@ func parseOptions(connectionString *config.ServerInfo) {
 		flag.Usage()
 		log.Fatal("Error: must provide remote Port (-p)")
 	}
+
+	if podList.arg != "" {
+		for _, v := range strings.Split(podList.arg, ",") {
+			podList.list = append(podList.list, v)
+		}
+	}
+
 }
 
 // get_pod_list() returns an array of pod names, parsed from kubectl get pods
@@ -187,15 +196,31 @@ func inAPod(connectionString config.ServerInfo) bool {
 
 }
 
-// execInAllPods() runs CmdToRun in all running pods
-func execInAllPods(connectionString config.ServerInfo, cmdToRun string) {
+// execInAllPods() runs podList.command in all running pods
+func execInAllPods(connectionString config.ServerInfo, podList Pod_List) {
 	runningPods := get_pod_list(connectionString)
 	for _, execPod := range runningPods {
-		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, cmdToRun)
+		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, podList.command)
 		if err != nil {
-			fmt.Println("- Executing "+cmdToRun+" in Pod "+execPod+" failed: ", err)
+			fmt.Println("- Executing "+podList.command+" in Pod "+execPod+" failed: ", err)
 		} else {
-			fmt.Println("+ Executing " + cmdToRun + " in Pod " + execPod + " succeded: ")
+			fmt.Println("+ Executing " + podList.command + " in Pod " + execPod + " succeded: ")
+			fmt.Println("\t" + string(execInPodOut))
+		}
+	}
+
+}
+
+// execInListPods() runs podList.command in all pods in podList.list
+func execInListPods(connectionString config.ServerInfo, podList Pod_List) {
+	fmt.Println("+ Running supplied command in list of pods")
+	for _, execPod := range podList.list {
+
+		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, podList.command)
+		if err != nil {
+			fmt.Println("- Executing "+podList.command+" in Pod "+execPod+" failed: ", err)
+		} else {
+			fmt.Println("+ Executing " + podList.command + " in Pod " + execPod + " succeded: ")
 			fmt.Println("\t" + string(execInPodOut))
 		}
 	}
@@ -251,6 +276,13 @@ func randSeq(n int) string {
 	return string(b)
 }
 
+//struct for PodList
+type Pod_List struct {
+	list    []string
+	arg     string
+	command string
+}
+
 type Mount_Info struct {
 	yaml_build string
 	image      string
@@ -270,7 +302,7 @@ func Mount_RootFS(all_pods_listme []string, connectionString config.ServerInfo) 
 	//# Parse yaml output to get the image name
 	//image_name = `grep "- image" yaml_output | awk '{print $3}'`
 
-	get_images_raw, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "get", "deployments", "-o", "wide", "--sort-by" ,"metadata.creationTimestamp").Output()
+	get_images_raw, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "get", "deployments", "-o", "wide", "--sort-by", "metadata.creationTimestamp").Output()
 	get_image_lines := strings.Split(string(get_images_raw), "\n")
 	for _, line := range get_image_lines {
 		matched, err := regexp.MatchString(`^\s*$`, line)
@@ -281,8 +313,8 @@ func Mount_RootFS(all_pods_listme []string, connectionString config.ServerInfo) 
 			//added checking to only enumerate running pods
 			Mount_InfoVars.image = strings.Fields(line)[7]
 			fmt.Println("[+] This is the Mount_InfoVars.Image output: ", Mount_InfoVars.image)
-			}
 		}
+	}
 
 	if err != nil {
 		log.Fatal(err)
@@ -344,6 +376,9 @@ func main() {
 	// Create a global variable named "connectionString" initialized to
 	// default values
 	var connectionString config.ServerInfo = config.Builder()
+	var podList Pod_List
+	//podList.arg =""
+	//podList.list = {}
 
 	// Run the option parser to initialize connectionStrings
 	println(`Peirates
@@ -381,7 +416,7 @@ func main() {
 
 	println("\n\nPeirates v1.00 by InGuardians")
 	println("https://www.inguardians.com/labs/\n")
-	parseOptions(&connectionString)
+	parseOptions(&connectionString, &podList)
 
 	if inAPod(connectionString) {
 		println("+ You are in a pod.")
@@ -406,8 +441,13 @@ func main() {
 
 	Mount_RootFS(all_pods, connectionString)
 
-	execInAllPods(connectionString, "id")
+	execInAllPods(connectionString, podList)
 
+	println("+ Pod list contains:")
+	for _, pod := range podList.list {
+		println("\t" + pod)
+	}
+	execInListPods(connectionString, podList)
 	// This part is direct conversion from the python
 	// Note that we use println() instead of print().
 	// In go, print() does not add a newline while
@@ -441,4 +481,3 @@ https://10.23.58.40:6443/version
 https://10.23.58.40:6443/apis/apps/v1/proxy (500)
 https://10.23.58.40:6443/apis/apps/v1/watch (500)
 */
-
