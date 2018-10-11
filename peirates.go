@@ -200,7 +200,7 @@ func inAPod(connectionString config.ServerInfo) bool {
 func execInAllPods(connectionString config.ServerInfo, podList Pod_List) {
 	runningPods := get_pod_list(connectionString)
 	for _, execPod := range runningPods {
-		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, podList.command)
+		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/bash", "-c", podList.command)
 		if err != nil {
 			fmt.Println("- Executing "+podList.command+" in Pod "+execPod+" failed: ", err)
 		} else {
@@ -216,7 +216,7 @@ func execInListPods(connectionString config.ServerInfo, podList Pod_List) {
 	fmt.Println("+ Running supplied command in list of pods")
 	for _, execPod := range podList.list {
 
-		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, podList.command)
+		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/bash", "-c", podList.command)
 		if err != nil {
 			fmt.Println("- Executing "+podList.command+" in Pod "+execPod+" failed: ", err)
 		} else {
