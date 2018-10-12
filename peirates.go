@@ -12,6 +12,7 @@ package main
 // standard library as much as possible
 import (
 	"bytes"
+	"encoding/json"
 	"flag" // Command line flag parsing
 	"fmt"  // String formatting (Printf, Sprintf)
 	"io"
@@ -44,15 +45,15 @@ import (
 // }
 
 // Function to parse options. We call it in main()
-func parseOptions(connectionString *config.ServerInfo, podList *Pod_List) {
+func parseOptions(connectionString *config.ServerInfo, kubeData *Kube_Data) {
 	// This is like the parser.add_option stuff except
 	// it works implicitly on a global parser instance.
 	// Notice the use of pointers (&connectionString.RIPAddress for
 	// example) to bind flags to variables
 	flag.StringVar(&connectionString.RIPAddress, "i", "10.23.58.40", "Remote IP address: ex. 10.22.34.67")
 	flag.StringVar(&connectionString.RPort, "p", "6443", "Remote Port: ex 10255, 10250")
-	flag.StringVar(&podList.arg, "L", "", "List of comma seperated Pods: ex pod1,pod2,pod3")
-	flag.StringVar(&podList.command, "c", "hostname", "Command to run in pods")
+	flag.StringVar(&kubeData.arg, "L", "", "List of comma seperated Pods: ex pod1,pod2,pod3")
+	flag.StringVar(&kubeData.command, "c", "hostname", "Command to run in pods")
 	// flag.BoolVar(&connectionString.infoPods, "e", false, "Export pod information from remote Kubernetes server via curl")
 
 	// JAY / TODO: println("FIXME: parseOptions clobbers config.Builder()")
@@ -79,9 +80,9 @@ func parseOptions(connectionString *config.ServerInfo, podList *Pod_List) {
 		log.Fatal("Error: must provide remote Port (-p)")
 	}
 
-	if podList.arg != "" {
-		for _, v := range strings.Split(podList.arg, ",") {
-			podList.list = append(podList.list, v)
+	if kubeData.arg != "" {
+		for _, v := range strings.Split(kubeData.arg, ",") {
+			kubeData.list = append(kubeData.list, v)
 		}
 	}
 
@@ -196,31 +197,31 @@ func inAPod(connectionString config.ServerInfo) bool {
 
 }
 
-// execInAllPods() runs podList.command in all running pods
-func execInAllPods(connectionString config.ServerInfo, podList Pod_List) {
+// execInAllPods() runs kubeData.command in all running pods
+func execInAllPods(connectionString config.ServerInfo, kubeData Kube_Data) {
 	runningPods := get_pod_list(connectionString)
 	for _, execPod := range runningPods {
-		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/bash", "-c", podList.command)
+		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/bash", "-c", kubeData.command)
 		if err != nil {
-			fmt.Println("- Executing "+podList.command+" in Pod "+execPod+" failed: ", err)
+			fmt.Println("- Executing "+kubeData.command+" in Pod "+execPod+" failed: ", err)
 		} else {
-			fmt.Println("+ Executing " + podList.command + " in Pod " + execPod + " succeded: ")
+			fmt.Println("+ Executing " + kubeData.command + " in Pod " + execPod + " succeded: ")
 			fmt.Println("\t" + string(execInPodOut))
 		}
 	}
 
 }
 
-// execInListPods() runs podList.command in all pods in podList.list
-func execInListPods(connectionString config.ServerInfo, podList Pod_List) {
+// execInListPods() runs kubeData.command in all pods in kubeData.list
+func execInListPods(connectionString config.ServerInfo, kubeData Kube_Data) {
 	fmt.Println("+ Running supplied command in list of pods")
-	for _, execPod := range podList.list {
+	for _, execPod := range kubeData.list {
 
-		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/bash", "-c", podList.command)
+		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/bash", "-c", kubeData.command)
 		if err != nil {
-			fmt.Println("- Executing "+podList.command+" in Pod "+execPod+" failed: ", err)
+			fmt.Println("- Executing "+kubeData.command+" in Pod "+execPod+" failed: ", err)
 		} else {
-			fmt.Println("+ Executing " + podList.command + " in Pod " + execPod + " succeded: ")
+			fmt.Println("+ Executing " + kubeData.command + " in Pod " + execPod + " succeded: ")
 			fmt.Println("\t" + string(execInPodOut))
 		}
 	}
@@ -276,8 +277,8 @@ func randSeq(n int) string {
 	return string(b)
 }
 
-//struct for PodList
-type Pod_List struct {
+//struct for Kube_Data
+type Kube_Data struct {
 	list    []string
 	arg     string
 	command string
@@ -287,6 +288,183 @@ type Mount_Info struct {
 	yaml_build string
 	image      string
 	namespace  string
+}
+
+type Kube_Roles struct {
+	APIVersion string `json:"apiVersion"`
+	Items      []struct {
+		APIVersion string `json:"apiVersion"`
+		Kind       string `json:"kind"`
+		Metadata   struct {
+			Annotations struct {
+				KubectlKubernetesIoLastAppliedConfiguration string `json:"kubectl.kubernetes.io/last-applied-configuration"`
+			} `json:"annotations"`
+			CreationTimestamp time.Time `json:"creationTimestamp"`
+			Name              string    `json:"name"`
+			Namespace         string    `json:"namespace"`
+			ResourceVersion   string    `json:"resourceVersion"`
+			SelfLink          string    `json:"selfLink"`
+			UID               string    `json:"uid"`
+		} `json:"metadata"`
+		Rules []struct {
+			APIGroups []string `json:"apiGroups"`
+			Resources []string `json:"resources"`
+			Verbs     []string `json:"verbs"`
+		} `json:"rules"`
+	} `json:"items"`
+	Kind     string `json:"kind"`
+	Metadata struct {
+		ResourceVersion string `json:"resourceVersion"`
+		SelfLink        string `json:"selfLink"`
+	} `json:"metadata"`
+}
+
+type Pod_Details struct {
+	APIVersion string `json:"apiVersion"`
+	Items      []struct {
+		APIVersion string `json:"apiVersion"`
+		Kind       string `json:"kind"`
+		Metadata   struct {
+			Annotations struct {
+				KubectlKubernetesIoLastAppliedConfiguration string `json:"kubectl.kubernetes.io/last-applied-configuration"`
+			} `json:"annotations"`
+			CreationTimestamp time.Time `json:"creationTimestamp"`
+			Labels            struct {
+				App string `json:"app"`
+			} `json:"labels"`
+			Name            string `json:"name"`
+			Namespace       string `json:"namespace"`
+			ResourceVersion string `json:"resourceVersion"`
+			SelfLink        string `json:"selfLink"`
+			UID             string `json:"uid"`
+		} `json:"metadata"`
+		Spec struct {
+			Containers []struct {
+				Image           string `json:"image"`
+				ImagePullPolicy string `json:"imagePullPolicy"`
+				Name            string `json:"name"`
+				Ports           []struct {
+					ContainerPort int    `json:"containerPort"`
+					Protocol      string `json:"protocol"`
+				} `json:"ports"`
+				Resources struct {
+				} `json:"resources"`
+				TerminationMessagePath   string `json:"terminationMessagePath"`
+				TerminationMessagePolicy string `json:"terminationMessagePolicy"`
+				VolumeMounts             []struct {
+					MountPath string `json:"mountPath"`
+					Name      string `json:"name"`
+					ReadOnly  bool   `json:"readOnly"`
+				} `json:"volumeMounts"`
+			} `json:"containers"`
+			DNSPolicy    string `json:"dnsPolicy"`
+			NodeName     string `json:"nodeName"`
+			NodeSelector struct {
+				KubernetesIoHostname string `json:"kubernetes.io/hostname"`
+			} `json:"nodeSelector"`
+			RestartPolicy   string `json:"restartPolicy"`
+			SchedulerName   string `json:"schedulerName"`
+			SecurityContext struct {
+			} `json:"securityContext"`
+			ServiceAccount                string `json:"serviceAccount"`
+			ServiceAccountName            string `json:"serviceAccountName"`
+			TerminationGracePeriodSeconds int    `json:"terminationGracePeriodSeconds"`
+			Tolerations                   []struct {
+				Effect            string `json:"effect"`
+				Key               string `json:"key"`
+				Operator          string `json:"operator"`
+				TolerationSeconds int    `json:"tolerationSeconds"`
+			} `json:"tolerations"`
+			Volumes []struct {
+				Name   string `json:"name"`
+				Secret struct {
+					DefaultMode int    `json:"defaultMode"`
+					SecretName  string `json:"secretName"`
+				} `json:"secret"`
+			} `json:"volumes"`
+		} `json:"spec"`
+		Status struct {
+			Conditions []struct {
+				LastProbeTime      interface{} `json:"lastProbeTime"`
+				LastTransitionTime time.Time   `json:"lastTransitionTime"`
+				Status             string      `json:"status"`
+				Type               string      `json:"type"`
+			} `json:"conditions"`
+			ContainerStatuses []struct {
+				ContainerID string `json:"containerID"`
+				Image       string `json:"image"`
+				ImageID     string `json:"imageID"`
+				LastState   struct {
+					Terminated struct {
+						ContainerID string    `json:"containerID"`
+						ExitCode    int       `json:"exitCode"`
+						FinishedAt  time.Time `json:"finishedAt"`
+						Reason      string    `json:"reason"`
+						StartedAt   time.Time `json:"startedAt"`
+					} `json:"terminated"`
+				} `json:"lastState"`
+				Name         string `json:"name"`
+				Ready        bool   `json:"ready"`
+				RestartCount int    `json:"restartCount"`
+				State        struct {
+					Running struct {
+						StartedAt time.Time `json:"startedAt"`
+					} `json:"running"`
+				} `json:"state"`
+			} `json:"containerStatuses"`
+			HostIP    string    `json:"hostIP"`
+			Phase     string    `json:"phase"`
+			PodIP     string    `json:"podIP"`
+			QosClass  string    `json:"qosClass"`
+			StartTime time.Time `json:"startTime"`
+		} `json:"status"`
+	} `json:"items"`
+	Kind     string `json:"kind"`
+	Metadata struct {
+		ResourceVersion string `json:"resourceVersion"`
+		SelfLink        string `json:"selfLink"`
+	} `json:"metadata"`
+}
+
+//gets host mount points
+/*func GetHostMountPoints(podInfo Pod_Details) {
+	fmt.Println("+ Getting all host mount points")
+	for _, v := range jsonParser.Da
+	podInfo{Spec: {Containers}} {
+		fmt.Println("For Pod " + v{Name} + " mount point is: " + v{VolumeMounts{MountPath}})
+	}
+}
+*/
+//gets roles in json output and stores in Kube_Roles struct
+func GetRoles(connectionString config.ServerInfo, kubeRoles *Kube_Roles) {
+	fmt.Println("+ Getting all Roles")
+	rolesOut, _, err := runKubectlSimple(connectionString, "get", "role", "-o", "json")
+	if err != nil {
+		fmt.Println("- Unable to retrieve roles from this pod: ", err)
+	} else {
+		fmt.Println("+ Retrieving roles was successful: ")
+		err := json.Unmarshal(rolesOut, &kubeRoles)
+		if err != nil {
+			fmt.Println("- Error unmarshaling data: ", err)
+		}
+
+	}
+}
+
+//gets details for all pods in json output and stores in Pod_Details struct
+func GetPodsInfo(connectionString config.ServerInfo, podDetails *Pod_Details) {
+	fmt.Println("+ Getting details for all pods")
+	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
+	if err != nil {
+		fmt.Println("- Unable to retrieve details from this pod: ", err)
+	} else {
+		fmt.Println("+ Retrieving details for all pods was successful: ")
+		err := json.Unmarshal(podDetailOut, &podDetails)
+		if err != nil {
+			fmt.Println("- Error unmarshaling data: ", err)
+		}
+
+	}
 }
 
 func Mount_RootFS(all_pods_listme []string, connectionString config.ServerInfo) {
@@ -376,9 +554,11 @@ func main() {
 	// Create a global variable named "connectionString" initialized to
 	// default values
 	var connectionString config.ServerInfo = config.Builder()
-	var podList Pod_List
-	//podList.arg =""
-	//podList.list = {}
+	var kubeData Kube_Data
+	var kubeRoles Kube_Roles
+	var podInfo Pod_Details
+	//kubeData.arg =""
+	//kubeData.list = {}
 
 	// Run the option parser to initialize connectionStrings
 	println(`Peirates
@@ -416,7 +596,7 @@ func main() {
 
 	println("\n\nPeirates v1.00 by InGuardians")
 	println("https://www.inguardians.com/labs/\n")
-	parseOptions(&connectionString, &podList)
+	parseOptions(&connectionString, &kubeData)
 
 	if inAPod(connectionString) {
 		println("+ You are in a pod.")
@@ -425,6 +605,11 @@ func main() {
 	}
 
 	all_pods := get_pod_list(connectionString)
+
+	GetRoles(connectionString, &kubeRoles)
+
+	GetPodsInfo(connectionString, &podInfo)
+	//	GetHostMountPoints(podInfo)
 
 	for _, pod := range all_pods {
 		// JAY / TODO: Put me back
@@ -441,13 +626,14 @@ func main() {
 
 	Mount_RootFS(all_pods, connectionString)
 
-	execInAllPods(connectionString, podList)
+	execInAllPods(connectionString, kubeData)
 
 	println("+ Pod list contains:")
-	for _, pod := range podList.list {
+	for _, pod := range kubeData.list {
 		println("\t" + pod)
 	}
-	execInListPods(connectionString, podList)
+
+	execInListPods(connectionString, kubeData)
 	// This part is direct conversion from the python
 	// Note that we use println() instead of print().
 	// In go, print() does not add a newline while
