@@ -427,14 +427,17 @@ type Pod_Details struct {
 }
 
 //gets host mount points
-/*func GetHostMountPoints(podInfo Pod_Details) {
+func GetHostMountPoints(podInfo Pod_Details) {
 	fmt.Println("+ Getting all host mount points")
-	for _, v := range jsonParser.Da
-	podInfo{Spec: {Containers}} {
-		fmt.Println("For Pod " + v{Name} + " mount point is: " + v{VolumeMounts{MountPath}})
+	for _, item := range podInfo.Items {
+		for _, container := range item.Spec.Containers {
+			fmt.Printf("Mounts for %s\n", container.Name)
+			for _, mount := range container.VolumeMounts {
+				fmt.Printf("\t%s: %s\n", mount.Name, mount.MountPath)
+			}
+		}
 	}
 }
-*/
 //gets roles in json output and stores in Kube_Roles struct
 func GetRoles(connectionString config.ServerInfo, kubeRoles *Kube_Roles) {
 	fmt.Println("+ Getting all Roles")
@@ -609,7 +612,7 @@ func main() {
 	GetRoles(connectionString, &kubeRoles)
 
 	GetPodsInfo(connectionString, &podInfo)
-	//	GetHostMountPoints(podInfo)
+	GetHostMountPoints(podInfo)
 
 	for _, pod := range all_pods {
 		// JAY / TODO: Put me back
