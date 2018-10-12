@@ -376,11 +376,15 @@ type Pod_Details struct {
 				TolerationSeconds int    `json:"tolerationSeconds"`
 			} `json:"tolerations"`
 			Volumes []struct {
+				HostPath struct {
+					Path string `json:"path"`
+					Type string `json:"type"`
+				} `json:"hostPath,omitempty"`
 				Name   string `json:"name"`
 				Secret struct {
 					DefaultMode int    `json:"defaultMode"`
 					SecretName  string `json:"secretName"`
-				} `json:"secret"`
+				} `json:"secret,omitempty"`
 			} `json:"volumes"`
 		} `json:"spec"`
 		Status struct {
@@ -430,14 +434,29 @@ type Pod_Details struct {
 func GetHostMountPoints(podInfo Pod_Details) {
 	fmt.Println("+ Getting all host mount points")
 	for _, item := range podInfo.Items {
-		for _, container := range item.Spec.Containers {
-			fmt.Printf("Mounts for %s\n", container.Name)
-			for _, mount := range container.VolumeMounts {
-				fmt.Printf("\t%s: %s\n", mount.Name, mount.MountPath)
+		fmt.Println("+ Host Mount Points for Pod: " + item.Metadata.Name)
+		for _, volume := range item.Spec.Volumes {
+			if volume.HostPath.Path != "" {
+				fmt.Println("\tHost Mount Point: " + string(volume.HostPath.Path))
 			}
 		}
 	}
 }
+
+//gets host mount points for one pod
+func GetHostMountPointsForPod(podInfo Pod_Details, pod string) {
+	fmt.Println("+ Getting all Host Mount Points only for pod: " + pod)
+	for _, item := range podInfo.Items {
+		if item.Metadata.Name == pod {
+			for _, volume := range item.Spec.Volumes {
+				if volume.HostPath.Path != "" {
+					fmt.Println("\tHost Mount Point: " + string(volume.HostPath.Path))
+				}
+			}
+		}
+	}
+}
+
 //gets roles in json output and stores in Kube_Roles struct
 func GetRoles(connectionString config.ServerInfo, kubeRoles *Kube_Roles) {
 	fmt.Println("+ Getting all Roles")
@@ -613,7 +632,7 @@ func main() {
 
 	GetPodsInfo(connectionString, &podInfo)
 	GetHostMountPoints(podInfo)
-
+	GetHostMountPointsForPod(podInfo, "attack-daemonset-6fmjc")
 	for _, pod := range all_pods {
 		// JAY / TODO: Put me back
 		//println("Checking out pod: " + pod)
