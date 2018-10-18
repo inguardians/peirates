@@ -505,7 +505,8 @@ func Mount_RootFS(all_pods_listme []string, connectionString config.ServerInfo) 
 	//# Parse yaml output to get the image name
 	//image_name = `grep "- image" yaml_output | awk '{print $3}'`
 
-	get_images_raw, err := exec.Command("kubectl", "-n", connectionString.Namespace, "--token="+connectionString.Token, "--certificate-authority="+connectionString.CAPath, "--server=https://"+connectionString.RIPAddress+":"+connectionString.RPort, "get", "deployments", "-o", "wide", "--sort-by", "metadata.creationTimestamp").Output()
+	get_images_raw, _, err := runKubectlSimple(connectionString, "get", "deployments", "-o", "wide", "--sort-by", "metadata.creationTimestamp")
+
 	get_image_lines := strings.Split(string(get_images_raw), "\n")
 	for _, line := range get_image_lines {
 		matched, err := regexp.MatchString(`^\s*$`, line)
