@@ -482,13 +482,9 @@ func GetPodsInfo(connectionString config.ServerInfo, podDetails *Pod_Details) {
 	} else {
 		fmt.Println("+ Retrieving details for all pods was successful: ")
 		err := json.Unmarshal(podDetailOut, &podDetails)
-		fmt.Println("DEBUG: about to check error")
 		if err != nil {
 			fmt.Println("- Error unmarshaling data: ", err)
-		} else {
-			fmt.Println("+ json Unmarshalled - DEBUG - Remove Me.")
 		}
-
 	}
 }
 
@@ -639,7 +635,7 @@ func main() {
 	GetHostMountPointsForPod(podInfo, "attack-daemonset-6fmjc")
 	for _, pod := range all_pods {
 		// JAY / TODO: Put me back
-		println("Checking out pod: " + pod)
+		println("Checking out hostname for: " + pod)
 		print(getHostname(connectionString, pod))
 	}
 
