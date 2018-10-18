@@ -136,7 +136,7 @@ func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) er
 	// NewKubectlCommand adds the global flagset for some reason, so we have to
 	// copy it, temporarily replace it, and then restore it.
 	oldFlagSet := flag.CommandLine
-	flag.CommandLine = flag.NewFlagSet("kubectl", flag.ExitOnError)
+	flag.CommandLine = flag.NewFlagSet("kubectl", flag.ContinueOnError)
 	cmd := kubectl.NewKubectlCommand(stdin, stdout, stderr)
 	flag.CommandLine = oldFlagSet
 	cmd.SetArgs(cmdArgs)
@@ -482,8 +482,11 @@ func GetPodsInfo(connectionString config.ServerInfo, podDetails *Pod_Details) {
 	} else {
 		fmt.Println("+ Retrieving details for all pods was successful: ")
 		err := json.Unmarshal(podDetailOut, &podDetails)
+		fmt.Println("DEBUG: about to check error")
 		if err != nil {
 			fmt.Println("- Error unmarshaling data: ", err)
+		} else {
+			fmt.Println("+ json Unmarshalled - DEBUG - Remove Me.")
 		}
 
 	}
@@ -635,7 +638,7 @@ func main() {
 	GetHostMountPointsForPod(podInfo, "attack-daemonset-6fmjc")
 	for _, pod := range all_pods {
 		// JAY / TODO: Put me back
-		//println("Checking out pod: " + pod)
+		println("Checking out pod: " + pod)
 		print(getHostname(connectionString, pod))
 	}
 
