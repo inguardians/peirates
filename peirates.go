@@ -4,7 +4,7 @@
 //
 // BTW always run `go fmt` before you check in code. go fmt is law.
 //
-package main
+package peirates
 
 // Imports. If you don't use an import that's an error so
 // I haven't imported json yet.
@@ -30,7 +30,6 @@ import (
 	kubectl "k8s.io/kubernetes/pkg/kubectl/cmd"
 
 	// Packages belonging to Peirates go here
-	"gitlab.inguardians.com/agents/peirates/config"
 )
 
 // Struct type definition to contain our options. This is
@@ -45,7 +44,7 @@ import (
 // }
 
 // Function to parse options. We call it in main()
-func parseOptions(connectionString *config.ServerInfo, kubeData *Kube_Data) {
+func parseOptions(connectionString *ServerInfo, kubeData *Kube_Data) {
 	// This is like the parser.add_option stuff except
 	// it works implicitly on a global parser instance.
 	// Notice the use of pointers (&connectionString.RIPAddress for
@@ -56,7 +55,7 @@ func parseOptions(connectionString *config.ServerInfo, kubeData *Kube_Data) {
 	flag.StringVar(&kubeData.command, "c", "hostname", "Command to run in pods")
 	// flag.BoolVar(&connectionString.infoPods, "e", false, "Export pod information from remote Kubernetes server via curl")
 
-	// JAY / TODO: println("FIXME: parseOptions clobbers config.Builder()")
+	// JAY / TODO: println("FIXME: parseOptions clobbers Builder()")
 
 	// flag.StringVar(&connectionString.Token, "t", "", "Token to be used for accessing Kubernetes server")
 	// flag.StringVar(&connectionString.CAPath, "c", "", "Path to CA certificate")
@@ -89,7 +88,7 @@ func parseOptions(connectionString *config.ServerInfo, kubeData *Kube_Data) {
 }
 
 // get_pod_list() returns an array of pod names, parsed from kubectl get pods
-func get_pod_list(connectionString config.ServerInfo) []string {
+func get_pod_list(connectionString ServerInfo) []string {
 
 	var pods []string
 
@@ -120,7 +119,7 @@ func get_pod_list(connectionString config.ServerInfo) []string {
 }
 
 // getHostname() runs kubectl with connection string to get hostname from pod
-func getHostname(connectionString config.ServerInfo, PodName string) string {
+func getHostname(connectionString ServerInfo, PodName string) string {
 	hostname, _, err := runKubectlSimple(connectionString, "exec", "-it", PodName, "hostname")
 	if err != nil {
 		fmt.Println("- Checking for hostname of pod "+PodName+" failed: ", err)
@@ -146,7 +145,7 @@ func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) er
 // runKubectlWithConfig takes a server config, and a list of arguments. It executes kubectl internally,
 // setting the namespace, token, certificate authority, and server based on the provided config, and
 // appending the supplied arguments to the end of the command.
-func runKubectlWithConfig(cfg config.ServerInfo, stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
+func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
 	connArgs := []string{
 		"-n", cfg.Namespace,
 		"--token=" + cfg.Token,
@@ -159,7 +158,7 @@ func runKubectlWithConfig(cfg config.ServerInfo, stdin io.Reader, stdout, stderr
 // runKubectlSimple executes runKubectlWithConfig, but supplies nothing for stdin, and aggregates
 // the stdout and stderr streams into strings. It returns (stdout, stderr, execution error).
 // This function is what you want to use most of the time.
-func runKubectlSimple(cfg config.ServerInfo, cmdArgs ...string) ([]byte, []byte, error) {
+func runKubectlSimple(cfg ServerInfo, cmdArgs ...string) ([]byte, []byte, error) {
 	stdin := strings.NewReader("")
 	stdout := bytes.Buffer{}
 	stderr := bytes.Buffer{}
@@ -170,7 +169,7 @@ func runKubectlSimple(cfg config.ServerInfo, cmdArgs ...string) ([]byte, []byte,
 }
 
 // canCreatePods() runs kubectl to check if current token can create a pod
-func canCreatePods(connectionString config.ServerInfo) bool {
+func canCreatePods(connectionString ServerInfo) bool {
 	canCreateRaw, _, err := runKubectlSimple(connectionString, "auth", "can-i", "create", "pod")
 	if err != nil {
 		return false
@@ -185,7 +184,7 @@ func canCreatePods(connectionString config.ServerInfo) bool {
 }
 
 // inAPod() runs mount on the local system and then checks if output contains kubernetes
-func inAPod(connectionString config.ServerInfo) bool {
+func inAPod(connectionString ServerInfo) bool {
 	mount_output_bs, err := exec.Command("mount").Output()
 	if err != nil {
 		fmt.Println("Checking if we are running in a Pod failed: ", err)
@@ -198,7 +197,7 @@ func inAPod(connectionString config.ServerInfo) bool {
 }
 
 // execInAllPods() runs kubeData.command in all running pods
-func execInAllPods(connectionString config.ServerInfo, kubeData Kube_Data) {
+func execInAllPods(connectionString ServerInfo, kubeData Kube_Data) {
 	runningPods := get_pod_list(connectionString)
 	for _, execPod := range runningPods {
 		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/bash", "-c", kubeData.command)
@@ -213,7 +212,7 @@ func execInAllPods(connectionString config.ServerInfo, kubeData Kube_Data) {
 }
 
 // execInListPods() runs kubeData.command in all pods in kubeData.list
-func execInListPods(connectionString config.ServerInfo, kubeData Kube_Data) {
+func execInListPods(connectionString ServerInfo, kubeData Kube_Data) {
 	fmt.Println("+ Running supplied command in list of pods")
 	for _, execPod := range kubeData.list {
 
@@ -229,7 +228,7 @@ func execInListPods(connectionString config.ServerInfo, kubeData Kube_Data) {
 }
 
 // Here's the requestme equivalent.
-func requestme(connectionString config.ServerInfo, location string) {
+func requestme(connectionString ServerInfo, location string) {
 	// Make a request, getting a response and possibly an error.
 	// fmt.Sprintf is a function which acts like printf() except it returns a string.
 	res, err := http.Get(fmt.Sprintf("http://%s:%s/%s", connectionString.RIPAddress, connectionString.RPort, location))
@@ -458,7 +457,7 @@ func GetHostMountPointsForPod(podInfo Pod_Details, pod string) {
 }
 
 //gets roles in json output and stores in Kube_Roles struct
-func GetRoles(connectionString config.ServerInfo, kubeRoles *Kube_Roles) {
+func GetRoles(connectionString ServerInfo, kubeRoles *Kube_Roles) {
 	fmt.Println("+ Getting all Roles")
 	rolesOut, _, err := runKubectlSimple(connectionString, "get", "role", "-o", "json")
 	if err != nil {
@@ -474,7 +473,7 @@ func GetRoles(connectionString config.ServerInfo, kubeRoles *Kube_Roles) {
 }
 
 //gets details for all pods in json output and stores in Pod_Details struct
-func GetPodsInfo(connectionString config.ServerInfo, podDetails *Pod_Details) {
+func GetPodsInfo(connectionString ServerInfo, podDetails *Pod_Details) {
 	fmt.Println("+ Getting details for all pods")
 	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
 	if err != nil {
@@ -488,7 +487,7 @@ func GetPodsInfo(connectionString config.ServerInfo, podDetails *Pod_Details) {
 	}
 }
 
-func Mount_RootFS(all_pods_listme []string, connectionString config.ServerInfo) {
+func Mount_RootFS(all_pods_listme []string, connectionString ServerInfo) {
 	var Mount_InfoVars = Mount_Info{}
 	// fmt.Println("DEBUG: grabbing image from pod: ", string(all_pods_listme[3]))
 	//Get pods
@@ -571,11 +570,11 @@ spec:
 
 //------------------------------------------------------------------------------------------------------------------------------------------------
 
-func main() {
+func PeiratesMain() {
 
 	// Create a global variable named "connectionString" initialized to
 	// default values
-	var connectionString config.ServerInfo = config.Builder()
+	var connectionString ServerInfo = Builder()
 	var kubeData Kube_Data
 	var kubeRoles Kube_Roles
 	var podInfo Pod_Details

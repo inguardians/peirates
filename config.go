@@ -1,6 +1,6 @@
 //Build API configuration (svc account token, namespace, API server) -- automated prereq for other steps
 
-package config
+package peirates
 
 import (
 	"fmt"
