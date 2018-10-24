@@ -26,22 +26,8 @@ import (
 	"time" // Time modules
 
 	// kubernetes client
-	//"k8s.io/client-go/tools/clientcmd"
 	kubectl "k8s.io/kubernetes/pkg/kubectl/cmd"
-
-	// Packages belonging to Peirates go here
 )
-
-// Struct type definition to contain our options. This is
-// different from the original python code that had each
-// of the options as top-level variables
-// type ServerInfo struct {
-// 	RIPAddress string
-// 	RPort      string
-// 	Token      string //pass token  via command line
-// 	CAPath     string //path to ca certificate
-// 	Namespace  string // namespace that this pod's service account is tied to
-// }
 
 // Function to parse options. We call it in main()
 func parseOptions(connectionString *ServerInfo, kubeData *Kube_Data) {
@@ -519,7 +505,7 @@ func Mount_RootFS(all_pods_listme []string, connectionString ServerInfo) {
 		log.Fatal(err)
 	}
 
-	//creat random  string
+	//creat random string
 	random_string := randSeq(6)
 
 	// Create Yaml File
@@ -655,36 +641,4 @@ func PeiratesMain() {
 	}
 
 	execInListPods(connectionString, kubeData)
-	// This part is direct conversion from the python
-	// Note that we use println() instead of print().
-	// In go, print() does not add a newline while
-	// println() does.
-	/*	if connectionString.infoPods {
-			requestme("pods")
-			println("---------------------------")
-			println("Extracting Pods via Curl  | ")
-			println("--------------------------------------------------------------------------------------->")
-			requestme("pods")
-			println("--------------------------------------------------------------------------------------->")
-			requestme("stats")
-			requestme("stats/summary")
-			requestme("stats/container")
-			requestme("metrics")
-			requestme("healthz")
-		}
-	*/
 }
-
-// Example of a multi-line comment
-/*
-https://10.23.58.40:6443/api
-https://10.23.58.40:6443/api/v1
-https://10.23.58.40:6443/apis
-https://10.23.58.40:6443/apis/apps
-https://10.23.58.40:6443/apis/batch
-https://10.23.58.40:6443/apis/extentions
-https://10.23.58.40:6443/apis/policy
-https://10.23.58.40:6443/version
-https://10.23.58.40:6443/apis/apps/v1/proxy (500)
-https://10.23.58.40:6443/apis/apps/v1/watch (500)
-*/
