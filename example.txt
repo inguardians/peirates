@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Example execution - will need to alter path and pod name
+
+cat /Users/jay/go/src/gitlab.inguardians.com/agents/peirates/cmd/peirates/peirates | (ssh lockthisdown@k8s-master "kubectl exec -it frontend-5899f97579-8xp2p -- bash -c \"cat >peirates ; chmod u+x ./peirates ; ./peirates\" " ) 

@@ -19,7 +19,8 @@ import (
 	"io/ioutil" // Utils for dealing with IO streams
 	"log"       // Logging utils
 	"math/rand" // Random module for creating random string building
-	"net/http"  // HTTP client/server
+
+	// HTTP client/server
 	"os/exec"
 	"regexp"
 	"strings"
@@ -29,7 +30,7 @@ import (
 	kubectl "k8s.io/kubernetes/pkg/kubectl/cmd"
 )
 
-// Function to parse options. We call it in main()
+// parseOptions parses command-line options. We call it in main().
 func parseOptions(connectionString *ServerInfo, kubeData *Kube_Data) {
 	// This is like the parser.add_option stuff except
 	// it works implicitly on a global parser instance.
@@ -73,7 +74,7 @@ func parseOptions(connectionString *ServerInfo, kubeData *Kube_Data) {
 
 }
 
-// get_pod_list() returns an array of pod names, parsed from kubectl get pods
+// get_pod_list returns an array of pod names, parsed from "kubectl get pods"
 func get_pod_list(connectionString ServerInfo) []string {
 
 	var pods []string
@@ -104,7 +105,7 @@ func get_pod_list(connectionString ServerInfo) []string {
 	return pods
 }
 
-// getHostname() runs kubectl with connection string to get hostname from pod
+// getHostname runs kubectl with connection string to get hostname from pod
 func getHostname(connectionString ServerInfo, PodName string) string {
 	hostname, _, err := runKubectlSimple(connectionString, "exec", "-it", PodName, "hostname")
 	if err != nil {
@@ -115,6 +116,15 @@ func getHostname(connectionString ServerInfo, PodName string) string {
 	}
 }
 
+// runKubectl executes the kubectl library internally, allowing us to use the
+// Kubernetes API and requiring no external binaries.
+//
+// runKubectl takes and io.Reader and two io.Writers, as well as a command to run in cmdArgs.
+// The kubectl library will read from the io.Reader, representing stdin, and write its stdout and stderr via the corresponding io.Writers.
+//
+// runKubectl returns an error string, which indicates internal kubectl errors.
+//
+// NOTE: You should generally use runKubectlSimple(), which calls runKubectlWithConfig, which calls this.
 func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
 	// Based on code from https://github.com/kubernetes/kubernetes/blob/2e0e1681a6ca7fe795f3bd5ec8696fb14687b9aa/cmd/kubectl/kubectl.go#L44
 
@@ -131,6 +141,8 @@ func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) er
 // runKubectlWithConfig takes a server config, and a list of arguments. It executes kubectl internally,
 // setting the namespace, token, certificate authority, and server based on the provided config, and
 // appending the supplied arguments to the end of the command.
+//
+// NOTE: You should generally use runKubectlSimple() to call this.
 func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
 	connArgs := []string{
 		"-n", cfg.Namespace,
@@ -142,8 +154,9 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 }
 
 // runKubectlSimple executes runKubectlWithConfig, but supplies nothing for stdin, and aggregates
-// the stdout and stderr streams into strings. It returns (stdout, stderr, execution error).
-// This function is what you want to use most of the time.
+// the stdout and stderr streams into byte slices. It returns (stdout, stderr, execution error).
+//
+// NOTE: This function is what you want to use most of the time, rather than runKubectl() and runKubectlWithConfig().
 func runKubectlSimple(cfg ServerInfo, cmdArgs ...string) ([]byte, []byte, error) {
 	stdin := strings.NewReader("")
 	stdout := bytes.Buffer{}
@@ -170,6 +183,7 @@ func canCreatePods(connectionString ServerInfo) bool {
 }
 
 // inAPod() runs mount on the local system and then checks if output contains kubernetes
+// TODO: Change mount to use a Go function to read /etc/mtab
 func inAPod(connectionString ServerInfo) bool {
 	mount_output_bs, err := exec.Command("mount").Output()
 	if err != nil {
@@ -213,55 +227,27 @@ func execInListPods(connectionString ServerInfo, kubeData Kube_Data) {
 
 }
 
-// Here's the requestme equivalent.
-func requestme(connectionString ServerInfo, location string) {
-	// Make a request, getting a response and possibly an error.
-	// fmt.Sprintf is a function which acts like printf() except it returns a string.
-	res, err := http.Get(fmt.Sprintf("http://%s:%s/%s", connectionString.RIPAddress, connectionString.RPort, location))
-
-	// These three lines are a common idiom when you just want to crash if an error happens.
-	if err != nil {
-		// Remember, log.Fatal() prints to stderr and then crashes.
-		log.Fatal(err)
-	}
-
-	// Read the entire response into memory.
-	contents, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// "contents" is a byte slice ([]byte). We use
-	// string() to convert it to a string type.
-	// The difference is that the string type is for
-	// UTF-8 strings specifically, while the byte slice
-	// type is for any sort of binary data. However, in
-	// this case, we know the server is returning back
-	// text data. If we did not convert it, println()
-	// would print the pointer of the byte slice instead
-	// of the actual string
-	println(string(contents))
-}
-
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Added mountFS code to create yaml file drop to disk and create a pod.    |
 //--------------------------------------------------------------------------|
 
+// TODO: Rename me
+// init() seeds the random number generator.
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-//var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-func randSeq(n int) string {
+// randSeq generates a LENGTH length string of random lowercase letters.
+func randSeq(length int) string {
 	letters := []rune("abcdefghijklmnopqrstuvwxyz")
-	b := make([]rune, n)
+	b := make([]rune, length)
 	for i := range b {
 		b[i] = letters[rand.Intn(len(letters))]
 	}
 	return string(b)
 }
 
+// TODO: refactor me
 //struct for Kube_Data
 type Kube_Data struct {
 	list    []string
@@ -269,12 +255,14 @@ type Kube_Data struct {
 	command string
 }
 
+// Used by mount_rootfs
 type Mount_Info struct {
 	yaml_build string
 	image      string
 	namespace  string
 }
 
+// Used for JSON parsing
 type Kube_Roles struct {
 	APIVersion string `json:"apiVersion"`
 	Items      []struct {
@@ -304,6 +292,7 @@ type Kube_Roles struct {
 	} `json:"metadata"`
 }
 
+// Populated by GetPodsInfo (JSON parsing from kubectl get pods)
 type Pod_Details struct {
 	APIVersion string `json:"apiVersion"`
 	Items      []struct {
@@ -415,7 +404,22 @@ type Pod_Details struct {
 	} `json:"metadata"`
 }
 
-//gets host mount points
+// GetPodsInfo() gets details for all pods in json output and stores in Pod_Details struct
+func GetPodsInfo(connectionString ServerInfo, podDetails *Pod_Details) {
+	fmt.Println("+ Getting details for all pods")
+	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
+	if err != nil {
+		fmt.Println("- Unable to retrieve details from this pod: ", err)
+	} else {
+		fmt.Println("+ Retrieving details for all pods was successful: ")
+		err := json.Unmarshal(podDetailOut, &podDetails)
+		if err != nil {
+			fmt.Println("- Error unmarshaling data: ", err)
+		}
+	}
+}
+
+// GetHostMountPoints prints all pods' host volume mounts parsed from the Spec.Volumes pod spec by GetPodsInfo()
 func GetHostMountPoints(podInfo Pod_Details) {
 	fmt.Println("+ Getting all host mount points")
 	for _, item := range podInfo.Items {
@@ -428,7 +432,7 @@ func GetHostMountPoints(podInfo Pod_Details) {
 	}
 }
 
-//gets host mount points for one pod
+// GetHostMountPointsForPod prints a single pod's host volume mounts parsed from the Spec.Volumes pod spec by GetPodsInfo()
 func GetHostMountPointsForPod(podInfo Pod_Details, pod string) {
 	fmt.Println("+ Getting all Host Mount Points only for pod: " + pod)
 	for _, item := range podInfo.Items {
@@ -442,7 +446,8 @@ func GetHostMountPointsForPod(podInfo Pod_Details, pod string) {
 	}
 }
 
-//gets roles in json output and stores in Kube_Roles struct
+// GetRoles() enumerates all roles in use on the cluster (in the default namespace).
+// It parses all roles into a Kube_Roles object.
 func GetRoles(connectionString ServerInfo, kubeRoles *Kube_Roles) {
 	fmt.Println("+ Getting all Roles")
 	rolesOut, _, err := runKubectlSimple(connectionString, "get", "role", "-o", "json")
@@ -455,21 +460,6 @@ func GetRoles(connectionString ServerInfo, kubeRoles *Kube_Roles) {
 			fmt.Println("- Error unmarshaling data: ", err)
 		}
 
-	}
-}
-
-//gets details for all pods in json output and stores in Pod_Details struct
-func GetPodsInfo(connectionString ServerInfo, podDetails *Pod_Details) {
-	fmt.Println("+ Getting details for all pods")
-	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
-	if err != nil {
-		fmt.Println("- Unable to retrieve details from this pod: ", err)
-	} else {
-		fmt.Println("+ Retrieving details for all pods was successful: ")
-		err := json.Unmarshal(podDetailOut, &podDetails)
-		if err != nil {
-			fmt.Println("- Error unmarshaling data: ", err)
-		}
 	}
 }
 
@@ -486,6 +476,9 @@ func Mount_RootFS(all_pods_listme []string, connectionString ServerInfo) {
 	//# Parse yaml output to get the image name
 	//image_name = `grep "- image" yaml_output | awk '{print $3}'`
 
+	// We take the most recent deployment's image
+	// TODO: parse this via JSON
+	// TODO: check that image exists / handle failure by trying again with the next youngest deployment's image or a named deployment's image
 	get_images_raw, _, err := runKubectlSimple(connectionString, "get", "deployments", "-o", "wide", "--sort-by", "metadata.creationTimestamp")
 
 	get_image_lines := strings.Split(string(get_images_raw), "\n")
