@@ -1,3 +1,5 @@
+// Unused as of 20181026 - we will use this if and when we need to make HTTP raw (non-library-based) requests.
+
 package peirates
 
 import (
