@@ -626,6 +626,8 @@ func PeiratesMain() {
 
 	Mount_RootFS(all_pods, connectionString)
 
+	// TODO/BUG - This should only run if -L hasn't been chosen.
+	// TODO - should this run if -c isn't chosen?
 	execInAllPods(connectionString, kubeData)
 
 	println("+ Pod list contains:")
