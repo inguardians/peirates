@@ -231,12 +231,6 @@ func execInListPods(connectionString ServerInfo, kubeData Kube_Data) {
 // Added mountFS code to create yaml file drop to disk and create a pod.    |
 //--------------------------------------------------------------------------|
 
-// TODO: Rename me
-// init() seeds the random number generator.
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
 // randSeq generates a LENGTH length string of random lowercase letters.
 func randSeq(length int) string {
 	letters := []rune("abcdefghijklmnopqrstuvwxyz")
