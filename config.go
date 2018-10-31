@@ -15,7 +15,7 @@ type ServerInfo struct {
 	Namespace  string // namespace that this pod's service account is tied to
 }
 
-func Builder() ServerInfo {
+func ParseLocalServerInfo() ServerInfo {
 
 	//creating config_Info type and storing in a variable
 	var config_InfoVars ServerInfo

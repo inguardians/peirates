@@ -30,49 +30,6 @@ import (
 	kubectl "k8s.io/kubernetes/pkg/kubectl/cmd"
 )
 
-// parseOptions parses command-line options. We call it in main().
-func parseOptions(connectionString *ServerInfo, kubeData *Kube_Data) {
-	// This is like the parser.add_option stuff except
-	// it works implicitly on a global parser instance.
-	// Notice the use of pointers (&connectionString.RIPAddress for
-	// example) to bind flags to variables
-	flag.StringVar(&connectionString.RIPAddress, "i", "10.23.58.40", "Remote IP address: ex. 10.22.34.67")
-	flag.StringVar(&connectionString.RPort, "p", "6443", "Remote Port: ex 10255, 10250")
-	flag.StringVar(&kubeData.arg, "L", "", "List of comma seperated Pods: ex pod1,pod2,pod3")
-	flag.StringVar(&kubeData.command, "c", "hostname", "Command to run in pods")
-	// flag.BoolVar(&connectionString.infoPods, "e", false, "Export pod information from remote Kubernetes server via curl")
-
-	// JAY / TODO: println("FIXME: parseOptions clobbers Builder()")
-
-	// flag.StringVar(&connectionString.Token, "t", "", "Token to be used for accessing Kubernetes server")
-	// flag.StringVar(&connectionString.CAPath, "c", "", "Path to CA certificate")
-
-	// This is the function that actually runs the parser
-	// once you've defined all your options.
-	flag.Parse()
-
-	// If the IP or Port are their empty string, we want
-	// to just print out usage and crash because they have
-	// to be defined
-	if connectionString.RIPAddress == "" {
-		// flag.Usage() prints out an auto-generated usage string.
-		flag.Usage()
-		// log.Fatal prints a message to stderr and crashes the program.
-		log.Fatal("Error: must provide remote IP address (-i)")
-	}
-	if connectionString.RPort == "" {
-		// Same as before
-		flag.Usage()
-		log.Fatal("Error: must provide remote Port (-p)")
-	}
-
-	if kubeData.arg != "" {
-		for _, v := range strings.Split(kubeData.arg, ",") {
-			kubeData.list = append(kubeData.list, v)
-		}
-	}
-
-}
 
 // get_pod_list returns an array of pod names, parsed from "kubectl get pods"
 func get_pod_list(connectionString ServerInfo) []string {
@@ -197,14 +154,14 @@ func inAPod(connectionString ServerInfo) bool {
 }
 
 // execInAllPods() runs kubeData.command in all running pods
-func execInAllPods(connectionString ServerInfo, kubeData Kube_Data) {
+func execInAllPods(connectionString ServerInfo, command string) {
 	runningPods := get_pod_list(connectionString)
 	for _, execPod := range runningPods {
-		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/bash", "-c", kubeData.command)
+		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/bash", "-c", command)
 		if err != nil {
-			fmt.Println("- Executing "+kubeData.command+" in Pod "+execPod+" failed: ", err)
+			fmt.Println("- Executing "+command+" in Pod "+execPod+" failed: ", err)
 		} else {
-			fmt.Println("+ Executing " + kubeData.command + " in Pod " + execPod + " succeded: ")
+			fmt.Println("+ Executing " + command + " in Pod " + execPod + " succeded: ")
 			fmt.Println("\t" + string(execInPodOut))
 		}
 	}
@@ -212,15 +169,15 @@ func execInAllPods(connectionString ServerInfo, kubeData Kube_Data) {
 }
 
 // execInListPods() runs kubeData.command in all pods in kubeData.list
-func execInListPods(connectionString ServerInfo, kubeData Kube_Data) {
+func execInListPods(connectionString ServerInfo, pods []string, command string) {
 	fmt.Println("+ Running supplied command in list of pods")
-	for _, execPod := range kubeData.list {
+	for _, execPod := range pods {
 
-		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/bash", "-c", kubeData.command)
+		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/bash", "-c", command)
 		if err != nil {
-			fmt.Println("- Executing "+kubeData.command+" in Pod "+execPod+" failed: ", err)
+			fmt.Println("- Executing "+command+" in Pod "+execPod+" failed: ", err)
 		} else {
-			fmt.Println("+ Executing " + kubeData.command + " in Pod " + execPod + " succeded: ")
+			fmt.Println("+ Executing " + command + " in Pod " + execPod + " succeded: ")
 			fmt.Println("\t" + string(execInPodOut))
 		}
 	}
@@ -241,13 +198,6 @@ func randSeq(length int) string {
 	return string(b)
 }
 
-// TODO: refactor me
-//struct for Kube_Data
-type Kube_Data struct {
-	list    []string
-	arg     string
-	command string
-}
 
 // Used by mount_rootfs
 type Mount_Info struct {
@@ -547,8 +497,8 @@ func PeiratesMain() {
 
 	// Create a global variable named "connectionString" initialized to
 	// default values
-	var connectionString ServerInfo = Builder()
-	var kubeData Kube_Data
+	connectionString := ParseLocalServerInfo()
+    cmdOpts := CommandLineOptions { connectionConfig: connectionString }
 	var kubeRoles Kube_Roles
 	var podInfo Pod_Details
 	//kubeData.arg =""
@@ -590,7 +540,7 @@ func PeiratesMain() {
 
 	println("\n\nPeirates v1.01 by InGuardians")
 	println("https://www.inguardians.com/labs/\n")
-	parseOptions(&connectionString, &kubeData)
+    parseOptions(&cmdOpts)
 
 	if inAPod(connectionString) {
 		println("+ You are in a pod.")
@@ -620,12 +570,11 @@ func PeiratesMain() {
 
 	Mount_RootFS(all_pods, connectionString)
 
-	execInAllPods(connectionString, kubeData)
-
-	println("+ Pod list contains:")
-	for _, pod := range kubeData.list {
-		println("\t" + pod)
-	}
-
-	execInListPods(connectionString, kubeData)
+    if cmdOpts.commandToRunInPods != "" {
+        if len(cmdOpts.podsToRunTheCommandIn) > 0 {
+            execInListPods(connectionString, cmdOpts.podsToRunTheCommandIn, cmdOpts.commandToRunInPods)
+        } else {
+            execInAllPods(connectionString, cmdOpts.commandToRunInPods)
+        }
+    }
 }
