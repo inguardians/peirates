@@ -30,7 +30,6 @@ import (
 	kubectl "k8s.io/kubernetes/pkg/kubectl/cmd"
 )
 
-
 // get_pod_list returns an array of pod names, parsed from "kubectl get pods"
 func get_pod_list(connectionString ServerInfo) []string {
 
@@ -197,7 +196,6 @@ func randSeq(length int) string {
 	}
 	return string(b)
 }
-
 
 // Used by mount_rootfs
 type Mount_Info struct {
@@ -498,7 +496,7 @@ func PeiratesMain() {
 	// Create a global variable named "connectionString" initialized to
 	// default values
 	connectionString := ParseLocalServerInfo()
-    cmdOpts := CommandLineOptions { connectionConfig: connectionString }
+	cmdOpts := CommandLineOptions{connectionConfig: connectionString}
 	var kubeRoles Kube_Roles
 	var podInfo Pod_Details
 	//kubeData.arg =""
@@ -540,7 +538,7 @@ func PeiratesMain() {
 
 	println("\n\nPeirates v1.01 by InGuardians")
 	println("https://www.inguardians.com/labs/\n")
-    parseOptions(&cmdOpts)
+	parseOptions(&cmdOpts)
 
 	if inAPod(connectionString) {
 		println("+ You are in a pod.")
@@ -570,11 +568,11 @@ func PeiratesMain() {
 
 	Mount_RootFS(all_pods, connectionString)
 
-    if cmdOpts.commandToRunInPods != "" {
-        if len(cmdOpts.podsToRunTheCommandIn) > 0 {
-            execInListPods(connectionString, cmdOpts.podsToRunTheCommandIn, cmdOpts.commandToRunInPods)
-        } else {
-            execInAllPods(connectionString, cmdOpts.commandToRunInPods)
-        }
-    }
+	if cmdOpts.commandToRunInPods != "" {
+		if len(cmdOpts.podsToRunTheCommandIn) > 0 {
+			execInListPods(connectionString, cmdOpts.podsToRunTheCommandIn, cmdOpts.commandToRunInPods)
+		} else {
+			execInAllPods(connectionString, cmdOpts.commandToRunInPods)
+		}
+	}
 }
