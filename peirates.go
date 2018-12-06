@@ -496,7 +496,7 @@ func PeiratesMain() {
 	// Create a global variable named "connectionString" initialized to
 	// default values
 	connectionString := ParseLocalServerInfo()
-	cmdOpts := CommandLineOptions{connectionConfig: connectionString}
+	cmdOpts := CommandLineOptions{connectionConfig: &connectionString}
 	var kubeRoles KubeRoles
 	var podInfo PodDetails
 	//kubeData.arg =""
