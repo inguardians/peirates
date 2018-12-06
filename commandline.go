@@ -9,7 +9,7 @@ import (
 )
 
 type CommandLineOptions struct {
-	connectionConfig      ServerInfo
+	connectionConfig      *ServerInfo
 	commandToRunInPods    string
 	podsToRunTheCommandIn []string
 }
