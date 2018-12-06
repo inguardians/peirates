@@ -26,7 +26,7 @@ func parseOptions(opts *CommandLineOptions) {
 	// as a list in opts.podsToRunTheCommandIn
 	var podListRaw string
 
-	flag.StringVar(&opts.connectionConfig.RIPAddress, "i", "10.23.58.40", "Remote IP address: ex. 10.22.34.67")
+	flag.StringVar(&opts.connectionConfig.RIPAddress, "i", "10.23.60.40", "Remote IP address: ex. 10.22.34.67")
 	flag.StringVar(&opts.connectionConfig.RPort, "p", "6443", "Remote Port: ex 10255, 10250")
 	flag.StringVar(&podListRaw, "L", "", "List of comma seperated Pods: ex pod1,pod2,pod3")
 	flag.StringVar(&opts.commandToRunInPods, "c", "hostname", "Command to run in pods")
