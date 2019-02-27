@@ -1,5 +1,3 @@
 #!/bin/bash
 
-# Example execution - will need to alter path and pod name
-
-cat /Users/jay/go/src/gitlab.inguardians.com/agents/peirates/cmd/peirates/peirates | (ssh lockthisdown@k8s-master "kubectl exec -it frontend-5899f97579-8xp2p -- bash -c \"cat >peirates ; chmod u+x ./peirates ; ./peirates\" " ) 
+scp /Users/jay/go/src/gitlab.inguardians.com/agents/peirates/cmd/peirates/peirates root@k8s-master-local:. ; pod=`ssh root@k8s-master-local 'kubectl get pods | grep frontend | head -1 | awk "{print \\$1}"'` ; ssh root@k8s-master-local "cat ./peirates | kubectl exec -it $pod -- bash -c \"cat >./peirates ; chmod 700 ./peirates ; ./peirates\" "

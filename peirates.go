@@ -365,10 +365,10 @@ func GetPodsInfo(connectionString ServerInfo, podDetails *PodDetails) {
 func GetHostMountPoints(podInfo PodDetails) {
 	fmt.Println("+ Getting all host mount points")
 	for _, item := range podInfo.Items {
-		fmt.Println("+ Host Mount Points for Pod: " + item.Metadata.Name)
+		// fmt.Println("+ Host Mount Points for Pod: " + item.Metadata.Name)
 		for _, volume := range item.Spec.Volumes {
 			if volume.HostPath.Path != "" {
-				fmt.Println("\tHost Mount Point: " + string(volume.HostPath.Path))
+				fmt.Println("\tHost Mount Point: " + string(volume.HostPath.Path) + " found for pod " + item.Metadata.Name)
 			}
 		}
 	}
@@ -432,7 +432,7 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo) {
 		if !matched {
 			//added checking to only enumerate running pods
 			MountInfoVars.image = strings.Fields(line)[7]
-			fmt.Println("[+] This is the MountInfoVars.Image output: ", MountInfoVars.image)
+			//fmt.Println("[+] This is the MountInfoVars.Image output: ", MountInfoVars.image)
 		}
 	}
 
@@ -538,6 +538,7 @@ func PeiratesMain() {
 
 	println("\n\nPeirates v1.01 by InGuardians")
 	println("https://www.inguardians.com/labs/\n")
+	time.Sleep(2 * time.Second)
 	parseOptions(&cmdOpts)
 
 	if inAPod(connectionString) {
@@ -549,25 +550,19 @@ func PeiratesMain() {
 	allPods := getPodList(connectionString)
 
 	GetRoles(connectionString, &kubeRoles)
-
+	time.Sleep(5 * time.Second)
 	GetPodsInfo(connectionString, &podInfo)
+	time.Sleep(5 * time.Second)
 	GetHostMountPoints(podInfo)
+	time.Sleep(5 * time.Second)
 	GetHostMountPointsForPod(podInfo, "attack-daemonset-6fmjc")
+	time.Sleep(5 * time.Second)
 	for _, pod := range allPods {
 		// JAY / TODO: Put me back
-		println("Checking out hostname for: " + pod)
+		println("Running a hostname command in pod: " + pod)
 		print(getHostname(connectionString, pod))
 	}
-
-	podCreation := canCreatePods(connectionString)
-	if podCreation {
-		println("+ This token can create pods on the cluster")
-	} else {
-		println(" This token cannot create pods on the cluster")
-	}
-
-	MountRootFS(allPods, connectionString)
-
+	time.Sleep(5 * time.Second)
 	if cmdOpts.commandToRunInPods != "" {
 		if len(cmdOpts.podsToRunTheCommandIn) > 0 {
 			execInListPods(connectionString, cmdOpts.podsToRunTheCommandIn, cmdOpts.commandToRunInPods)
@@ -575,4 +570,14 @@ func PeiratesMain() {
 			execInAllPods(connectionString, cmdOpts.commandToRunInPods)
 		}
 	}
+	time.Sleep(5 * time.Second)
+	podCreation := canCreatePods(connectionString)
+	if podCreation {
+		println("+ This token can create pods on the cluster")
+	} else {
+		println(" This token cannot create pods on the cluster")
+	}
+	time.Sleep(5 * time.Second)
+	MountRootFS(allPods, connectionString)
+
 }
