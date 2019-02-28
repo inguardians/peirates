@@ -3,6 +3,10 @@
 ## Modules
 
 
+## Install
+
+    go get -v 'github.com/inguardians/peirates/cmd' && go install -v 'github.com/inguardians/peirates/cmd/peirates.go'
+
 ## Building and Running
 
 Get kubectl's source if you haven't already (Warning: this will take almost a
