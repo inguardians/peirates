@@ -1,1 +1,4 @@
 peirates
+dist/peirates-*
+.DS_Store
+.vscode
