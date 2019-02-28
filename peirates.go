@@ -535,7 +535,7 @@ func PeiratesMain() {
 	,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 	________________________________________`)
 
-	println("\n\nPeirates v1.01 by InGuardians")
+	println("\n\nPeirates v1.02 by InGuardians")
 	println("https://www.inguardians.com/labs/\n")
 	parseOptions(&cmdOpts)
 
