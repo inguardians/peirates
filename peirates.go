@@ -12,6 +12,7 @@ package peirates
 // standard library as much as possible
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag" // Command line flag parsing
 	"fmt"  // String formatting (Printf, Sprintf)
@@ -19,6 +20,7 @@ import (
 	"io/ioutil" // Utils for dealing with IO streams
 	"log"       // Logging utils
 	"math/rand" // Random module for creating random string building
+	"os"
 
 	// HTTP client/server
 	"os/exec"
@@ -83,6 +85,37 @@ func getHostname(connectionString ServerInfo, PodName string) string {
 // NOTE: You should generally use runKubectlSimple(), which calls runKubectlWithConfig, which calls this.
 func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
 	// Based on code from https://github.com/kubernetes/kubernetes/blob/2e0e1681a6ca7fe795f3bd5ec8696fb14687b9aa/cmd/kubectl/kubectl.go#L44
+
+	// Set up a function to handle the case where we've been running for over 10 seconds
+	// 10 seconds is an entirely arbitrary timeframe, adjust it if needed.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		// Since this always keeps cmdArgs alive in memory for at least 10 seconds, there is the
+		// potential for this to lead to excess memory usage if kubectl is run an astronimcal number
+		// of times within the timeout window. I don't expect this to be an issue, but if it is, I
+		// recommend a looping <sleeptime> iterations with a 1 second sleep between each iteration,
+		// allowing the routine to exit earlier when possible.
+		time.Sleep(10 * time.Second)
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			log.Fatalf(
+				"\nKubectl took too long! This usually happens because the remote IP is wrong.\n"+
+					"Check that you've passed the right IP address with -i. If that doesn't help,\n"+
+					"and you're running in a test environment, try restarting the entire cluster.\n"+
+					"\n"+
+					"To help you debug, here are the arguments that were passed to peirates:\n"+
+					"\t%s\n"+
+					"\n"+
+					"And here are the arguments that were passed to the failing kubectl command:\n"+
+					"\t%s\n",
+				os.Args,
+				append([]string{"kubectl"}, cmdArgs...))
+			return
+		}
+	}()
 
 	// NewKubectlCommand adds the global flagset for some reason, so we have to
 	// copy it, temporarily replace it, and then restore it.
