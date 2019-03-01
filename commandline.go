@@ -5,6 +5,7 @@ package peirates
 import (
 	"flag" // Command line flag parsing
 	"log"
+	"os"
 	"strings"
 )
 
@@ -26,10 +27,12 @@ func parseOptions(opts *CommandLineOptions) {
 	// as a list in opts.podsToRunTheCommandIn
 	var podListRaw string
 
-	flag.StringVar(&opts.connectionConfig.RIPAddress, "i", "10.23.60.40", "Remote IP address: ex. 10.22.34.67")
-	flag.StringVar(&opts.connectionConfig.RPort, "p", "6443", "Remote Port: ex 10255, 10250")
-	flag.StringVar(&podListRaw, "L", "", "List of comma seperated Pods: ex pod1,pod2,pod3")
-	flag.StringVar(&opts.commandToRunInPods, "c", "hostname", "Command to run in pods")
+	flagset := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+
+	flagset.StringVar(&opts.connectionConfig.RIPAddress, "i", "10.23.60.40", "Remote IP address: ex. 10.22.34.67")
+	flagset.StringVar(&opts.connectionConfig.RPort, "p", "6443", "Remote Port: ex 10255, 10250")
+	flagset.StringVar(&podListRaw, "L", "", "List of comma seperated Pods: ex pod1,pod2,pod3")
+	flagset.StringVar(&opts.commandToRunInPods, "c", "hostname", "Command to run in pods")
 	// flag.BoolVar(&connectionString.infoPods, "e", false, "Export pod information from remote Kubernetes server via curl")
 
 	// JAY / TODO: println("FIXME: parseOptions clobbers Builder()")
@@ -39,20 +42,20 @@ func parseOptions(opts *CommandLineOptions) {
 
 	// This is the function that actually runs the parser
 	// once you've defined all your options.
-	flag.Parse()
+	flagset.Parse(os.Args[1:])
 
 	// If the IP or Port are their empty string, we want
 	// to just print out usage and crash because they have
 	// to be defined
 	if opts.connectionConfig.RIPAddress == "" {
 		// flag.Usage() prints out an auto-generated usage string.
-		flag.Usage()
+		flagset.Usage()
 		// log.Fatal prints a message to stderr and crashes the program.
 		log.Fatal("Error: must provide remote IP address (-i)")
 	}
 	if opts.connectionConfig.RPort == "" {
 		// Same as before
-		flag.Usage()
+		flagset.Usage()
 		log.Fatal("Error: must provide remote Port (-p)")
 	}
 
