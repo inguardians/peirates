@@ -152,10 +152,10 @@ func inAPod(connectionString ServerInfo) bool {
 
 }
 
-func getListOfPods(connectionString ServerInfo){
-	runningPods:= getPodList(connectionString)
-	for _, listpod := range runningPods { 
-		fmt.Println("Pod Name: " +listpod)
+func getListOfPods(connectionString ServerInfo) {
+	runningPods := getPodList(connectionString)
+	for _, listpod := range runningPods {
+		fmt.Println("Pod Name: " + listpod)
 	}
 
 }
@@ -497,7 +497,6 @@ spec:
 	//fmt.Println(out)
 }
 
-
 func clear_screen() {
 	//fmt.Print("Press Enter to Proceed .....")
 	var input string
@@ -509,15 +508,14 @@ func clear_screen() {
 }
 
 func banner() {
-clear_screen()
+	clear_screen()
 
-name, err := os.Hostname()
+	name, err := os.Hostname()
 	if err != nil {
 		panic(err)
 	}
 
-
-println(`________________________________________
+	println(`________________________________________
 |  ___  ____ _ ____ ____ ___ ____ ____ |
 |  |__] |___ | |__/ |__|  |  |___ [__  |
 |  |    |___ | |  \ |  |  |  |___ ___] |
@@ -560,6 +558,7 @@ ________________________________________
 [+] Current hostname:`, name)
 
 }
+
 //------------------------------------------------------------------------------------------------------------------------------------------------
 
 func PeiratesMain() {
@@ -584,10 +583,10 @@ func PeiratesMain() {
 
 	allPods := getPodList(connectionString)
 
-var input int
-for ok := true; ok; ok = (input != 2) {
-	banner()
-	println(`----------------------------------------------------------------
+	var input int
+	for ok := true; ok; ok = (input != 2) {
+		banner()
+		println(`----------------------------------------------------------------
 Intial Compromise/Recon |
 -------------------------
 [1] Get service account from the filesystem
@@ -610,44 +609,44 @@ Misc |
 ----------------------------------------------------------------
 Peirates:># `)
 
-var input string
-var user_response string
-fmt.Scanln(&input)
-// Peirates 
-switch input {
-
-case "1":
-	break
-case "2":
-	println("\n[+] Printing a list of Pods in the cluster......")
-	getListOfPods(connectionString)
-case "exit":
-	break
-case "3":
-	GetPodsInfo(connectionString, &podInfo)
-	break
-case "4":
-	println("\n[1] Get all host mount points\n[2] Get volume mount points for a specific pod\n\nPeirates:># ")
-	fmt.Scanln(&input)
-	switch input {
-		case "1":
-			println("[+] Getting volume mounts for all pods")
-			GetHostMountPoints(podInfo)
-			//println("[+] Attempting to Mounting RootFS......")
-			//MountRootFS(allPods, connectionString)
-		case "2":
-			println("[+] Please provide the pod name: ")
-			fmt.Scanln(&user_response)
-			println("[+] Printing volume mount points for %s", user_response)
-			GetHostMountPointsForPod(podInfo, user_response)
-	}
-case "5":
-	banner()
-	println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
-	fmt.Scanln(&input)
-	println("[+] Please Provide the command to run in the pods: ")
-	fmt.Scanln(&cmdOpts.commandToRunInPods)
+		var input string
+		var user_response string
+		fmt.Scanln(&input)
+		// Peirates
 		switch input {
+
+		case "1":
+			break
+		case "2":
+			println("\n[+] Printing a list of Pods in the cluster......")
+			getListOfPods(connectionString)
+		case "exit":
+			break
+		case "3":
+			GetPodsInfo(connectionString, &podInfo)
+			break
+		case "4":
+			println("\n[1] Get all host mount points\n[2] Get volume mount points for a specific pod\n\nPeirates:># ")
+			fmt.Scanln(&input)
+			switch input {
+			case "1":
+				println("[+] Getting volume mounts for all pods")
+				GetHostMountPoints(podInfo)
+				//println("[+] Attempting to Mounting RootFS......")
+				//MountRootFS(allPods, connectionString)
+			case "2":
+				println("[+] Please provide the pod name: ")
+				fmt.Scanln(&user_response)
+				println("[+] Printing volume mount points for %s", user_response)
+				GetHostMountPointsForPod(podInfo, user_response)
+			}
+		case "5":
+			banner()
+			println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
+			fmt.Scanln(&input)
+			println("[+] Please Provide the command to run in the pods: ")
+			fmt.Scanln(&cmdOpts.commandToRunInPods)
+			switch input {
 			case "1":
 				println("[+] Please Provide the specified pod to run the command: ")
 				fmt.Scanln(&cmdOpts.podsToRunTheCommandIn)
@@ -660,25 +659,25 @@ case "5":
 				if cmdOpts.commandToRunInPods != "" {
 					if len(cmdOpts.podsToRunTheCommandIn) > 0 {
 						execInAllPods(connectionString, cmdOpts.commandToRunInPods)
-					} 
+					}
 				}
+			}
+		case "6":
+			break
+		case "7":
+			break
 		}
-case "6":
-	break
-case "7":
-	break
-}
-}
+	}
 	//---------------------------------------------------------
-//	parseOptions(&cmdOpts)
+	//	parseOptions(&cmdOpts)
 
-//	if inAPod(connectionString) {
-//		println("+ You are in a pod.")
-//	} else {
-//		println("- You are not in a Kubernetes pod.")
-//	}
+	//	if inAPod(connectionString) {
+	//		println("+ You are in a pod.")
+	//	} else {
+	//		println("- You are not in a Kubernetes pod.")
+	//	}
 
-//	allPods := getPodList(connectionString)
+	//	allPods := getPodList(connectionString)
 
 	GetRoles(connectionString, &kubeRoles)
 	GetPodsInfo(connectionString, &podInfo)
