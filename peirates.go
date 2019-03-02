@@ -579,7 +579,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
 
-    Peirates v1.02 by InGuardians
+   Peirates v1.03 by InGuardians
    https://www.inguardians.com/labs/
 
 ----------------------------------------------------------------`)
@@ -674,16 +674,20 @@ Peirates:># `)
 		case "4":
 			println("\n[1] Get all host mount points\n[2] Get volume mount points for a specific pod\n\nPeirates:># ")
 			fmt.Scanln(&input)
+
+			GetPodsInfo(connectionString, &podInfo)
+
 			switch input {
 			case "1":
 				println("[+] Getting volume mounts for all pods")
+				// BUG: Need to make it so this Get doesn't print all info even though it gathers all info.
 				GetHostMountPoints(podInfo)
 				//println("[+] Attempting to Mounting RootFS......")
 				//MountRootFS(allPods, connectionString)
 			case "2":
 				println("[+] Please provide the pod name: ")
 				fmt.Scanln(&user_response)
-				println("[+] Printing volume mount points for %s", user_response)
+				fmt.Printf("[+] Printing volume mount points for %s\n", user_response)
 				GetHostMountPointsForPod(podInfo, user_response)
 			}
 		case "5":

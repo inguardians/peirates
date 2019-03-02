@@ -24,7 +24,7 @@ func ParseLocalServerInfo() ServerInfo {
 	// Read IP address and port number for API server out of environment variables
 	configInfoVars.RIPAddress = os.Getenv("KUBERNETES_SERVICE_HOST")
 	configInfoVars.RPort = os.Getenv("KUBERNETES_SERVICE_PORT")
-	fmt.Println("+ Found IP address for API Server: "+configInfoVars.RIPAddress)
+	// fmt.Println("+ Found IP address for API Server: "+configInfoVars.RIPAddress)
 
 	// Reading token file and storing in variable token
 	token, errRead := ioutil.ReadFile("/run/secrets/kubernetes.io/serviceaccount/token")
