@@ -32,12 +32,12 @@ import (
 	kubectl "k8s.io/kubernetes/pkg/kubectl/cmd"
 )
 
-// getPodList returns an array of running pod names, parsed from "kubectl get pods"
+// getPodList returns an array of running pod names, parsed from "kubectl -n namespace get pods"
 func getPodList(connectionString ServerInfo) []string {
 
 	var pods []string
 
-	getPodsRaw, _, err := runKubectlSimple(connectionString, "get", "pods")
+	getPodsRaw, _, err := runKubectlSimple(connectionString,"get", "pods")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -65,6 +65,7 @@ func getPodList(connectionString ServerInfo) []string {
 
 // getHostname runs kubectl with connection string to get hostname from pod
 func getHostname(connectionString ServerInfo, PodName string) string {
+	
 	hostname, _, err := runKubectlSimple(connectionString, "exec", "-it", PodName, "hostname")
 	if err != nil {
 		fmt.Println("- Checking for hostname of pod "+PodName+" failed: ", err)
@@ -198,7 +199,7 @@ func execInAllPods(connectionString ServerInfo, command string) {
 	runningPods := getPodList(connectionString)
 	
 	for _, execPod := range runningPods {
-		execInPodOut, _, err := runKubectlSimple(connectionString, "-n",connectionString.Namespace,"exec", "-it", execPod, "--", "/bin/sh", "-c", command)
+		execInPodOut, _, err := runKubectlSimple(connectionString,"exec", "-it", execPod, "--", "/bin/sh", "-c", command)
 		if err != nil {
 			fmt.Println("[-] Executing "+command+" in Pod "+execPod+" failed: ", err)
 		} else {
@@ -214,7 +215,7 @@ func execInListPods(connectionString ServerInfo, pods []string, command string) 
 	fmt.Println("+ Running supplied command in list of pods")
 	for _, execPod := range pods {
 		
-		execInPodOut, _, err := runKubectlSimple(connectionString, "-n",connectionString.Namespace,"exec", "-it", execPod, "--", "/bin/sh", "-c", command)
+		execInPodOut, _, err := runKubectlSimple(connectionString,"exec", "-it", execPod, "--", "/bin/sh", "-c", command)
 		if err != nil {
 			fmt.Println("[-] Executing "+command+" in Pod "+execPod+" failed: ", err)
 		} else {
@@ -391,7 +392,7 @@ type PodDetails struct {
 // GetPodsInfo() gets details for all pods in json output and stores in PodDetails struct
 func GetPodsInfo(connectionString ServerInfo, podDetails *PodDetails) {
 	fmt.Println("+ Getting details for all pods")
-	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
+	podDetailOut, _, err := runKubectlSimple(connectionString,"get", "pods", "-o", "json")
 	println(string(podDetailOut))
 	if err != nil {
 		fmt.Println("[-] Unable to retrieve details from this pod: ", err)
@@ -406,7 +407,7 @@ func GetPodsInfo(connectionString ServerInfo, podDetails *PodDetails) {
 
 // GetHostMountPoints prints all pods' host volume mounts parsed from the Spec.Volumes pod spec by GetPodsInfo()
 func GetHostMountPoints(podInfo PodDetails) {
-	fmt.Println("+ Getting all host mount points")
+	fmt.Println("+ Getting all host mount points for pods in current namespace")
 	for _, item := range podInfo.Items {
 		// fmt.Println("+ Host Mount Points for Pod: " + item.Metadata.Name)
 		for _, volume := range item.Spec.Volumes {
@@ -435,7 +436,7 @@ func GetHostMountPointsForPod(podInfo PodDetails, pod string) {
 // It parses all roles into a KubeRoles object.
 func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
 	fmt.Println("+ Getting all Roles")
-	rolesOut, _, err := runKubectlSimple(connectionString, "get", "role", "-o", "json")
+	rolesOut, _, err := runKubectlSimple(connectionString,"get", "role", "-o", "json")
 	if err != nil {
 		fmt.Println("[-] Unable to retrieve roles from this pod: ", err)
 	} else {
@@ -633,25 +634,27 @@ func PeiratesMain() {
 	for ok := true; ok; ok = (input != 2) {
 		banner(connectionString)
 		println(`----------------------------------------------------------------
-Intial Compromise/Recon |
+Recon |
 -------------------------
 [1] Enter a different service account token
 [2] Get list of pods
 [3] Get complete info on all pods (json)
+[4] Get list of secrets
+[5] Get contents of a secret [not yet implemented]
 ----------------------------------------------------------------
 Vulnerabilities and Misconfiguration Searching |
 ------------------------------------------------
-[4] Check all pods for volume mounts
+[10] Check all pods for volume mounts
 --------
 Pivot |
 ----------------------------------------------------------------
-[5] Change namespace setting
-[6] Run command in one or all pods in this namespace 
+[11] Change namespace setting
+[12] Run command in one or all pods in this namespace 
 ------
 Misc |
 ----------------------------------------------------------------
-[10] Shell out to bash (not yet implemented)
-[11] Build YAML Files (not yet implemented)
+[98] Shell out to bash (not yet implemented)
+[99] Build YAML Files (not yet implemented)
 [exit] Exit Peirates 
 ----------------------------------------------------------------
 Peirates:># `)
@@ -670,7 +673,7 @@ Peirates:># `)
 				connectionString.Token = token
 			}
 		case "2":
-			println("\n[+] Printing a list of Pods in the cluster......")
+			println("\n[+] Printing a list of Pods in this namespace......")
 			getListOfPods(connectionString)
 		case "exit":
 			os.Exit(0)
@@ -678,6 +681,10 @@ Peirates:># `)
 			GetPodsInfo(connectionString, &podInfo)
 			break
 		case "4":
+			break
+		case "5":
+			break
+		case "10":
 			println("\n[1] Get all host mount points\n[2] Get volume mount points for a specific pod\n\nPeirates:># ")
 			fmt.Scanln(&input)
 
@@ -696,14 +703,14 @@ Peirates:># `)
 				fmt.Printf("[+] Printing volume mount points for %s\n", user_response)
 				GetHostMountPointsForPod(podInfo, user_response)
 			}
-		case "5":
+		case "11":
 			println("\nEnter namespace to switch to or hit enter to maintain current namespace: ")
 			fmt.Scanln(&input)
 			if (input != "") {
 				connectionString.Namespace = input
 				
 			}
-		case "6":
+		case "12":
 			banner(connectionString)
 			println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
 			fmt.Scanln(&input)
@@ -732,9 +739,9 @@ Peirates:># `)
 				}
 				
 			}
-		case "10":
+		case "98":
 			break
-		case "11":
+		case "99":
 			break
 		
 		}
