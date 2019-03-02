@@ -32,7 +32,7 @@ import (
 	kubectl "k8s.io/kubernetes/pkg/kubectl/cmd"
 )
 
-// getPodList returns an array of pod names, parsed from "kubectl get pods"
+// getPodList returns an array of running pod names, parsed from "kubectl get pods"
 func getPodList(connectionString ServerInfo) []string {
 
 	var pods []string
@@ -196,8 +196,9 @@ func getListOfPods(connectionString ServerInfo) {
 // execInAllPods() runs kubeData.command in all running pods
 func execInAllPods(connectionString ServerInfo, command string) {
 	runningPods := getPodList(connectionString)
+	
 	for _, execPod := range runningPods {
-		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/bash", "-c", command)
+		execInPodOut, _, err := runKubectlSimple(connectionString, "-n",connectionString.Namespace,"exec", "-it", execPod, "--", "/bin/sh", "-c", command)
 		if err != nil {
 			fmt.Println("[-] Executing "+command+" in Pod "+execPod+" failed: ", err)
 		} else {
@@ -212,8 +213,8 @@ func execInAllPods(connectionString ServerInfo, command string) {
 func execInListPods(connectionString ServerInfo, pods []string, command string) {
 	fmt.Println("+ Running supplied command in list of pods")
 	for _, execPod := range pods {
-
-		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/bash", "-c", command)
+		
+		execInPodOut, _, err := runKubectlSimple(connectionString, "-n",connectionString.Namespace,"exec", "-it", execPod, "--", "/bin/sh", "-c", command)
 		if err != nil {
 			fmt.Println("[-] Executing "+command+" in Pod "+execPod+" failed: ", err)
 		} else {
@@ -634,7 +635,7 @@ func PeiratesMain() {
 		println(`----------------------------------------------------------------
 Intial Compromise/Recon |
 -------------------------
-[1] Get service account from the filesystem
+[1] Enter a different service account token
 [2] Get list of pods
 [3] Get complete info on all pods (json)
 ----------------------------------------------------------------
@@ -644,8 +645,8 @@ Vulnerabilities and Misconfiguration Searching |
 --------
 Pivot |
 ----------------------------------------------------------------
-[5] Switch namespace setting
-[6] Run command in one or all pods 
+[5] Change namespace setting
+[6] Run command in one or all pods in this namespace 
 ------
 Misc |
 ----------------------------------------------------------------
@@ -662,12 +663,17 @@ Peirates:># `)
 		switch input {
 
 		case "1":
-			break
+			println("\nPlease paste in a new service account token or hit ENTER to maintain current token.")
+			var token string
+			fmt.Scanln(&token)
+			if (token != "") {
+				connectionString.Token = token
+			}
 		case "2":
 			println("\n[+] Printing a list of Pods in the cluster......")
 			getListOfPods(connectionString)
 		case "exit":
-			break
+			os.Exit(0)
 		case "3":
 			GetPodsInfo(connectionString, &podInfo)
 			break
@@ -707,22 +713,30 @@ Peirates:># `)
 			case "1":
 				println("[+] Please Provide the specified pod to run the command: ")
 				fmt.Scanln(&cmdOpts.podsToRunTheCommandIn)
+				var pod_to_run_in string
+				fmt.Scanln(&pod_to_run_in)
+				cmdOpts.podsToRunTheCommandIn = []string{ pod_to_run_in }
+				
 				if cmdOpts.commandToRunInPods != "" {
 					if len(cmdOpts.podsToRunTheCommandIn) > 0 {
 						execInListPods(connectionString, cmdOpts.podsToRunTheCommandIn, cmdOpts.commandToRunInPods)
 					}
 				}
 			case "2":
+				var input string
 				if cmdOpts.commandToRunInPods != "" {
-					if len(cmdOpts.podsToRunTheCommandIn) > 0 {
-						execInAllPods(connectionString, cmdOpts.commandToRunInPods)
-					}
+					execInAllPods(connectionString, cmdOpts.commandToRunInPods)
+				} else {
+					fmt.Print("ERROR - command string was empty.")
+					fmt.Scanln(&input)
 				}
+				
 			}
 		case "10":
 			break
 		case "11":
 			break
+		
 		}
 		clear_screen()
 	}
