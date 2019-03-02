@@ -540,7 +540,7 @@ func clear_screen() {
 	c.Run()
 }
 
-func banner() {
+func banner(connectionString ServerInfo) {
 
 	name, err := os.Hostname()
 	if err != nil {
@@ -582,12 +582,20 @@ ________________________________________
     Peirates v1.02 by InGuardians
    https://www.inguardians.com/labs/
 
-----------------------------------------------------------------
-[+] Service Account Loaded: <TODO: populate>
-[+] Certificate Authority Certificate: <TODO: populate>
-[+] Kubernetes API Server:  <TODO: populate>
-[+] Current IP Address: <TODO: populate>
-[+] Current hostname:`, name)
+----------------------------------------------------------------`)
+	var have_token bool = false
+	if (connectionString.Token != "") {
+		have_token = true
+	}
+	fmt.Printf("[+] Service Account Loaded: %t\n",have_token)
+	var have_ca bool = false
+	if (connectionString.CAPath != "") {
+		have_ca = true
+	}
+  fmt.Printf("[+] Certificate Authority Certificate: %t\n",have_ca)
+  fmt.Printf("[+] Kubernetes API Server: %s:%s\n",connectionString.RIPAddress,connectionString.RPort)
+	fmt.Println("[+] Current hostname:", name)
+	fmt.Println("[+] Current namespace:", connectionString.Namespace)
 
 }
 
@@ -622,7 +630,7 @@ func PeiratesMain() {
 
 	var input int
 	for ok := true; ok; ok = (input != 2) {
-		banner()
+		banner(connectionString)
 		println(`----------------------------------------------------------------
 Intial Compromise/Recon |
 -------------------------
@@ -634,14 +642,15 @@ Vulnerabilities and Misconfiguration Searching |
 ------------------------------------------------
 [4] Check all pods for volume mounts
 --------
-Pivots |
+Pivot |
 ----------------------------------------------------------------
-[5] Run command in one or all pods 
+[5] Switch namespace setting
+[6] Run command in one or all pods 
 ------
 Misc |
 ----------------------------------------------------------------
-[6] Shell out to bash
-[7] Build YAML Files
+[10] Shell out to bash (not yet implemented)
+[11] Build YAML Files (not yet implemented)
 [exit] Exit Peirates 
 ----------------------------------------------------------------
 Peirates:># `)
@@ -678,7 +687,14 @@ Peirates:># `)
 				GetHostMountPointsForPod(podInfo, user_response)
 			}
 		case "5":
-			banner()
+			println("\nEnter namespace to switch to or hit enter to maintain current namespace: ")
+			fmt.Scanln(&input)
+			if (input != "") {
+				connectionString.Namespace = input
+				
+			}
+		case "6":
+			banner(connectionString)
 			println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
 			fmt.Scanln(&input)
 			println("[+] Please Provide the command to run in the pods: ")
@@ -699,9 +715,9 @@ Peirates:># `)
 					}
 				}
 			}
-		case "6":
+		case "10":
 			break
-		case "7":
+		case "11":
 			break
 		}
 		clear_screen()
