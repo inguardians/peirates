@@ -29,8 +29,8 @@ func parseOptions(opts *CommandLineOptions) {
 
 	flagset := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
-	flagset.StringVar(&opts.connectionConfig.RIPAddress, "i", "10.23.60.40", "Remote IP address: ex. 10.22.34.67")
-	flagset.StringVar(&opts.connectionConfig.RPort, "p", "6443", "Remote Port: ex 10255, 10250")
+	flagset.StringVar(&opts.connectionConfig.RIPAddress, "i", opts.connectionConfig.RIPAddress, "Remote IP address: ex. 10.22.34.67")
+	flagset.StringVar(&opts.connectionConfig.RPort, "p", opts.connectionConfig.RPort, "Remote Port: ex 10255, 10250")
 	flagset.StringVar(&podListRaw, "L", "", "List of comma seperated Pods: ex pod1,pod2,pod3")
 	flagset.StringVar(&opts.commandToRunInPods, "c", "hostname", "Command to run in pods")
 	// flag.BoolVar(&connectionString.infoPods, "e", false, "Export pod information from remote Kubernetes server via curl")

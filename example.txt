@@ -1,3 +1,12 @@
-#!/bin/bash
+# This is a simple build and test pair of commands for InGuardians, using Bust-a-Kube 0.9
 
-scp /Users/jay/go/src/gitlab.inguardians.com/agents/peirates/cmd/peirates/peirates root@k8s-master-local:. ; pod=`ssh root@k8s-master-local 'kubectl get pods | grep frontend | head -1 | awk "{print \\$1}"'` ; ssh root@k8s-master-local "cat ./peirates | kubectl exec -it $pod -- bash -c \"cat >./peirates ; chmod 700 ./peirates ; ./peirates\" "
+#
+# In the MacOS window:
+#
+# Compile in a subshell, so we don't lose our current working directory, but can skip pushd-popd, then push to master node.  On a Mac, give audio cue.
+ ( cd ~/go/src/gitlab.inguardians.com/agents/peirates/cmd/peirates/ ; env GOOS=linux GOARCH=amd64 go build peirates.go ) ; scp ~/go/src/gitlab.inguardians.com/agents/peirates/cmd/peirates/peirates root@k8s-master-local:.  ; say "hack it"
+
+#
+# In the Master node window 
+# 
+export pod=`kubectl get pods | grep frontend | head -1 | awk "{print \\$1}"` ; cat ./peirates | kubectl exec -it $pod -- bash -c "cat >./peirates ; chmod 700 ./peirates" ; kubectl exec -it $pod -- /bin/bash

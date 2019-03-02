@@ -20,7 +20,7 @@ import (
 	"io/ioutil" // Utils for dealing with IO streams
 	"log"       // Logging utils
 	"math/rand" // Random module for creating random string building
-	"os"
+	"os" // Environment variables ...
 
 	// HTTP client/server
 	"os/exec"
@@ -531,7 +531,7 @@ spec:
 }
 
 func clear_screen() {
-	//fmt.Print("Press Enter to Proceed .....")
+	fmt.Print("Press Enter to Proceed .....")
 	var input string
 	fmt.Scanln(&input)
 	//fmt.Print(input)
@@ -541,7 +541,6 @@ func clear_screen() {
 }
 
 func banner() {
-	clear_screen()
 
 	name, err := os.Hostname()
 	if err != nil {
@@ -584,10 +583,10 @@ ________________________________________
    https://www.inguardians.com/labs/
 
 ----------------------------------------------------------------
-[+] User Token: Anonymous
-[+] Certificate Authority Certificate: acquired
-[+] Kubernetes API Server:  10.0.5.22
-[+] Current IP Address: 10.1.1.1
+[+] Service Account Loaded: <TODO: populate>
+[+] Certificate Authority Certificate: <TODO: populate>
+[+] Kubernetes API Server:  <TODO: populate>
+[+] Current IP Address: <TODO: populate>
 [+] Current hostname:`, name)
 
 }
@@ -608,6 +607,11 @@ func PeiratesMain() {
 	// Run the option parser to initialize connectionStrings
 	parseOptions(&cmdOpts)
 
+	// Check environment variables - see KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT
+	// Watch the documentation on these variables for changes: 
+	// https://kubernetes.io/docs/concepts/containers/container-environment-variables/
+
+  // BUG: confirm that this does the right thing when not in a pod.
 	if inAPod(connectionString) {
 		println("+ You are in a pod.")
 	} else {
@@ -700,6 +704,7 @@ Peirates:># `)
 		case "7":
 			break
 		}
+		clear_screen()
 	}
 	//---------------------------------------------------------
 	//	parseOptions(&cmdOpts)
