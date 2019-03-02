@@ -63,7 +63,45 @@ func getPodList(connectionString ServerInfo) []string {
 	return pods
 }
 
+// Get the names of the available Secrets from the current namespace and a list of service account tokens
+func getSecretList(connectionString ServerInfo) ([]string,[]string) {
+
+	var secrets []string
+	var service_account_tokens []string
+
+	getSecretsRaw, _, err := runKubectlSimple(connectionString,"get", "secrets")
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Iterate over kubectl get secrets, stripping off the first line which matches NAME and then grabbing the first column
+
+	lines := strings.Split(string(getSecretsRaw), "\n")
+	for _, line := range lines {
+		matched, err := regexp.MatchString(`^\s*$`, line)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if !matched {
+			//added checking to note which secrets are service account tokens
+			fields := strings.Fields(line)
+			secret := fields[0]
+			// Check for header row
+			if (secret != "NAME") {
+				secrets = append(secrets, secret)
+				if fields[1] == "kubernetes.io/service-account-token" {
+					service_account_tokens = append(service_account_tokens, secret)
+				}
+			}
+		}
+	}
+
+	return secrets,service_account_tokens
+}
+
+//
 // getHostname runs kubectl with connection string to get hostname from pod
+// In the medium term, this function will disappear
+//
 func getHostname(connectionString ServerInfo, PodName string) string {
 	
 	hostname, _, err := runKubectlSimple(connectionString, "exec", "-it", PodName, "hostname")
@@ -662,7 +700,7 @@ Peirates:># `)
 		var input string
 		var user_response string
 		fmt.Scanln(&input)
-		// Peirates
+		// Peirates MAIN MENU
 		switch input {
 
 		case "1":
@@ -681,8 +719,17 @@ Peirates:># `)
 			GetPodsInfo(connectionString, &podInfo)
 			break
 		case "4":
+			// Menu Item: Get List of Secrets
+			secrets,service_account_tokens := getSecretList(connectionString) 
+			for _, secret := range secrets {
+				println("Secret found: ",secret)
+			}
+			for _, svc_acct := range service_account_tokens {
+				println("Service account found: ",svc_acct)
+			}
 			break
 		case "5":
+			// Menu Item: Get Contents of a Secret
 			break
 		case "10":
 			println("\n[1] Get all host mount points\n[2] Get volume mount points for a specific pod\n\nPeirates:># ")
