@@ -505,9 +505,17 @@ func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
 func MountRootFS(allPodsListme []string, connectionString ServerInfo) {
 	var MountInfoVars = MountInfo{}
 	
+	// BUG: this routine seems to create the same pod name every time, which makes it so it can't run twice.
+
+	// First, confirm we're allowed to create pods
+	if !canCreatePods(connectionString) {
+		println("AUTHORIZATION: this token isn't allowed to create pods in this namespace")
+		return
+	}
+
 	// TODO: changing parsing to occur via JSON
 	// TODO: check that image exists / handle failure by trying again with the next youngest pod's image or a named pod's image
-	
+
 	// Approach 1: Try to get the image file for my own pod
 	//./kubectl describe pod `hostname`| grep Image:
 	hostname := os.Getenv("HOSTNAME")
@@ -541,6 +549,25 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo) {
 		// Approach 2 - use the most recently staged running pod
 		//
 		// TODO: re-order the list and stop the for loop as soon as we have the first running or as soon as we're able to make one of these work.
+
+
+		// Future version of approach 2:
+		// 	Let's make something to mount the root filesystem, but not pick a deployment.  Rather, 
+		// it should populate a list of all pods in the current namespace, then iterate through 
+		// images trying to find one that has a shell.
+
+		// Here's the useful part of that data.
+
+		// type PodDetails struct {
+		// 	Items      []struct {
+		// 		Metadata   struct {
+		// 			Name            string `json:"name"`
+		// 			Namespace       string `json:"namespace"`
+		// 		} `json:"metadata"`
+		// 		Spec struct {
+		// 			Containers []struct {
+		// 				Image           string `json:"image"
+
 		println("Getting image from the most recently-staged pod in thie namespace")
 		getImagesRaw, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "wide", "--sort-by", "metadata.creationTimestamp")
 		if err != nil {
@@ -567,6 +594,7 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo) {
 	
 	
 	//creat random string
+	rand.Seed(time.Now().UnixNano())
 	randomString := randSeq(6)
 
 	// Create Yaml File
