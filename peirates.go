@@ -506,7 +506,7 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo) {
 	var MountInfoVars = MountInfo{}
 	
 	// TODO: changing parsing to occur via JSON
-	// TODO: check that image exists / handle failure by trying again with the next youngest deployment's image or a named deployment's image
+	// TODO: check that image exists / handle failure by trying again with the next youngest pod's image or a named pod's image
 	
 	// Approach 1: Try to get the image file for my own pod
 	//./kubectl describe pod `hostname`| grep Image:
@@ -740,10 +740,10 @@ Vulnerabilities and Misconfiguration Searching |
 --------
 Pivot |
 ----------------------------------------------------------------
-[12] List service accounts acquired [not yet implemented]
-[13] Switch to an acquired service account [not yet implemented]
-[20] Run command in one or all pods in this namespace 
-[13] Run a command in a pod via a Kubelet [not yet implemented]
+[20] List service accounts acquired [not yet implemented]
+[21] Switch to an acquired service account [not yet implemented]
+[30] Run command in one or all pods in this namespace 
+[33] Run a command in a pod via a Kubelet [not yet implemented]
 
 ------
 Misc |
@@ -900,7 +900,8 @@ Peirates:># `)
 
 		case "19":
 			break
-		case "20":
+		// [30] Run command in one or all pods in this namespace 
+		case "30":
 			banner(connectionString)
 			println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
 			fmt.Scanln(&input)
