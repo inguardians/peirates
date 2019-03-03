@@ -584,9 +584,9 @@ spec:
     name: attack-container
     volumeMounts:
     - mountPath: /root
-      name: mount-root-into-mnt
+      name: mount-fsroot-into-slashroot
   volumes:
-  - name: mount-root-into-mnt
+  - name: mount-fsroot-into-slashroot
     hostPath:
        path: /
 `, randomString, connectionString.Namespace, MountInfoVars.image)
