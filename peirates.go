@@ -701,7 +701,9 @@ Vulnerabilities and Misconfiguration Searching |
 Pivot |
 ----------------------------------------------------------------
 [11] Change namespace setting
-[12] Run command in one or all pods in this namespace 
+[12] List service accounts acquited [not yet implemented]
+[13] Switch to an acquired service account [not yet implemented]
+[20] Run command in one or all pods in this namespace 
 ------
 Misc |
 ----------------------------------------------------------------
@@ -837,7 +839,7 @@ Peirates:># `)
 				connectionString.Namespace = input
 				
 			}
-		case "12":
+		case "20":
 			banner(connectionString)
 			println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
 			fmt.Scanln(&input)
