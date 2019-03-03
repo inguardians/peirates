@@ -211,18 +211,19 @@ func canCreatePods(connectionString ServerInfo) bool {
 
 }
 
-// inAPod() runs mount on the local system and then checks if output contains kubernetes
-// TODO: Change mount to use a Go function to read /etc/mtab
+// inAPod() attempts to determine if we are running in a pod.
+// Long-term, this will likely go away
 func inAPod(connectionString ServerInfo) bool {
-	mountOutputBs, err := exec.Command("mount").Output()
-	if err != nil {
-		fmt.Println("Checking if we are running in a Pod failed: ", err)
-		return false
-	} else {
-		mountOutput := string(mountOutputBs)
-		return strings.Contains(mountOutput, "kubernetes")
-	}
 
+	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
+		println("[+] You may be in a Kubernetes pod. API Server to be found at: ",os.Getenv("KUBERNETES_SERVICE_HOST"))
+		return true
+	} else {
+		println("[-] You may not be in a Kubernetes pod. Press ENTER to continue.")
+		var input string
+		fmt.Scanln(&input)
+		return false
+	}
 }
 
 func getListOfPods(connectionString ServerInfo) {
