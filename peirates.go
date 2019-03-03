@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/base64"
 	"flag" // Command line flag parsing
 	"fmt"  // String formatting (Printf, Sprintf)
 	"io"
@@ -427,6 +428,18 @@ type PodDetails struct {
 	} `json:"metadata"`
 }
 
+type Secret_Details struct {
+	
+	Data      []struct {
+		Namespace string `json:"namespace"`
+		Token       string `json:"token"`
+	}
+	Metadata   struct {
+		Name string `json:"name"`
+	}
+	SecretType string `json:"type"`
+}
+
 // GetPodsInfo() gets details for all pods in json output and stores in PodDetails struct
 func GetPodsInfo(connectionString ServerInfo, podDetails *PodDetails) {
 	fmt.Println("+ Getting details for all pods")
@@ -678,7 +691,7 @@ Recon |
 [2] Get list of pods
 [3] Get complete info on all pods (json)
 [4] Get list of secrets
-[5] Get contents of a secret [not yet implemented]
+[5] Get a service account token from a secret
 ----------------------------------------------------------------
 Vulnerabilities and Misconfiguration Searching |
 ------------------------------------------------
@@ -730,6 +743,72 @@ Peirates:># `)
 			break
 		case "5":
 			// Menu Item: Get Contents of a Secret
+			println("\nPlease enter the name of the secret for which you'd like the contents: ")
+			var secret_name string
+			fmt.Scanln(&secret_name)
+
+			// BUG: Temporarily we're using we're kludgy YAML parsing.
+			getSecretYAML, _, err := runKubectlSimple(connectionString,"get", "secret",secret_name,"-o","yaml")
+			if err != nil {
+				fmt.Println("[-] Could not retrieve secret")
+				break
+				// log.Fatal(err)
+			} 
+
+			lines := strings.Split(string(getSecretYAML), "\n")
+			for _, line := range lines {
+				matched, err := regexp.MatchString(`^\s*$`, line)
+				if err != nil {
+					log.Fatal(err)
+				}
+				if !matched {
+					// Looking solely for tokens
+					if strings.Fields(line)[0] == "token:" {
+						token := strings.Fields(line)[1]
+						// println("Encoded: ",token)
+						decoded_token,err := base64.StdEncoding.DecodeString(token)
+						if err != nil {
+							println("ERROR: couldn't decode")
+							break
+						} else {
+							fmt.Printf("Decoded:\n%q\n",decoded_token)
+						}
+					}
+				}
+			}
+
+			// To base64 decode, we'd use base64.StdEncoding.DecodeString() - with printf, use %q
+
+			break
+
+			getSecretRaw, _, err := runKubectlSimple(connectionString,"get", "secret",secret_name,"-o","json")
+			// TODO-FAITH - determine which errors mean we should just show an error and break
+			if err != nil {
+				fmt.Println("[-] Could not retrieve secret")
+				break
+				// log.Fatal(err)
+			} else {
+					var secretDetails Secret_Details
+					err := json.Unmarshal(getSecretRaw, &secretDetails)
+					if err != nil {
+						fmt.Println("[-] Error unmarshaling data in this secret: ", err)
+						break
+					}
+					println("Secret has type: ",secretDetails.SecretType)
+					if (secretDetails.SecretType == "kubernetes.io/service-account-token") {
+						//println("Token found: ",secretDetails.Data.Token)
+						println("Token found!")
+					} else {
+						fmt.Println("Non-token secret parsing not yet implemented")
+						
+					}
+
+				
+			}
+			
+
+
+
 			break
 		case "10":
 			println("\n[1] Get all host mount points\n[2] Get volume mount points for a specific pod\n\nPeirates:># ")
