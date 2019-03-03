@@ -12,6 +12,7 @@ type ServerInfo struct {
 	RIPAddress string
 	RPort      string
 	Token      string // token ASCII text
+	TokenName  string // name of the token
 	CAPath     string // path to ca certificate
 	Namespace  string // namespace that this pod's service account is tied to
 }
@@ -29,6 +30,9 @@ func ParseLocalServerInfo() ServerInfo {
 	// Reading token file and storing in variable token
 	token, errRead := ioutil.ReadFile("/run/secrets/kubernetes.io/serviceaccount/token")
 	configInfoVars.Token = string(token)
+
+	// Place the filesystem path in the token's name field
+	configInfoVars.TokenName  = "/run/secrets/kubernetes.io/serviceaccount/token"
 
 	//Error message If statement based on failure to read the file
 	if errRead != nil {

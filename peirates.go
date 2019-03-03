@@ -637,11 +637,11 @@ ________________________________________
    https://www.inguardians.com/labs/
 
 ----------------------------------------------------------------`)
-	var have_token bool = false
+	
 	if (connectionString.Token != "") {
-		have_token = true
+	
+		fmt.Printf("[+] Service Account Loaded: %s\n",connectionString.TokenName)
 	}
-	fmt.Printf("[+] Service Account Loaded: %t\n",have_token)
 	var have_ca bool = false
 	if (connectionString.CAPath != "") {
 		have_ca = true
@@ -693,15 +693,18 @@ Recon |
 [3] Get complete info on all pods (json)
 [4] Get list of secrets
 [5] Get a service account token from a secret
+[6] Get a list of roles for this service account [not yet implemented]
+[7] Get a list of abilities for a role [not yet implemented]
 ----------------------------------------------------------------
 Vulnerabilities and Misconfiguration Searching |
 ------------------------------------------------
 [10] Check all pods for volume mounts
+[11] Launch a pod mounting its node's host filesystem [not yet implemented]
 --------
 Pivot |
 ----------------------------------------------------------------
 [11] Change namespace setting
-[12] List service accounts acquited [not yet implemented]
+[12] List service accounts acquired [not yet implemented]
 [13] Switch to an acquired service account [not yet implemented]
 [20] Run command in one or all pods in this namespace 
 ------
@@ -839,6 +842,8 @@ Peirates:># `)
 				connectionString.Namespace = input
 				
 			}
+		case "19":
+			break
 		case "20":
 			banner(connectionString)
 			println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
