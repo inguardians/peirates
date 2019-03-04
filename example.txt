@@ -4,7 +4,7 @@
 # In the MacOS window:
 #
 # Compile in a subshell, so we don't lose our current working directory, but can skip pushd-popd, then push to master node.  On a Mac, give audio cue.
-( cd ~/go/src/gitlab.inguardians.com/agents/peirates/cmd/peirates/ ; env GOOS=linux GOARCH=amd64 go build peirates.go ) ; scp ~/go/src/gitlab.inguardians.com/agents/peirates/cmd/peirates/peirates root@k8s-master-local:.  ; say "hack it"
+( cd ~/go/src/gitlab.inguardians.com/agents/peirates/cmd/peirates/ ; env GOOS=linux GOARCH=amd64 go build peirates.go ) && scp ~/go/src/gitlab.inguardians.com/agents/peirates/cmd/peirates/peirates root@k8s-master-local:.  && say "hack it"
 
 #
 # In the Master node window 

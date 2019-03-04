@@ -1,4 +1,4 @@
-1. in "Change namespace setting", list all namespaces upon request
+DONE: 1. in "Change namespace setting", list all namespaces upon request
 
 2. In "Get a service account token from a secret", list secrets that were acquired to date on request.
 

