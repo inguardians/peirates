@@ -736,6 +736,46 @@ func clear_screen() {
 	c.Run()
 }
 
+// SERVICE ACCOUNT MANAGEMENT
+type ServiceAccount struct {
+	Name            string    // Service account name
+	Token           string    // Service account token
+	DiscoveryTime   time.Time // Time the service account was discovered
+	DiscoveryMethod string    // How the service account was discovered (file on disk, secrets, user input, etc.)
+}
+
+// makeNewServiceAccount creates a new service account with the provided name,
+// token, and discovery method, while setting the DiscoveryTime to time.Now()
+func makeNewServiceAccount(name, token, discoveryMethod string) ServiceAccount {
+	return ServiceAccount{
+		Name:            name,
+		Token:           token,
+		DiscoveryTime:   time.Now(),
+		DiscoveryMethod: discoveryMethod,
+	}
+}
+
+func readServiceAccountFromCommandLine() ServiceAccount {
+	println("\nPlease paste in a new service account token or hit ENTER to maintain current token.")
+	serviceAccount := ServiceAccount{
+		Name:            "",
+		Token:           "",
+		DiscoveryTime:   time.Now(),
+		DiscoveryMethod: "User Input",
+	}
+	println("\nWhat do you want to name this service account?")
+	fmt.Scanln(&serviceAccount.Name)
+	println("\nPaste the service account token and hit ENTER:")
+	fmt.Scanln(&serviceAccount.Token)
+
+	return serviceAccount
+}
+
+func assignServiceAccountToConnection(account ServiceAccount, info *ServerInfo) {
+	info.TokenName = account.Name
+	info.Token = account.Token
+}
+
 func banner(connectionString ServerInfo) {
 
 	name, err := os.Hostname()
@@ -973,6 +1013,9 @@ func PeiratesMain() {
 	// Run the option parser to initialize connectionStrings
 	parseOptions(&cmdOpts)
 
+	// List of current service accounts
+	serviceAccounts := []ServiceAccount{makeNewServiceAccount(connectionString.TokenName, connectionString.Token, "Loaded at startup")}
+
 	// Check environment variables - see KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT
 	// Watch the documentation on these variables for changes:
 	// https://kubernetes.io/docs/concepts/containers/container-environment-variables/
@@ -992,8 +1035,8 @@ func PeiratesMain() {
 		println(`----------------------------------------------------------------
 Namespaces, Service Accounts and Roles |
 ---------------------------------------+
-[1] Enter a different service account token
-[2] List namespaces or change namespace
+[1] List, maintain, or switch service accounts
+[2] List and/or change namespaces
 [3] Get list of pods
 [4] Get complete info on all pods (json)
 [5] Get list of secrets
@@ -1043,13 +1086,60 @@ Peirates:># `)
 
 		// [1] Enter a different service account token
 		case "1":
-
-			println("\nPlease paste in a new service account token or hit ENTER to maintain current token.")
-			var token string
-			fmt.Scanln(&token)
-			if token != "" {
-				connectionString.Token = token
+			fmt.Printf("\nCurrent primary service account: %s // %s\n\n[1] List service accounts\n[2] Select primary service account\n[3] Add new service account\n[4] Export service accounts to JSON\n[5] Import service accounts from JSON\n", connectionString.TokenName, connectionString.Token)
+			fmt.Scanln(&input)
+			switch input {
+			case "1":
+				println("\nAvailable Service Accounts:")
+				for i, account := range serviceAccounts {
+					if account.Name == connectionString.TokenName {
+						fmt.Printf("> [%d] %s\n", i, account.Name)
+					} else {
+						fmt.Printf("  [%d] %s\n", i, account.Name)
+					}
+				}
+			case "2":
+				println("\nAvailable Service Accounts:")
+				for i, account := range serviceAccounts {
+					if account.Name == connectionString.TokenName {
+						fmt.Printf("> [%d] %s\n", i, account.Name)
+					} else {
+						fmt.Printf("  [%d] %s\n", i, account.Name)
+					}
+				}
+				println("\nEnter service account number")
+				var tokNum int
+				fmt.Scanln(&input)
+				_, err := fmt.Sscan(input, &tokNum)
+				if err != nil {
+					fmt.Printf("Error parsing service account selection: %s\n", err.Error())
+				} else if tokNum < 0 || tokNum >= len(serviceAccounts) {
+					fmt.Printf("Service account %d does not exist!\n", tokNum)
+				} else {
+					assignServiceAccountToConnection(serviceAccounts[tokNum], &connectionString)
+					fmt.Printf("Selected %s // %s\n", connectionString.TokenName, connectionString.Token)
+				}
+			case "3":
+				serviceAccounts = append(serviceAccounts, readServiceAccountFromCommandLine())
+			case "4":
+				serviceAccountJSON, err := json.Marshal(serviceAccounts)
+				if err != nil {
+					fmt.Printf("Error exporting service accounts: %s\n", err.Error())
+				} else {
+					println(string(serviceAccountJSON))
+				}
+			case "5":
+				var newServiceAccounts []ServiceAccount
+				err := json.NewDecoder(os.Stdin).Decode(&newServiceAccounts)
+				if err != nil {
+					fmt.Printf("Error importing service accounts: %s\n", err.Error())
+				} else {
+					serviceAccounts = append(serviceAccounts, newServiceAccounts...)
+					fmt.Printf("Successfully imported service accounts\n")
+				}
 			}
+
+			// Menu goes here
 		// [2] List namespaces or change namespace
 		case "2":
 			println("\n[1] List namespaces]\n[2] Switch namespace\n[3] List namespaces then switch namespaces")
