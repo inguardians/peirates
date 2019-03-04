@@ -1,9 +1,8 @@
 package main
 
 import (
-	"gitlab.inguardians.com/agents/peirates"
+	"github.com/inguardians/peirates"
 )
-
 
 func main() {
 	peirates.PeiratesMain()
