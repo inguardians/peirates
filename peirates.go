@@ -115,6 +115,19 @@ func getHostname(connectionString ServerInfo, PodName string) string {
 	}
 }
 
+// SwitchNamespace switches the current ServerInfo.Namespace to one entered by the user.
+func SwitchNamespace(connectionString *ServerInfo) bool {
+	var input string
+
+	println("\nEnter namespace to switch to or hit enter to maintain current namespace: ")
+	fmt.Scanln(&input)
+	if (input != "") {
+		connectionString.Namespace = input
+	}
+	return true
+}
+					
+
 // runKubectl executes the kubectl library internally, allowing us to use the
 // Kubernetes API and requiring no external binaries.
 //
@@ -225,6 +238,41 @@ func inAPod(connectionString ServerInfo) bool {
 		fmt.Scanln(&input)
 		return false
 	}
+}
+
+// PrintNamespaces prints the output of kubectl get namespaces, but also returns the list of active namespaces
+func PrintNamespaces(connectionString ServerInfo) []string {
+
+	var namespaces []string
+
+	// TODO: Add checking to make sure you're authorized to get namespaces
+
+	NamespacesRaw, _, err := runKubectlSimple(connectionString,"get", "namespaces")
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Iterate over kubectl get namespaces, stripping off the first line which matches NAME and then grabbing the first column
+
+	lines := strings.Split(string(NamespacesRaw), "\n")
+
+	for _, line := range lines {
+		println(line)
+		matched, err := regexp.MatchString(`^\s*$`, line)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if !matched {
+			// Get rid of blank lines
+			if strings.Fields(line)[1] == "Active" {
+				namespace := strings.Fields(line)[0]
+				if namespace != "NAME" {
+					namespaces = append(namespaces, namespace)
+				}
+			}
+		}
+	}
+
+	return namespaces
 }
 
 func getListOfPods(connectionString ServerInfo) {
@@ -725,6 +773,11 @@ func PeiratesMain() {
 	cmdOpts := CommandLineOptions{connectionConfig: &connectionString}
 	var kubeRoles KubeRoles
 	var podInfo PodDetails
+	
+	// Store all acquired namespaces for this cluster in a global variable, populated and refreshed by PrintNamespaces()
+	var Namespaces []string
+	println(Namespaces)
+	
 	//kubeData.arg =""
 	//kubeData.list = {}
 
@@ -748,10 +801,10 @@ func PeiratesMain() {
 	for ok := true; ok; ok = (input != 2) {
 		banner(connectionString)
 		println(`----------------------------------------------------------------
-Recon |
--------------------------
+Namespaces, Service Accounts and Roles |
+---------------------------------------+
 [1] Enter a different service account token
-[2] Change namespace setting
+[2] List namespaces or change namespace
 [3] Get list of pods
 [4] Get complete info on all pods (json)
 [5] Get list of secrets
@@ -761,21 +814,21 @@ Recon |
 [9] Get a list of abilities for a role [not yet implemented]
 ----------------------------------------------------------------
 Vulnerabilities and Misconfiguration Searching |
-------------------------------------------------
+-----------------------------------------------+
 [10] Check all pods for volume mounts
 [11] Launch a pod mounting its node's host filesystem
 [12] Request list of pods from a Kubelet [not yet implemented]
---------
+------+
 Pivot |
-----------------------------------------------------------------
+------+
 [20] List service accounts acquired [not yet implemented]
 [21] Switch to an acquired service account [not yet implemented]
 [30] Run command in one or all pods in this namespace 
 [33] Run a command in a pod via a Kubelet [not yet implemented]
 
-------
+-----+
 Misc |
-----------------------------------------------------------------
+-----+
 [98] Shell out to bash (not yet implemented)
 [99] Build YAML Files (not yet implemented)
 [exit] Exit Peirates 
@@ -801,17 +854,31 @@ Peirates:># `)
 			if (token != "") {
 				connectionString.Token = token
 			}
-		// [2] Change namespace setting
+		// [2] List namespaces or change namespace
 		case "2":
-			println("\nEnter namespace to switch to or hit enter to maintain current namespace: ")
+			println("\n[1] List namespaces]\n[2] Switch namespace\n[3] List namespaces then switch namespaces")
 			fmt.Scanln(&input)
-			if (input != "") {
-				connectionString.Namespace = input
+			switch input {
+				case "1":
+					Namespaces = PrintNamespaces(connectionString)
+					break
+				case "2":
+					SwitchNamespace(&connectionString)
+					break
+				case "3":
+					Namespaces = PrintNamespaces(connectionString)
+					SwitchNamespace(&connectionString)
+					break
+				default:
+					break
 			}
+
 		// [3] Get list of pods
 		case "3":
 			println("\n[+] Printing a list of Pods in this namespace......")
 			getListOfPods(connectionString)
+			break
+
 		//[4] Get complete info on all pods (json)
 		case "4":
 			GetPodsInfo(connectionString, &podInfo)
