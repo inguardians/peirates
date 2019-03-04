@@ -11,6 +11,7 @@ package peirates
 // Also, number one rule of Go: Try to stick to the
 // standard library as much as possible
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -759,10 +760,15 @@ func readServiceAccountFromCommandLine() ServiceAccount {
 		DiscoveryTime:   time.Now(),
 		DiscoveryMethod: "User Input",
 	}
+	reader := bufio.NewReader(os.Stdin)
 	println("\nWhat do you want to name this service account?")
-	fmt.Scanln(&serviceAccount.Name)
+	serviceAccount.Name, _ = reader.ReadString('\n')
+	// Trim newline
+	serviceAccount.Name = serviceAccount.Name[:len(serviceAccount.Name)-1]
 	println("\nPaste the service account token and hit ENTER:")
-	fmt.Scanln(&serviceAccount.Token)
+	serviceAccount.Token, _ = reader.ReadString('\n')
+	// Trim newline
+	serviceAccount.Token = serviceAccount.Token[:len(serviceAccount.Token)-1]
 
 	return serviceAccount
 }
