@@ -237,19 +237,21 @@ func runKubectlSimple(cfg ServerInfo, cmdArgs ...string) ([]byte, []byte, error)
 	return stdout.Bytes(), stderr.Bytes(), err
 }
 
-// canCreatePods() runs kubectl to check if current token can create a pod
-func canCreatePods(connectionString ServerInfo) bool {
-	canCreateRaw, _, err := runKubectlSimple(connectionString, "auth", "can-i", "create", "pod") // ERROR ADAM FIX
+func kubectlAuthCanI(cfg ServerInfo, cmdArgs ...string) bool {
+	authArgs := []string{"auth", "can-i"}
+	out, _, err := runKubectlSimple(cfg, append(authArgs, cmdArgs...)...)
 	if err != nil {
 		return false
-	} else {
-		if strings.Contains(string(canCreateRaw), "yes") {
-			return true
-		} else {
-			return false
-		}
 	}
+	var canYouDoTheThing string
+	// Extract the first word
+	fmt.Sscan(string(out), &canYouDoTheThing)
+	return canYouDoTheThing == "yes"
+}
 
+// canCreatePods() runs kubectl to check if current token can create a pod
+func canCreatePods(connectionString ServerInfo) bool {
+	return kubectlAuthCanI(connectionString, "create", "pod")
 }
 
 // inAPod() attempts to determine if we are running in a pod.
