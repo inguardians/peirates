@@ -39,6 +39,11 @@ import (
 // getPodList returns an array of running pod names, parsed from "kubectl -n namespace get pods"
 func getPodList(connectionString ServerInfo) []string {
 
+	if !kubectlAuthCanI(connectionString, "get", "pods") {
+		println("Permission Denied: your service account isn't allowed to get pods")
+		return []string{}
+	}
+
 	var pods []string
 
 	getPodsRaw, _, err := runKubectlSimple(connectionString, "get", "pods")
@@ -72,6 +77,11 @@ func getSecretList(connectionString ServerInfo) ([]string, []string) {
 
 	var secrets []string
 	var service_account_tokens []string
+
+	if !kubectlAuthCanI(connectionString, "get", "secrets") {
+		println("Permission Denied: your service account isn't allowed to get secrets")
+		return []string{}, []string{}
+	}
 
 	getSecretsRaw, _, err := runKubectlSimple(connectionString, "get", "secrets")
 	if err != nil {
@@ -272,6 +282,11 @@ func inAPod(connectionString ServerInfo) bool {
 // PrintNamespaces prints the output of kubectl get namespaces, but also returns the list of active namespaces
 func PrintNamespaces(connectionString ServerInfo) []string {
 
+	if !kubectlAuthCanI(connectionString, "get", "namespaces") {
+		println("Permission Denied: your service account isn't allowed to get namespaces")
+		return []string{}
+	}
+
 	var namespaces []string
 
 	// TODO: Add checking to make sure you're authorized to get namespaces
@@ -314,6 +329,10 @@ func getListOfPods(connectionString ServerInfo) {
 
 // execInAllPods() runs kubeData.command in all running pods
 func execInAllPods(connectionString ServerInfo, command string) {
+	if !kubectlAuthCanI(connectionString, "exec") {
+		println("Permission Denied: your service account isn't allowed to exec")
+		return
+	}
 	runningPods := getPodList(connectionString)
 
 	for _, execPod := range runningPods {
@@ -330,6 +349,11 @@ func execInAllPods(connectionString ServerInfo, command string) {
 
 // execInListPods() runs kubeData.command in all pods in kubeData.list
 func execInListPods(connectionString ServerInfo, pods []string, command string) {
+	if !kubectlAuthCanI(connectionString, "exec") {
+		println("Permission Denied: your service account isn't allowed to exec")
+		return
+	}
+
 	fmt.Println("+ Running supplied command in list of pods")
 	for _, execPod := range pods {
 
@@ -520,6 +544,12 @@ type Secret_Details struct {
 
 // GetPodsInfo() gets details for all pods in json output and stores in PodDetails struct
 func GetPodsInfo(connectionString ServerInfo, podDetails *PodDetails) {
+
+	if !kubectlAuthCanI(connectionString, "get", "pods") {
+		println("Permission Denied: your service account isn't allowed to get pods")
+		return
+	}
+
 	fmt.Println("+ Getting details for all pods")
 	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
 	println(string(podDetailOut))
@@ -1192,6 +1222,10 @@ Peirates:># `)
 			fmt.Scanln(&secret_name)
 
 			// BUG: Temporarily we're using we're kludgy YAML parsing.
+			if !kubectlAuthCanI(connectionString, "get", "secret") {
+				println("Permission Denied: your service account isn't allowed to get secrets")
+				break
+			}
 			getSecretYAML, _, err := runKubectlSimple(connectionString, "get", "secret", secret_name, "-o", "yaml")
 			if err != nil {
 				fmt.Println("[-] Could not retrieve secret")
