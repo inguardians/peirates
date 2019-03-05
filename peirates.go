@@ -39,6 +39,11 @@ import (
 // getPodList returns an array of running pod names, parsed from "kubectl -n namespace get pods"
 func getPodList(connectionString ServerInfo) []string {
 
+	if !kubectlAuthCanI(connectionString, "get", "pods") {
+		println("Permission Denied: your service account isn't allowed to get pods")
+		return []string{}
+	}
+
 	var pods []string
 
 	getPodsRaw, _, err := runKubectlSimple(connectionString, "get", "pods")
@@ -72,6 +77,11 @@ func getSecretList(connectionString ServerInfo) ([]string, []string) {
 
 	var secrets []string
 	var service_account_tokens []string
+
+	if !kubectlAuthCanI(connectionString, "get", "secrets") {
+		println("Permission Denied: your service account isn't allowed to get secrets")
+		return []string{}, []string{}
+	}
 
 	getSecretsRaw, _, err := runKubectlSimple(connectionString, "get", "secrets")
 	if err != nil {
@@ -237,19 +247,21 @@ func runKubectlSimple(cfg ServerInfo, cmdArgs ...string) ([]byte, []byte, error)
 	return stdout.Bytes(), stderr.Bytes(), err
 }
 
-// canCreatePods() runs kubectl to check if current token can create a pod
-func canCreatePods(connectionString ServerInfo) bool {
-	canCreateRaw, _, err := runKubectlSimple(connectionString, "auth", "can-i", "create", "pod") // ERROR ADAM FIX
+func kubectlAuthCanI(cfg ServerInfo, cmdArgs ...string) bool {
+	authArgs := []string{"auth", "can-i"}
+	out, _, err := runKubectlSimple(cfg, append(authArgs, cmdArgs...)...)
 	if err != nil {
 		return false
-	} else {
-		if strings.Contains(string(canCreateRaw), "yes") {
-			return true
-		} else {
-			return false
-		}
 	}
+	var canYouDoTheThing string
+	// Extract the first word
+	fmt.Sscan(string(out), &canYouDoTheThing)
+	return canYouDoTheThing == "yes"
+}
 
+// canCreatePods() runs kubectl to check if current token can create a pod
+func canCreatePods(connectionString ServerInfo) bool {
+	return kubectlAuthCanI(connectionString, "create", "pod")
 }
 
 // inAPod() attempts to determine if we are running in a pod.
@@ -269,6 +281,11 @@ func inAPod(connectionString ServerInfo) bool {
 
 // PrintNamespaces prints the output of kubectl get namespaces, but also returns the list of active namespaces
 func PrintNamespaces(connectionString ServerInfo) []string {
+
+	if !kubectlAuthCanI(connectionString, "get", "namespaces") {
+		println("Permission Denied: your service account isn't allowed to get namespaces")
+		return []string{}
+	}
 
 	var namespaces []string
 
@@ -312,6 +329,10 @@ func getListOfPods(connectionString ServerInfo) {
 
 // execInAllPods() runs kubeData.command in all running pods
 func execInAllPods(connectionString ServerInfo, command string) {
+	if !kubectlAuthCanI(connectionString, "exec") {
+		println("Permission Denied: your service account isn't allowed to exec")
+		return
+	}
 	runningPods := getPodList(connectionString)
 
 	for _, execPod := range runningPods {
@@ -328,6 +349,11 @@ func execInAllPods(connectionString ServerInfo, command string) {
 
 // execInListPods() runs kubeData.command in all pods in kubeData.list
 func execInListPods(connectionString ServerInfo, pods []string, command string) {
+	if !kubectlAuthCanI(connectionString, "exec") {
+		println("Permission Denied: your service account isn't allowed to exec")
+		return
+	}
+
 	fmt.Println("+ Running supplied command in list of pods")
 	for _, execPod := range pods {
 
@@ -518,6 +544,12 @@ type Secret_Details struct {
 
 // GetPodsInfo() gets details for all pods in json output and stores in PodDetails struct
 func GetPodsInfo(connectionString ServerInfo, podDetails *PodDetails) {
+
+	if !kubectlAuthCanI(connectionString, "get", "pods") {
+		println("Permission Denied: your service account isn't allowed to get pods")
+		return
+	}
+
 	fmt.Println("+ Getting details for all pods")
 	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
 	println(string(podDetailOut))
@@ -581,10 +613,10 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 	// BUG: this routine seems to create the same pod name every time, which makes it so it can't run twice.
 
 	// First, confirm we're allowed to create pods
-	//if !canCreatePods(connectionString) { - Adam
-	//	println("AUTHORIZATION: this token isn't allowed to create pods in this namespace")
-	//	return
-	//}
+	if !canCreatePods(connectionString) {
+		println("AUTHORIZATION: this token isn't allowed to create pods in this namespace")
+		return
+	}
 	// TODO: changing parsing to occur via JSON
 	// TODO: check that image exists / handle failure by trying again with the next youngest pod's image or a named pod's image
 
@@ -1041,6 +1073,10 @@ Peirates:># `)
 			fmt.Scanln(&secret_name)
 
 			// BUG: Temporarily we're using we're kludgy YAML parsing.
+			if !kubectlAuthCanI(connectionString, "get", "secret") {
+				println("Permission Denied: your service account isn't allowed to get secrets")
+				break
+			}
 			getSecretYAML, _, err := runKubectlSimple(connectionString, "get", "secret", secret_name, "-o", "yaml")
 			if err != nil {
 				fmt.Println("[-] Could not retrieve secret")
