@@ -1,5 +1,5 @@
 #!/bin/sh
 
 echo "Building..."
-go build -v ./cmd/peirates/peirates.go
+GOOS=linux GOARCH=amd64 go build -v ./cmd/peirates/peirates.go
 echo "Final executable at $PWD/peirates"
