@@ -4,6 +4,11 @@
 
 ## Building and Running
 
+If you just want the peirates binary to start attacking things, grab the latest
+release from the [releases page](https://github.com/inguardians/peirates/releases).
+
+However, if you want to build from source, read on!
+
 Get peirates
 
     go get -v "github.com/inguardians/peirates"
