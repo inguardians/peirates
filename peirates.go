@@ -583,10 +583,10 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 	// BUG: this routine seems to create the same pod name every time, which makes it so it can't run twice.
 
 	// First, confirm we're allowed to create pods
-	//if !canCreatePods(connectionString) { - Adam
-	//	println("AUTHORIZATION: this token isn't allowed to create pods in this namespace")
-	//	return
-	//}
+	if !canCreatePods(connectionString) {
+		println("AUTHORIZATION: this token isn't allowed to create pods in this namespace")
+		return
+	}
 	// TODO: changing parsing to occur via JSON
 	// TODO: check that image exists / handle failure by trying again with the next youngest pod's image or a named pod's image
 
@@ -854,10 +854,10 @@ func crontab_persist_exec(allPodsListme []string, connectionString ServerInfo) {
 	// BUG: this routine seems to create the same pod name every time, which makes it so it can't run twice.
 
 	// First, confirm we're allowed to create pods
-	//if !canCreatePods(connectionString) { - Adam
-	//	println("AUTHORIZATION: this token isn't allowed to create pods in this namespace")
-	//	return
-	//}
+	if !canCreatePods(connectionString) {
+		println("AUTHORIZATION: this token isn't allowed to create pods in this namespace")
+		return
+	}
 	println("test-2")
 	// TODO: changing parsing to occur via JSON
 	// TODO: check that image exists / handle failure by trying again with the next youngest pod's image or a named pod's image
