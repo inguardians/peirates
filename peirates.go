@@ -817,7 +817,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
 
-   Peirates v1.08 by InGuardians
+   Peirates v1.0.9 by InGuardians
    https://www.inguardians.com/labs/
 
 ----------------------------------------------------------------`)
@@ -901,7 +901,7 @@ Namespaces, Service Accounts and Roles |
 Vulnerabilities and Misconfiguration Searching |
 -----------------------------------------------+
 [10] Check all pods for volume mounts
-[11] Launch a pod mounting its node's host filesystem and set up a netcat callback
+[11] Gain a reverse rootshell by launching a hostPath / pod
 [12] Request list of pods from a Kubelet [not yet implemented]
 ------------------------------------------------+
 Cloud-specific Credential Gathering             |
@@ -1258,6 +1258,8 @@ Peirates:># `)
 
 		// [17] Pull Kubernetes service account tokens from GCS [GCP only] [not yet implemented]
 		case "17":
+			break
+
 			token := GetGCPBearerTokenFromMetadataAPI("default")
 			if token == "ERROR" {
 				println("ERROR: Could not get GCP default token from metadata API")
