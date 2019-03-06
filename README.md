@@ -1,5 +1,5 @@
 # Peirates
-
+![Logo](https://github.com/inguardians/peirates/blob/master/peirates_logo.jpeg)
 ## Modules
 
 ## Building and Running
