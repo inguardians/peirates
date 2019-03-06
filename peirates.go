@@ -1549,30 +1549,30 @@ func GetNodeIP(connectionString ServerInfo) {
 		for _, item := range getnodeDetail.Items {
 			// fmt.Println("+ Host Mount Points for Pod: " + item.Metadata.Name)
 			for _, addr := range item.Status.Addresses {
-					//fmt.Println(" found for pod " + item.Metadata.Name + " - " + addr.Address)
-					if addr.Type == "Hostname" {
-					} else {
-						fmt.Println("[+] Kubelet List Pod URL: " + item.Metadata.Name + " - http://" + addr.Address + ":10255/pods")
-						fmt.Println("[+] Grabbing Pods from node: " + item.Metadata.Name)
-						client := &http.Client{}
-						// Make a request for kube-env, in case it is in the instance attributes, as with a number of installers
-						req_kube, err := http.NewRequest("GET", "http://" + addr.Address + ":10255/pods", nil)
-						resp, err := client.Do(req_kube)
-						if err != nil {
-							println("Error - could not perform request http://" + addr.Address + ":10255/pods")
-						}
-						defer resp.Body.Close()
-						body, err := ioutil.ReadAll(resp.Body)
-						if resp.StatusCode != 200 {
-							fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n", resp.StatusCode)
-							break
-						}
-						lines := strings.Split(string(body), "\n")
-						for _, line := range lines {
-							println(line)
-						}
-						// Faith Add JsonParser Struct for "line" parameter ***
+				//fmt.Println(" found for pod " + item.Metadata.Name + " - " + addr.Address)
+				if addr.Type == "Hostname" {
+				} else {
+					fmt.Println("[+] Kubelet List Pod URL: " + item.Metadata.Name + " - http://" + addr.Address + ":10255/pods")
+					fmt.Println("[+] Grabbing Pods from node: " + item.Metadata.Name)
+					client := &http.Client{}
+					// Make a request for kube-env, in case it is in the instance attributes, as with a number of installers
+					req_kube, err := http.NewRequest("GET", "http://"+addr.Address+":10255/pods", nil)
+					resp, err := client.Do(req_kube)
+					if err != nil {
+						println("Error - could not perform request http://" + addr.Address + ":10255/pods")
 					}
+					defer resp.Body.Close()
+					body, err := ioutil.ReadAll(resp.Body)
+					if resp.StatusCode != 200 {
+						fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n", resp.StatusCode)
+						break
+					}
+					lines := strings.Split(string(body), "\n")
+					for _, line := range lines {
+						println(line)
+					}
+					// Faith Add JsonParser Struct for "line" parameter ***
+				}
 			}
 		}
 	}
@@ -1673,7 +1673,7 @@ Peirates:># `)
 
 		// [1] Enter a different service account token
 		case "1":
-			fmt.Printf("\nCurrent primary service account: %s // %s\n\n[1] List service accounts\n[2] Select primary service account\n[3] Add new service account\n[4] Export service accounts to JSON\n[5] Import service accounts from JSON\n", connectionString.TokenName, connectionString.Token)
+			fmt.Printf("\nCurrent primary service account: %s\n\n[1] List service accounts\n[2] Select primary service account\n[3] Add new service account\n[4] Export service accounts to JSON\n[5] Import service accounts from JSON\n", connectionString.TokenName)
 			fmt.Scanln(&input)
 			switch input {
 			case "1":
@@ -2125,6 +2125,7 @@ Peirates:># `)
 			fmt.Scanln(&input)
 			println("[+] Please Provide the command to run in the pods: ")
 			fmt.Scanln(&cmdOpts.commandToRunInPods)
+			println("Running command ")
 			switch input {
 			case "1":
 				println("[+] Please Provide the specified pod to run the command: ")
