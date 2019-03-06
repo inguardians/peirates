@@ -863,7 +863,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-  Peirates v1.0.11 by InGuardians
+	Peirates v1.0.12 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -1639,7 +1639,7 @@ Compromise |
 -----------+
 [20] Gain a reverse rootshell by launching a hostPath / pod
 [21] Run command in one or all pods in this namespace
-[22] Get a list of pods from the Kubelet [not yet implemented]
+[22] Run a command on a pod from the Kubelet
 
 [exit] Exit Peirates 
 ----------------------------------------------------------------
