@@ -860,12 +860,9 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,:...?IIIIIIIIIIII....,,,,,,,,,,
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-
    Peirates v1.0.11 by InGuardians
 	 https://www.inguardians.com/peirates
-
 ----------------------------------------------------------------`)
 
 	if connectionString.Token != "" {
@@ -1642,9 +1639,6 @@ Compromise |
 [21] Run command in one or all pods in this namespace
 [22] Get a list of pods from the Kubelet [not yet implemented]
 
------+
-Misc |
------+
 [exit] Exit Peirates 
 ----------------------------------------------------------------
 Peirates:># `)
