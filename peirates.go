@@ -540,6 +540,7 @@ type Secret_Details struct {
 	}
 	SecretType string `json:"type"`
 }
+
 //adam here
 type Get_Node_Details struct {
 	Items []struct {
@@ -549,12 +550,11 @@ type Get_Node_Details struct {
 		Status struct {
 			Addresses []struct {
 				Address string `json:"address"`
-				Type string `"json:type"`
-			}`json:"addresses"`
-		}`json:"status"`
+				Type    string `"json:type"`
+			} `json:"addresses"`
+		} `json:"status"`
 	} `json:"items"`
 }
-
 
 // GetPodsInfo() gets details for all pods in json output and stores in PodDetails struct
 func GetPodsInfo(connectionString ServerInfo, podDetails *PodDetails) {
@@ -891,22 +891,22 @@ func ReadFile(filename string) {
 	fmt.Printf("\nFile Content: %s", data)
 }
 
-
 func GetNodesInfo(connectionString ServerInfo) {
 	fmt.Println("+ Getting details for all pods")
 	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "nodes", "-o", "json")
 	println(string(podDetailOut))
 	if err != nil {
 		fmt.Println("[-] Unable to retrieve node details: ", err)
-	} 
+	}
 }
+
 //adam here
 func GetNodeIP(connectionString ServerInfo) {
 	fmt.Println("+ Getting IP addess for the nodes in the cluster")
 	//nodeDetailOut, _, err := runKubectlSimple(connectionString, "get", "nodes", "-o", "json")
 	//println(nodeDetailOut)
-	var nodeDetailOut2 []byte 
-	nodeDetailOut2 = []byte (`{
+	var nodeDetailOut2 []byte
+	nodeDetailOut2 = []byte(`{
 		"apiVersion": "v1",
 		"items": [
 			{
@@ -1537,7 +1537,7 @@ func GetNodeIP(connectionString ServerInfo) {
 		}
 	}`)
 	//if err != nil {
-	if "p"=="a" {
+	if "p" == "a" {
 		fmt.Println("[-] Unable to retrieve node details: ")
 	} else {
 		var getnodeDetail Get_Node_Details
@@ -1577,7 +1577,6 @@ func GetNodeIP(connectionString ServerInfo) {
 		}
 	}
 }
-
 
 //------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -1641,7 +1640,7 @@ Compromise |
 -----------+
 [20] Gain a reverse rootshell by launching a hostPath / pod
 [21] Run command in one or all pods in this namespace
-[22] Run a command in a pod via a Kubelet [not yet implemented]
+[22] Get a list of pods from the Kubelet [not yet implemented]
 
 -----+
 Misc |
@@ -1955,7 +1954,7 @@ Peirates:># `)
 			break
 
 		// [16] Pull Kubernetes service account tokens from S3 [AWS only]
-		case "17":
+		case "16":
 			// Create a new HTTP client that uses the correct headers
 			// client := &http.Client{}
 
@@ -2150,6 +2149,7 @@ Peirates:># `)
 				}
 
 			}
+		// [22] Get a list of pods from the Kubelet [not yet implemented]
 		case "22":
 			// Use kubectl get nodes to get a list of nodes
 			// ---->  GetNodesInfo(connectionString)
@@ -2157,8 +2157,7 @@ Peirates:># `)
 			GetNodeIP(connectionString)
 			// Find a line that matches - address: IP
 			// curl port 10255 to get pods: curl -sk http://10.23.58.41:10255/pods
-			
-			
+
 			// FAITH working here: Parse the Json to get pod and container names
 
 			// curl port 10250 to run commands:
