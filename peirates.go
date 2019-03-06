@@ -1652,7 +1652,7 @@ Namespaces, Service Accounts and Roles |
 -------------------------+
 Steal Service Accounts   |
 -------------------------+
-[10] Get secrets from API server
+[10] List secrets from API server
 [11] Get a service account token from a secret
 [12] Request IAM credentials from AWS Metadata API [AWS only]
 [13] Request IAM credentials from GCP Metadata API [GCP only]
