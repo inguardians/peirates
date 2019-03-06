@@ -1536,33 +1536,47 @@ func GetNodeIP(connectionString ServerInfo) {
 			"selfLink": ""
 		}
 	}`)
-	println(string(nodeDetailOut2))
 	//if err != nil {
 	if "p"=="a" {
 		fmt.Println("[-] Unable to retrieve node details: ")
 	} else {
 		var getnodeDetail Get_Node_Details
 		err := json.Unmarshal(nodeDetailOut2, &getnodeDetail)
-		//if err != nil {
-		if "p"=="p" {
-			fmt.Println("testd")
-			fmt.Println("[-] Error unmarshaling data in this node: ", err)
+		if err != nil {
+			fmt.Println("[-] Error unmarshaling data in this secret: ", err)
 		}
 		//adam here
-
 		for _, item := range getnodeDetail.Items {
 			// fmt.Println("+ Host Mount Points for Pod: " + item.Metadata.Name)
 			for _, addr := range item.Status.Addresses {
 					//fmt.Println(" found for pod " + item.Metadata.Name + " - " + addr.Address)
 					if addr.Type == "Hostname" {
 					} else {
-						fmt.Println(item.Metadata.Name + " - " + addr.Address)
+						fmt.Println("[+] Kubelet List Pod URL: " + item.Metadata.Name + " - http://" + addr.Address + ":10255/pods")
+						fmt.Println("[+] Grabbing Pods from node: " + item.Metadata.Name)
+						client := &http.Client{}
+						// Make a request for kube-env, in case it is in the instance attributes, as with a number of installers
+						req_kube, err := http.NewRequest("GET", "http://" + addr.Address + ":10255/pods", nil)
+						resp, err := client.Do(req_kube)
+						if err != nil {
+							println("Error - could not perform request http://" + addr.Address + ":10255/pods")
+						}
+						defer resp.Body.Close()
+						body, err := ioutil.ReadAll(resp.Body)
+						if resp.StatusCode != 200 {
+							fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n", resp.StatusCode)
+							break
+						}
+						lines := strings.Split(string(body), "\n")
+						for _, line := range lines {
+							println(line)
+						}
+						// Faith Add JsonParser Struct for "line" parameter ***
 					}
 			}
 		}
 	}
 }
-
 
 
 //------------------------------------------------------------------------------------------------------------------------------------------------
