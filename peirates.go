@@ -861,8 +861,8 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-   Peirates v1.0.11 by InGuardians
-	 https://www.inguardians.com/peirates
+  Peirates v1.0.11 by InGuardians
+  https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
 	if connectionString.Token != "" {
@@ -1916,11 +1916,12 @@ Peirates:># `)
 					continue
 				}
 				account := strings.TrimRight(string(line), "/")
-				fmt.Printf("GCP Credentials for account %s\n", account)
+				fmt.Printf("\n[+] GCP Credentials for account %s\n\n", account)
 
 				// TURN THIS INTO A FUNCTION SO WE CAN PARSE the ones we want
-				println("Token for ", account, " is ", GetGCPBearerTokenFromMetadataAPI(account))
+				println(GetGCPBearerTokenFromMetadataAPI(account))
 			}
+			println(" ")
 			break
 
 		// [14] Request kube-env from GCP Metadata API [GCP only]
