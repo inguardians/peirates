@@ -900,7 +900,7 @@ func GetNodesInfo(connectionString ServerInfo) {
 }
 
 //adam here
-func GetNodeIP(connectionString ServerInfo) {
+func ExecuteCodeOnKubelet(connectionString ServerInfo) {
 	fmt.Println("+ Getting IP addess for the nodes in the cluster")
 	//nodeDetailOut, _, err := runKubectlSimple(connectionString, "get", "nodes", "-o", "json")
 	//println(nodeDetailOut)
@@ -2180,7 +2180,7 @@ Peirates:># `)
 			// Use kubectl get nodes to get a list of nodes
 			// ---->  GetNodesInfo(connectionString)
 			// Use kubectl get node _name_ -o yaml to get IP addresses
-			GetNodeIP(connectionString)
+			ExecuteCodeOnKubelet(connectionString)
 			// Find a line that matches - address: IP
 			// curl port 10255 to get pods: curl -sk http://10.23.58.41:10255/pods
 
