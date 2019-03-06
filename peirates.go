@@ -340,8 +340,9 @@ func execInAllPods(connectionString ServerInfo, command string) {
 		if err != nil {
 			fmt.Println("[-] Executing "+command+" in Pod "+execPod+" failed: ", err)
 		} else {
-			fmt.Println("[+] Executing " + command + " in Pod " + execPod + " succeded: ")
-			fmt.Println("\t" + string(execInPodOut))
+			// fmt.Println("[+] Executing " + command + " in Pod " + execPod + " succeeded: ")
+			fmt.Println(" ")
+			fmt.Println("\n", string(execInPodOut))
 		}
 	}
 
@@ -360,8 +361,9 @@ func execInListPods(connectionString ServerInfo, pods []string, command string) 
 		if err != nil {
 			fmt.Println("[-] Executing "+command+" in Pod "+execPod+" failed: ", err)
 		} else {
-			fmt.Println("[+] Executing " + command + " in Pod " + execPod + " succeded: ")
-			fmt.Println("\t" + string(execInPodOut))
+			// fmt.Println("[+] Executing " + command + " in Pod " + execPod + " succeeded: ")
+			fmt.Println(" ")
+			fmt.Println(string(execInPodOut))
 		}
 	}
 
@@ -2118,15 +2120,15 @@ Peirates:># `)
 			banner(connectionString)
 			println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
 			fmt.Scanln(&input)
-			println("[+] Please Provide the command to run in the pods: ")
+			println("[+] Please provide the command to run in the pods: ")
 
 			reader := bufio.NewReader(os.Stdin)
 			cmdOpts.commandToRunInPods, _ = reader.ReadString('\n')
 
-			println("Running command ")
+			// println("Running command ")
 			switch input {
 			case "1":
-				println("[+] Please Provide the specified pod to run the command: ")
+				println("[+] Please provide the specified pod to run the command: ")
 				fmt.Scanln(&cmdOpts.podsToRunTheCommandIn)
 				var pod_to_run_in string
 				fmt.Scanln(&pod_to_run_in)
