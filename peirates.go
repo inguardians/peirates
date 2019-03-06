@@ -513,7 +513,7 @@ type PodDetails struct {
 				Ready        bool   `json:"ready"`
 				RestartCount int    `json:"restartCount"`
 				State        struct {
-					Running struct {
+					Running *struct {
 						StartedAt time.Time `json:"startedAt"`
 					} `json:"running"`
 				} `json:"state"`
@@ -1566,15 +1566,37 @@ func GetNodeIP(connectionString ServerInfo) {
 						fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n", resp.StatusCode)
 						break
 					}
-					lines := strings.Split(string(body), "\n")
-					for _, line := range lines {
-						println(line)
+
+					var output []PodNamespaceContainerTuple
+					var podDetails PodDetails
+					json.Unmarshal(body, &podDetails)
+					for _, item := range podDetails.Items {
+						podName := item.Metadata.Name
+						podNamespace := item.Metadata.Namespace
+						for _, container := range item.Status.ContainerStatuses {
+							running := container.State.Running != nil
+							containerName := container.Name
+							if running && containerName != "pause" {
+								output = append(output, PodNamespaceContainerTuple{
+									PodName:       podName,
+									PodNamespace:  podNamespace,
+									ContainerName: containerName,
+								})
+							}
+						}
 					}
+
 					// Faith Add JsonParser Struct for "line" parameter ***
 				}
 			}
 		}
 	}
+}
+
+type PodNamespaceContainerTuple struct {
+	PodName       string
+	PodNamespace  string
+	ContainerName string
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------------
