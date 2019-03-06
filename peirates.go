@@ -1663,14 +1663,15 @@ Compromise |
 -----------+
 [20] Gain a reverse rootshell by launching a hostPath / pod
 [21] Run command in one or all pods in this namespace
-[22] Run a command on a pod from the Kubelet
 
 [exit] Exit Peirates 
 ----------------------------------------------------------------
 Peirates:># `)
 
 		banner_items_removed := (`
-[7] Get a list of roles for this service account [not yet implemented]
+		[22] Run a command on a pod from the Kubelet
+
+		[7] Get a list of roles for this service account [not yet implemented]
 [8] Get a list of roles available on the cluster [implemented but not connected to menu]
 [9] Get a list of abilities for a role [not yet implemented]
 [12] Request list of pods from a Kubelet [not yet implemented]
