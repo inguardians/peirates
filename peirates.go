@@ -2124,7 +2124,10 @@ Peirates:># `)
 			println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
 			fmt.Scanln(&input)
 			println("[+] Please Provide the command to run in the pods: ")
-			fmt.Scanln(&cmdOpts.commandToRunInPods)
+
+			reader := bufio.NewReader(os.Stdin)
+			cmdOpts.commandToRunInPods, _ = reader.ReadString('\n')
+
 			println("Running command ")
 			switch input {
 			case "1":
