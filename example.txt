@@ -10,4 +10,4 @@
 #
 # In the Master node window 
 # 
-export pod=`kubectl get pods | grep frontend | head -1 | awk "{print \\$1}"` ; cat ./peirates | kubectl exec -it $pod -- bash -c "cat >./peirates ; chmod 700 ./peirates" ; kubectl exec -it $pod -- /bin/bash
+export pod=`kubectl get pods | grep frontend | head -1 | awk "{print \\$1}"` ; cat ./peirates | kubectl exec -it $pod -- bash -c "cat >/usr/bin/peirates ; chmod 700 /usr/bin/peirates" ; kubectl exec -it $pod -- /bin/bash

