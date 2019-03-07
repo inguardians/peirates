@@ -1156,7 +1156,6 @@ Peirates:># `)
 				}
 			}
 
-			// Menu goes here
 		// [2] List namespaces or change namespace
 		case "2":
 			println("\n[1] List namespaces]\n[2] Switch namespace\n[3] List namespaces then switch namespaces")
@@ -1204,7 +1203,6 @@ Peirates:># `)
 			var secretName string
 			fmt.Scanln(&secretName)
 
-			// BUG: Temporarily we're using we're kludgy YAML parsing.
 			if !kubectlAuthCanI(connectionString, "get", "secret") {
 				println("Permission Denied: your service account isn't allowed to get secrets")
 				break
