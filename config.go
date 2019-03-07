@@ -31,10 +31,6 @@ func ParseLocalServerInfo() ServerInfo {
 	token, errRead := ioutil.ReadFile("/run/secrets/kubernetes.io/serviceaccount/token")
 	configInfoVars.Token = string(token)
 
-	// Place the filesystem path in the token's name field
-	// configInfoVars.TokenName  = "/run/secrets/kubernetes.io/serviceaccount/token"
-	configInfoVars.TokenName = "Pod: " + os.Getenv("HOSTNAME")
-
 	//Error message If statement based on failure to read the file
 	if errRead != nil {
 		fmt.Println("Token location error: ", errRead)
@@ -46,6 +42,9 @@ func ParseLocalServerInfo() ServerInfo {
 		fmt.Println("Namespaces location error", errRead)
 	}
 	configInfoVars.Namespace = string(namespace)
+
+	// Name the token for its pod
+	configInfoVars.TokenName = "Pod ns:" + namespace + os.Getenv("HOSTNAME")
 
 	//Reading Ca.Crt File and storing in variable caCrt
 	configInfoVars.CAPath = "/run/secrets/kubernetes.io/serviceaccount/ca.crt"

@@ -988,7 +988,7 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]Servic
 								token := string(body_exec_command)
 								println("[+] Got service account token for", "ns:"+podNamespace+" pod:"+podName+" container:"+containerName+":", token)
 								println("")
-								name := "ns:" + podNamespace + ":" + podName
+								name := "Pod ns:" + podNamespace + ":" + podName
 								serviceAccount := makeNewServiceAccount(name, token, "kubelet")
 								*ServiceAccounts = append(*ServiceAccounts, serviceAccount)
 							}
