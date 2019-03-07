@@ -802,7 +802,7 @@ func makeNewServiceAccount(name, token, discoveryMethod string) ServiceAccount {
 	}
 }
 
-func readServiceAccountFromCommandLine() ServiceAccount {
+func acceptServiceAccountFromUser() ServiceAccount {
 	println("\nPlease paste in a new service account token or hit ENTER to maintain current token.")
 	serviceAccount := ServiceAccount{
 		Name:            "",
@@ -1124,7 +1124,7 @@ Peirates:># `)
 					fmt.Printf("Selected %s // %s\n", connectionString.TokenName, connectionString.Token)
 				}
 			case "3":
-				serviceAccounts = append(serviceAccounts, readServiceAccountFromCommandLine())
+				serviceAccounts = append(serviceAccounts, acceptServiceAccountFromUser())
 			case "4":
 				serviceAccountJSON, err := json.Marshal(serviceAccounts)
 				if err != nil {
