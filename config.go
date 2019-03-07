@@ -44,7 +44,7 @@ func ParseLocalServerInfo() ServerInfo {
 	configInfoVars.Namespace = string(namespace)
 
 	// Name the token for its pod
-	configInfoVars.TokenName = "Pod ns:" + namespace + os.Getenv("HOSTNAME")
+	configInfoVars.TokenName = "Pod ns:" + configInfoVars.Namespace + os.Getenv("HOSTNAME")
 
 	//Reading Ca.Crt File and storing in variable caCrt
 	configInfoVars.CAPath = "/run/secrets/kubernetes.io/serviceaccount/ca.crt"
