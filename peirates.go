@@ -865,7 +865,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.15 by InGuardians
+	Peirates v1.0.16 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -1124,7 +1124,21 @@ Peirates:># `)
 					fmt.Printf("Selected %s // %s\n", connectionString.TokenName, connectionString.Token)
 				}
 			case "3":
-				serviceAccounts = append(serviceAccounts, acceptServiceAccountFromUser())
+				serviceAccount := acceptServiceAccountFromUser()
+				serviceAccounts = append(serviceAccounts, serviceAccount)
+
+				println("\n[1] Switch to this service account\n[2] Maintain current service account")
+				fmt.Scanln(&input)
+				switch input {
+				case "1":
+					assignServiceAccountToConnection(serviceAccount, &connectionString)
+					break
+				case "2":
+					break
+				default:
+					println("Input not understood - adding service account but not switching context")
+				}
+				println("")
 			case "4":
 				serviceAccountJSON, err := json.Marshal(serviceAccounts)
 				if err != nil {
