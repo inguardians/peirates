@@ -32,7 +32,8 @@ func ParseLocalServerInfo() ServerInfo {
 	configInfoVars.Token = string(token)
 
 	// Place the filesystem path in the token's name field
-	configInfoVars.TokenName  = "/run/secrets/kubernetes.io/serviceaccount/token"
+	// configInfoVars.TokenName  = "/run/secrets/kubernetes.io/serviceaccount/token"
+	configInfoVars.TokenName = "Pod: " + os.Getenv("HOSTNAME")
 
 	//Error message If statement based on failure to read the file
 	if errRead != nil {

