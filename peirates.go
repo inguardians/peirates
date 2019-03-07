@@ -1065,20 +1065,17 @@ Compromise |
 ----------------------------------------------------------------
 Peirates:># `)
 
-		banner_items_removed := (`
-		
-		[23] Run a command on a pod from the Kubelet
+		// Banner items to implement
 
-		[7] Get a list of roles for this service account [not yet implemented]
-[8] Get a list of roles available on the cluster [implemented but not connected to menu]
-[9] Get a list of abilities for a role [not yet implemented]
-[12] Request list of pods from a Kubelet [not yet implemented]
-[16] Pull Kubernetes service account tokens from S3 [AWS only] [not yet implemented]
-[98] Shell out to bash (not yet implemented)
-[99] Build YAML Files (not yet implemented)
-
-		`)
-		banner_items_removed = banner_items_removed + " "
+		// Run a command on a pod from the Kubelet
+		//
+		// Get a list of roles for this service account [not yet implemented]
+		// Get a list of roles available on the cluster [implemented but not connected to menu]
+		// Get a list of abilities for a role [not yet implemented]
+		// Request list of pods from a Kubelet [not yet implemented]
+		// Pull Kubernetes service account tokens from S3 [AWS only] [not yet implemented]
+		// Shell out to bash (not yet implemented)
+		// Build YAML Files (not yet implemented)
 
 		var input string
 		var user_response string
