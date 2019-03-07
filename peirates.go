@@ -865,7 +865,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.16 by InGuardians
+	Peirates v1.0.17 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -1058,7 +1058,7 @@ Compromise |
 -----------+
 [20] Gain a reverse rootshell by launching a hostPath / pod
 [21] Run command in one or all pods in this namespace
-[22] Run a command on a pod from the Kubelet
+[22] Request all Kubelets run a token-dumping command in all pods
 
 [exit] Exit Peirates 
 ----------------------------------------------------------------
@@ -1066,6 +1066,7 @@ Peirates:># `)
 
 		banner_items_removed := (`
 		
+		[23] Run a command on a pod from the Kubelet
 
 		[7] Get a list of roles for this service account [not yet implemented]
 [8] Get a list of roles available on the cluster [implemented but not connected to menu]
