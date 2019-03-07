@@ -1033,15 +1033,6 @@ func PeiratesMain() {
 	// Watch the documentation on these variables for changes:
 	// https://kubernetes.io/docs/concepts/containers/container-environment-variables/
 
-	// BUG: confirm that this does the right thing when not in a pod.
-	if inAPod(connectionString) {
-		println("+ You are in a pod.")
-	} else {
-		println("- You are not in a Kubernetes pod.")
-	}
-
-	//allPods := getPodList(connectionString)
-
 	var input int
 	for ok := true; ok; ok = (input != 2) {
 		banner(connectionString)
