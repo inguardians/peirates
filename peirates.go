@@ -1203,72 +1203,40 @@ Peirates:># `)
 		// [11] Get a service account token from a secret
 		case "11":
 			println("\nPlease enter the name of the secret for which you'd like the contents: ")
-			var secret_name string
-			fmt.Scanln(&secret_name)
+			var secretName string
+			fmt.Scanln(&secretName)
 
 			// BUG: Temporarily we're using we're kludgy YAML parsing.
 			if !kubectlAuthCanI(connectionString, "get", "secret") {
 				println("Permission Denied: your service account isn't allowed to get secrets")
 				break
 			}
-			getSecretYAML, _, err := runKubectlSimple(connectionString, "get", "secret", secret_name, "-o", "yaml")
+
+			secretJSON, _, err := runKubectlSimple(connectionString, "get", "secret", secretName, "-o", "json")
 			if err != nil {
 				fmt.Println("[-] Could not retrieve secret")
 				break
-				// log.Fatal(err)
 			}
 
-			lines := strings.Split(string(getSecretYAML), "\n")
-			for _, line := range lines {
-				matched, err := regexp.MatchString(`^\s*$`, line)
-				if err != nil {
-					log.Fatal(err)
-				}
-				if !matched {
-					// Looking solely for tokens
-					if strings.Fields(line)[0] == "token:" {
-						token := strings.Fields(line)[1]
-						// println("Encoded: ",token)
-						decoded_token, err := base64.StdEncoding.DecodeString(token)
-						if err != nil {
-							println("ERROR: couldn't decode")
-							break
-						} else {
-							fmt.Printf("Decoded:\n%q\n", decoded_token)
-						}
-					}
-				}
-			}
+			var secretData map[string]interface{}
+			json.Unmarshal(secretJSON, &secretData)
 
-			// To base64 decode, we'd use base64.StdEncoding.DecodeString() - with printf, use %q
+			secretType := secretData["type"].(string)
 
-			break
-
-			getSecretRaw, _, err := runKubectlSimple(connectionString, "get", "secret", secret_name, "-o", "json")
-			// TODO-FAITH - determine which errors mean we should just show an error and break
-			if err != nil {
-				fmt.Println("[-] Could not retrieve secret")
+			if secretType != "kubernetes.io/service-account-token" {
+				println("[-] This secret is not a service account token.")
 				break
-				// log.Fatal(err)
+			}
+
+			opaqueToken := secretData["data"].(map[string]interface{})["token"].(string)
+			token, err := base64.StdEncoding.DecodeString(opaqueToken)
+			if err != nil {
+				println("ERROR: couldn't decode")
+				break
 			} else {
-				var secretDetails Secret_Details
-				err := json.Unmarshal(getSecretRaw, &secretDetails)
-				if err != nil {
-					fmt.Println("[-] Error unmarshaling data in this secret: ", err)
-					break
-				}
-				println("Secret has type: ", secretDetails.SecretType)
-				if secretDetails.SecretType == "kubernetes.io/service-account-token" {
-					//println("Token found: ",secretDetails.Data.Token)
-					println("Token found!")
-				} else {
-					fmt.Println("Non-token secret parsing not yet implemented")
-
-				}
-
+				fmt.Printf("Saved %s // %s\n", secretName, token)
+				serviceAccounts = append(serviceAccounts, makeNewServiceAccount(secretName, string(token), "Cluster Secret"))
 			}
-
-			break
 
 		// [5] Check all pods for volume mounts
 		case "5":
