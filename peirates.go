@@ -592,7 +592,7 @@ func GetPodsInfo(connectionString ServerInfo, podDetails *PodDetails) {
 	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
 	println(string(podDetailOut))
 	if err != nil {
-		println("[-] Unable to retrieve details from this pod: ", err
+		println("[-] Unable to retrieve details from this pod: ", err)
 	} else {
 		println("[+] Retrieving details for all pods was successful: ")
 		err := json.Unmarshal(podDetailOut, &podDetails)
