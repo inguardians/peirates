@@ -160,10 +160,8 @@ func getHostname(connectionString ServerInfo, PodName string) string {
 
 // SwitchNamespace switches the current ServerInfo.Namespace to one entered by the user.
 func SwitchNamespace(connectionString *ServerInfo) bool {
-	var input string
-
 	println("\nEnter namespace to switch to or hit enter to maintain current namespace: ")
-	fmt.Scanln(&input)
+	input, _ := readLine()
 	if input != "" {
 		connectionString.Namespace = input
 	}
