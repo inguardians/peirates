@@ -280,10 +280,6 @@ func kubectlAuthCanI(cfg ServerInfo, cmdArgs ...string) bool {
 }
 
 // canCreatePods() runs kubectl to check if current token can create a pod
-func canCreatePods(connectionString ServerInfo) bool {
-	return kubectlAuthCanI(connectionString, "create", "pod")
-}
-
 // inAPod() attempts to determine if we are running in a pod.
 // Long-term, this will likely go away
 func inAPod(connectionString ServerInfo) bool {
@@ -341,7 +337,7 @@ func PrintNamespaces(connectionString ServerInfo) []string {
 	return namespaces
 }
 
-func getListOfPods(connectionString ServerInfo) {
+func printListOfPods(connectionString ServerInfo) {
 	runningPods := getPodList(connectionString)
 	for _, listpod := range runningPods {
 		println("[+] Pod Name: " + listpod)
@@ -602,8 +598,8 @@ func GetPodsInfo(connectionString ServerInfo, podDetails *PodDetails) {
 	}
 }
 
-// GetHostMountPoints prints all pods' host volume mounts parsed from the Spec.Volumes pod spec by GetPodsInfo()
-func GetHostMountPoints(podInfo PodDetails) {
+// PrintHostMountPoints prints all pods' host volume mounts parsed from the Spec.Volumes pod spec by GetPodsInfo()
+func PrintHostMountPoints(podInfo PodDetails) {
 	println("[+] Getting all host mount points for pods in current namespace")
 	for _, item := range podInfo.Items {
 		// println("+ Host Mount Points for Pod: " + item.Metadata.Name)
@@ -615,8 +611,8 @@ func GetHostMountPoints(podInfo PodDetails) {
 	}
 }
 
-// GetHostMountPointsForPod prints a single pod's host volume mounts parsed from the Spec.Volumes pod spec by GetPodsInfo()
-func GetHostMountPointsForPod(podInfo PodDetails, pod string) {
+// PrintHostMountPointsForPod prints a single pod's host volume mounts parsed from the Spec.Volumes pod spec by GetPodsInfo()
+func PrintHostMountPointsForPod(podInfo PodDetails, pod string) {
 	println("[+] Getting all Host Mount Points only for pod: " + pod)
 	for _, item := range podInfo.Items {
 		if item.Metadata.Name == pod {
@@ -651,7 +647,7 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 	// BUG: this routine seems to create the same pod name every time, which makes it so it can't run twice.
 
 	// First, confirm we're allowed to create pods
-	if !canCreatePods(connectionString) {
+	if !kubectlAuthCanI(connectionString, "create", "pod") {
 		println("[-] AUTHORIZATION: this token isn't allowed to create pods in this namespace")
 		return
 	}
@@ -1201,7 +1197,7 @@ Peirates:># `)
 		// [3] Get list of pods
 		case "3":
 			println("\n[+] Printing a list of Pods in this namespace......")
-			getListOfPods(connectionString)
+			printListOfPods(connectionString)
 			break
 
 		//[4] Get complete info on all pods (json)
@@ -1268,14 +1264,14 @@ Peirates:># `)
 			case "1":
 				println("[+] Getting volume mounts for all pods")
 				// BUG: Need to make it so this Get doesn't print all info even though it gathers all info.
-				GetHostMountPoints(podInfo)
+				PrintHostMountPoints(podInfo)
 				//println("[+] Attempting to Mounting RootFS......")
 				//MountRootFS(allPods, connectionString)
 			case "2":
 				println("[+] Please provide the pod name: ")
 				fmt.Scanln(&userResponse)
 				fmt.Printf("[+] Printing volume mount points for %s\n", userResponse)
-				GetHostMountPointsForPod(podInfo, userResponse)
+				PrintHostMountPointsForPod(podInfo, userResponse)
 			}
 
 		// [20] Gain a reverse rootshell by launching a hostPath / pod
@@ -1614,8 +1610,8 @@ Peirates:># `)
 
 	//GetRoles(connectionString, &kubeRoles)
 	//GetPodsInfo(connectionString, &podInfo)
-	//GetHostMountPoints(podInfo)
-	//GetHostMountPointsForPod(podInfo, "attack-daemonset-6fmjc")
+	//PrintHostMountPoints(podInfo)
+	//PrintHostMountPointsForPod(podInfo, "attack-daemonset-6fmjc")
 	//for _, pod := range allPods {
 	// JAY / TODO: Put me back
 	//	println("Running a hostname command in pod: " + pod)
