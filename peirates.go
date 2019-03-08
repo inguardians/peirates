@@ -50,7 +50,8 @@ func getPodList(connectionString ServerInfo) []string {
 
 	getPodsRaw, _, err := runKubectlSimple(connectionString, "get", "pods")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Printf("Error while getting pods: %s\n", err.Error())
+		return []string{}
 	}
 	// Iterate over kubectl get pods, stripping off the first line which matches NAME and then grabbing the first column
 
@@ -58,7 +59,7 @@ func getPodList(connectionString ServerInfo) []string {
 	for _, line := range lines {
 		matched, err := regexp.MatchString(`^\s*$`, line)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Printf("Error while parsing pods: %s\n", err.Error())
 		}
 		if !matched {
 			//added checking to only enumerate running pods
@@ -87,7 +88,8 @@ func getSecretList(connectionString ServerInfo) ([]string, []string) {
 
 	getSecretsRaw, _, err := runKubectlSimple(connectionString, "get", "secrets")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Printf("Error while getting secrets: %s\n", err.Error())
+		return []string{}, []string{}
 	}
 	// Iterate over kubectl get secrets, stripping off the first line which matches NAME and then grabbing the first column
 
@@ -95,7 +97,8 @@ func getSecretList(connectionString ServerInfo) ([]string, []string) {
 	for _, line := range lines {
 		matched, err := regexp.MatchString(`^\s*$`, line)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Printf("Error while parsing secrets: %s\n", err.Error())
+			return []string{}, []string{}
 		}
 		if !matched {
 			//added checking to note which secrets are service account tokens
@@ -179,36 +182,51 @@ func SwitchNamespace(connectionString *ServerInfo) bool {
 func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
 	// Based on code from https://github.com/kubernetes/kubernetes/blob/2e0e1681a6ca7fe795f3bd5ec8696fb14687b9aa/cmd/kubectl/kubectl.go#L44
 
-	// Set up a function to handle the case where we've been running for over 10 seconds
-	// 10 seconds is an entirely arbitrary timeframe, adjust it if needed.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		// Since this always keeps cmdArgs alive in memory for at least 10 seconds, there is the
-		// potential for this to lead to excess memory usage if kubectl is run an astronimcal number
-		// of times within the timeout window. I don't expect this to be an issue, but if it is, I
-		// recommend a looping <sleeptime> iterations with a 1 second sleep between each iteration,
-		// allowing the routine to exit earlier when possible.
-		time.Sleep(10 * time.Second)
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			log.Fatalf(
-				"\nKubectl took too long! This usually happens because the remote IP is wrong.\n"+
-					"Check that you've passed the right IP address with -i. If that doesn't help,\n"+
-					"and you're running in a test environment, try restarting the entire cluster.\n"+
-					"\n"+
-					"To help you debug, here are the arguments that were passed to peirates:\n"+
-					"\t%s\n"+
-					"\n"+
-					"And here are the arguments that were passed to the failing kubectl command:\n"+
-					"\t%s\n",
-				os.Args,
-				append([]string{"kubectl"}, cmdArgs...))
-			return
+	// runKubectl has a timeout to deal with kubectl commands running forever.
+	// In the future, it would be good to return an error when this happens, but
+	// for now the only method we have to deal with the command hanging is to
+	// crash the program. However, `kubectl exec` commands may take an arbitrary
+	// amount of time, so we disable the timeout when `exec` is found in the args.
+	isExec := false
+	for _, arg := range cmdArgs {
+		if arg == "exec" {
+			isExec = true
+			break
 		}
-	}()
+	}
+	if !isExec {
+		// Set up a function to handle the case where we've been running for over 10 seconds
+		// 10 seconds is an entirely arbitrary timeframe, adjust it if needed.
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go func() {
+			// Since this always keeps cmdArgs alive in memory for at least 10 seconds, there is the
+			// potential for this to lead to excess memory usage if kubectl is run an astronimcal number
+			// of times within the timeout window. I don't expect this to be an issue, but if it is, I
+			// recommend a looping <sleeptime> iterations with a 1 second sleep between each iteration,
+			// allowing the routine to exit earlier when possible.
+			time.Sleep(10 * time.Second)
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				// TODO we shouldnt crash kubectl exec calls
+				log.Fatalf(
+					"\nKubectl took too long! This usually happens because the remote IP is wrong.\n"+
+						"Check that you've passed the right IP address with -i. If that doesn't help,\n"+
+						"and you're running in a test environment, try restarting the entire cluster.\n"+
+						"\n"+
+						"To help you debug, here are the arguments that were passed to peirates:\n"+
+						"\t%s\n"+
+						"\n"+
+						"And here are the arguments that were passed to the failing kubectl command:\n"+
+						"\t%s\n",
+					os.Args,
+					append([]string{"kubectl"}, cmdArgs...))
+				return
+			}
+		}()
+	}
 
 	// NewKubectlCommand adds the global flagset for some reason, so we have to
 	// copy it, temporarily replace it, and then restore it.
@@ -295,7 +313,8 @@ func PrintNamespaces(connectionString ServerInfo) []string {
 
 	NamespacesRaw, _, err := runKubectlSimple(connectionString, "get", "namespaces")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Printf("Error while getting namespaces: %s\n", err.Error())
+		return []string{}
 	}
 	// Iterate over kubectl get namespaces, stripping off the first line which matches NAME and then grabbing the first column
 
@@ -305,7 +324,8 @@ func PrintNamespaces(connectionString ServerInfo) []string {
 		println(line)
 		matched, err := regexp.MatchString(`^\s*$`, line)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Printf("Error while parsing namespaces: %s\n", err.Error())
+			return []string{}
 		}
 		if !matched {
 			// Get rid of blank lines
@@ -1431,8 +1451,7 @@ Peirates:># `)
 			reqListBuckets.Header.Add("Accept", "json")
 			respListBuckets, err := sslClient.Do(reqListBuckets)
 			if err != nil {
-				log.Fatal(err)
-				fmt.Printf("Error - could not perform request --%s--\n", urlListBuckets)
+				fmt.Printf("Error - could not perform request --%s-- - %s\n", urlListBuckets, err.Error())
 				respListBuckets.Body.Close()
 				break
 			}
@@ -1460,8 +1479,7 @@ Peirates:># `)
 				reqListObjects.Header.Add("Accept", "json")
 				respListObjects, err := sslClient.Do(reqListObjects)
 				if err != nil {
-					log.Fatal(err)
-					fmt.Printf("Error - could not perform request --%s--\n", urlListObjects)
+					fmt.Printf("Error - could not perform request --%s-- - %s\n", urlListObjects, err.Error())
 					respListObjects.Body.Close()
 					break
 				}
@@ -1493,8 +1511,7 @@ Peirates:># `)
 							reqToken.Header.Add("Accept", "json")
 							respToken, err := sslClient.Do(reqToken)
 							if err != nil {
-								log.Fatal(err)
-								fmt.Printf("Error - could not perform request --%s--\n", saTokenUrl)
+								fmt.Printf("Error - could not perform request --%s-- - %s\n", urlListObjects, err.Error())
 								respToken.Body.Close()
 								break
 							}
