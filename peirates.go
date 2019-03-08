@@ -279,6 +279,17 @@ func kubectlAuthCanI(cfg ServerInfo, cmdArgs ...string) bool {
 	return canYouDoTheThing == "yes"
 }
 
+// readLine reads up through the next \n from stdin. The returned string does
+// not include the \n.
+func readLine() (string, error) {
+	reader := bufio.NewReader(os.Stdin)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return "", err
+	}
+	return line[:len(line)-1], err
+}
+
 // canCreatePods() runs kubectl to check if current token can create a pod
 // inAPod() attempts to determine if we are running in a pod.
 // Long-term, this will likely go away
@@ -826,15 +837,10 @@ func acceptServiceAccountFromUser() ServiceAccount {
 		DiscoveryTime:   time.Now(),
 		DiscoveryMethod: "User Input",
 	}
-	reader := bufio.NewReader(os.Stdin)
 	println("\nWhat do you want to name this service account?")
-	serviceAccount.Name, _ = reader.ReadString('\n')
-	// Trim newline
-	serviceAccount.Name = serviceAccount.Name[:len(serviceAccount.Name)-1]
+	serviceAccount.Name, _ = readLine()
 	println("\nPaste the service account token and hit ENTER:")
-	serviceAccount.Token, _ = reader.ReadString('\n')
-	// Trim newline
-	serviceAccount.Token = serviceAccount.Token[:len(serviceAccount.Token)-1]
+	serviceAccount.Token, _ = readLine()
 
 	return serviceAccount
 }
@@ -1558,8 +1564,7 @@ Peirates:># `)
 			fmt.Scanln(&input)
 			println("[+] Please provide the command to run in the pods: ")
 
-			reader := bufio.NewReader(os.Stdin)
-			cmdOpts.commandToRunInPods, _ = reader.ReadString('\n')
+			cmdOpts.commandToRunInPods, _ = readLine()
 
 			// println("Running command ")
 			switch input {
