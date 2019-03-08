@@ -44,6 +44,10 @@ func GetRequest(url string, headers []HeaderLine, tls_checking bool) string {
 		return ""
 
 	}
+	if response.Status != "200 OK" {
+		return ("ERROR: Status code " + response.Status)
+	}
 	// Parse result as one or more accounts, then construct a request asking for each account's credentials
+	// return string(body)
 	return string(body)
 }
