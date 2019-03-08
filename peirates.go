@@ -358,26 +358,11 @@ func printListOfPods(connectionString ServerInfo) {
 
 // execInAllPods() runs kubeData.command in all running pods
 func execInAllPods(connectionString ServerInfo, command string) {
-	if !kubectlAuthCanI(connectionString, "exec", "pod") {
-		println("[-] Permission Denied: your service account isn't allowed to exec commands in pods")
-		return
-	}
 	runningPods := getPodList(connectionString)
-
-	for _, execPod := range runningPods {
-		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/sh", "-c", command)
-		if err != nil {
-			fmt.Printf("[-] Executing %s in Pod %s failed: %s\n", command, execPod, err)
-		} else {
-			// println("[+] Executing " + command + " in Pod " + execPod + " succeeded: ")
-			println(" ")
-			println("\n", string(execInPodOut))
-		}
-	}
-
+	execInListPods(connectionString, runningPods, command)
 }
 
-// execInListPods() runs kubeData.command in all pods in kubeData.list
+// execInListPods() runs kubeData.command in all pods in the provided list
 func execInListPods(connectionString ServerInfo, pods []string, command string) {
 	if !kubectlAuthCanI(connectionString, "exec", "pods") {
 		println("[-] Permission Denied: your service account isn't allowed to exec commands in pods")
@@ -390,12 +375,10 @@ func execInListPods(connectionString ServerInfo, pods []string, command string) 
 		if err != nil {
 			fmt.Printf("[-] Executing %s in Pod %s failed: %s\n", command, execPod, err)
 		} else {
-			// println("[+] Executing " + command + " in Pod " + execPod + " succeeded: ")
 			println(" ")
 			println(string(execInPodOut))
 		}
 	}
-
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
