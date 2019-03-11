@@ -61,7 +61,7 @@ func getPodList(connectionString ServerInfo) []string {
 	}
 
 	var response PodsResponse
-	json.Unmarshal(responseJSON, &response)
+	err = json.Unmarshal(responseJSON, &response)
 	if err != nil {
 		fmt.Printf("[-] Error while getting pods: %s\n", err.Error())
 		return []string{}
@@ -79,39 +79,40 @@ func getPodList(connectionString ServerInfo) []string {
 // Get the names of the available Secrets from the current namespace and a list of service account tokens
 func getSecretList(connectionString ServerInfo) ([]string, []string) {
 
-	var secrets []string
-	var serviceAccountTokens []string
-
 	if !kubectlAuthCanI(connectionString, "get", "secrets") {
 		println("[-] Permission Denied: your service account isn't allowed to get secrets")
 		return []string{}, []string{}
 	}
 
-	getSecretsRaw, _, err := runKubectlSimple(connectionString, "get", "secrets")
+	type SecretsResponse struct {
+		Items []struct {
+			Metadata struct {
+				Name string `json:"name"`
+			} `json:"metadata"`
+			Type string `json:"type"`
+		} `json:"items"`
+	}
+
+	secretsJSON, _, err := runKubectlSimple(connectionString, "get", "secrets", "-o", "json")
 	if err != nil {
 		fmt.Printf("[-] Error while getting secrets: %s\n", err.Error())
 		return []string{}, []string{}
 	}
-	// Iterate over kubectl get secrets, stripping off the first line which matches NAME and then grabbing the first column
 
-	lines := strings.Split(string(getSecretsRaw), "\n")
-	for _, line := range lines {
-		matched, err := regexp.MatchString(`^\s*$`, line)
-		if err != nil {
-			fmt.Printf("[-] Error while parsing secrets: %s\n", err.Error())
-			return []string{}, []string{}
-		}
-		if !matched {
-			//added checking to note which secrets are service account tokens
-			fields := strings.Fields(line)
-			secret := fields[0]
-			// Check for header row
-			if secret != "NAME" {
-				secrets = append(secrets, secret)
-				if fields[1] == "kubernetes.io/service-account-token" {
-					serviceAccountTokens = append(serviceAccountTokens, secret)
-				}
-			}
+	var response SecretsResponse
+	err = json.Unmarshal(secretsJSON, &response)
+	if err != nil {
+		fmt.Printf("[-] Error while getting secrets: %s\n", err.Error())
+		return []string{}, []string{}
+	}
+
+	secrets := make([]string, len(response.Items))
+	var serviceAccountTokens []string
+
+	for i, secret := range response.Items {
+		secrets[i] = secret.Metadata.Name
+		if secret.Type == "kubernetes.io/service-account-token" {
+			serviceAccountTokens = append(serviceAccountTokens, secret.Metadata.Name)
 		}
 	}
 
