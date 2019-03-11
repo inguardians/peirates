@@ -46,30 +46,31 @@ func getPodList(connectionString ServerInfo) []string {
 		return []string{}
 	}
 
-	var pods []string
-
-	getPodsRaw, _, err := runKubectlSimple(connectionString, "get", "pods")
+	responseJSON, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
 	if err != nil {
 		fmt.Printf("[-] Error while getting pods: %s\n", err.Error())
 		return []string{}
 	}
-	// Iterate over kubectl get pods, stripping off the first line which matches NAME and then grabbing the first column
 
-	lines := strings.Split(string(getPodsRaw), "\n")
-	for _, line := range lines {
-		matched, err := regexp.MatchString(`^\s*$`, line)
-		if err != nil {
-			fmt.Printf("[-] Error while parsing pods: %s\n", err.Error())
-		}
-		if !matched {
-			//added checking to only enumerate running pods
-			if strings.Fields(line)[2] == "Running" {
-				pod := strings.Fields(line)[0]
-				if pod != "NAME" {
-					pods = append(pods, pod)
-				}
-			}
-		}
+	type PodsResponse struct {
+		Items []struct {
+			Metadata struct {
+				Name string `json:"name"`
+			} `json:"metadata"`
+		} `json:"items"`
+	}
+
+	var response PodsResponse
+	json.Unmarshal(responseJSON, &response)
+	if err != nil {
+		fmt.Printf("[-] Error while getting pods: %s\n", err.Error())
+		return []string{}
+	}
+
+	pods := make([]string, len(response.Items))
+
+	for i, pod := range response.Items {
+		pods[i] = pod.Metadata.Name
 	}
 
 	return pods
