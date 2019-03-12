@@ -1332,23 +1332,20 @@ Peirates:># `)
 
 		// [14] Request kube-env from GCP Metadata API [GCP only]
 		case "14":
-			// Create a new HTTP client that uses the correct headers
-			client := &http.Client{}
 			// Make a request for kube-env, in case it is in the instance attributes, as with a number of installers
-			reqKube, err := http.NewRequest("GET", "http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env", nil)
-			reqKube.Header.Add("Metadata-Flavor", "Google")
-			resp, err := client.Do(reqKube)
-			if err != nil {
-				println("[-] Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env/")
+			var headers []HeaderLine
+			headers = []HeaderLine{
+				HeaderLine{"Metadata-Flavor", "Google"},
 			}
-			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
-			if resp.StatusCode != 200 {
-				fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n", resp.StatusCode)
+			kubeEnv := GetRequest("http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env", headers, false)
+			if (kubeEnv == "") || (strings.HasPrefix(kubeEnv, "ERROR:")) {
+				println("[-] Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env/")
+				// TODO: Should we get error code the way we used to:
+				// fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n", resp.StatusCode)
 				break
 			}
-			lines := strings.Split(string(body), "\n")
-			for _, line := range lines {
+			kubeEnvLines := strings.Split(string(kubeEnv), "\n")
+			for _, line := range kubeEnvLines {
 				println(line)
 			}
 
