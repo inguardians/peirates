@@ -1403,21 +1403,17 @@ Peirates:># `)
 			} else {
 				println("[+] Got default token for GCP - preparing to use it for GCS:", token)
 			}
+
 			// Need to get project ID from metadata API
-			client := &http.Client{}
-			reqProjid, err := http.NewRequest("GET", "http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id", nil)
-			reqProjid.Header.Add("Metadata-Flavor", "Google")
-			respProjid, err := client.Do(reqProjid)
-			if err != nil {
-				println("[-] Error - could not perform request http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id")
-				respProjid.Body.Close()
+			var headers []HeaderLine
+			headers = []HeaderLine{
+				HeaderLine{"Metadata-Flavor", "Google"},
+			}
+			projectID := GetRequest("http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id", headers, false)
+			if (projectID == "") || (strings.HasPrefix(projectID, "ERROR:")) {
 				break
 			}
-			defer respProjid.Body.Close()
-			body, err := ioutil.ReadAll(respProjid.Body)
-			// Parse result as one or more accounts, then construct a request asking for each account's credentials
-			projectId := string(body)
-			println("[+] Got numberic project ID", projectId)
+			println("[+] Got numberic project ID", projectID)
 
 			// Prepare to do non-cert-checking https requests
 			tr := &http.Transport{
@@ -1427,7 +1423,7 @@ Peirates:># `)
 
 			// Get a list of buckets
 			// curl -s -H 'Metadata-Flavor: Google' -H "Authorization: Bearer $(cat bearertoken)" -H "Accept: json" https://www.googleapis.com/storage/v1/b/?project=$(cat projectid)
-			urlListBuckets := "https://www.googleapis.com/storage/v1/b/?project=" + projectId
+			urlListBuckets := "https://www.googleapis.com/storage/v1/b/?project=" + projectID
 			reqListBuckets, err := http.NewRequest("GET", urlListBuckets, nil)
 			reqListBuckets.Header.Add("Metadata-Flavor", "Google")
 			bearerToken := "Bearer " + token
