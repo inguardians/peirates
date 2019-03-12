@@ -1306,28 +1306,25 @@ Peirates:># `)
 
 		// [13] Request IAM credentials from GCP Metadata API [GCP only]
 		case "13":
-			// Create a new HTTP client that uses the correct headers
-			client := &http.Client{}
-			// Make a request for our service account(s)
-			reqAccounts, err := http.NewRequest("GET", "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/", nil)
-			reqAccounts.Header.Add("Metadata-Flavor", "Google")
-			resp, err := client.Do(reqAccounts)
-			if err != nil {
-				println("[-] Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/")
-			}
-			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
-			// Parse result as one or more accounts, then construct a request asking for each account's credentials
-			lines := strings.Split(string(body), "\n")
 
-			for _, line := range lines {
+			// Make a request for our service account(s)
+			var headers []HeaderLine
+			headers = []HeaderLine{
+				HeaderLine{"Metadata-Flavor", "Google"},
+			}
+			svcAcctListRaw := GetRequest("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/", headers, false)
+			if (svcAcctListRaw == "") || (strings.HasPrefix(svcAcctListRaw, "ERROR:")) {
+				break
+			}
+			svcAcctListLines := strings.Split(string(svcAcctListRaw), "\n")
+
+			for _, line := range svcAcctListLines {
 				if strings.TrimSpace(string(line)) == "" {
 					continue
 				}
 				account := strings.TrimRight(string(line), "/")
 				fmt.Printf("\n[+] GCP Credentials for account %s\n\n", account)
 
-				// TURN THIS INTO A FUNCTION SO WE CAN PARSE the ones we want
 				println(GetGCPBearerTokenFromMetadataAPI(account))
 			}
 			println(" ")
