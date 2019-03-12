@@ -1404,6 +1404,12 @@ Peirates:># `)
 				println("[+] Got default token for GCP - preparing to use it for GCS:", token)
 			}
 
+			// Eliminate once all GETS and POSTS are replaced
+			tr := &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			}
+			sslClient := &http.Client{Transport: tr}
+
 			// Need to get project ID from metadata API
 			var headers []HeaderLine
 			headers = []HeaderLine{
@@ -1415,38 +1421,29 @@ Peirates:># `)
 			}
 			println("[+] Got numberic project ID", projectID)
 
-			// Prepare to do non-cert-checking https requests
-			tr := &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			}
-			sslClient := &http.Client{Transport: tr}
+			// Get a list of buckets, maintaining the same header and adding two lines
+			headers = []HeaderLine{
+				HeaderLine{"Authorization", "Bearer " + token},
+				HeaderLine{"Accept", "json"},
+				HeaderLine{"Metadata-Flavor", "Google"}}
 
-			// Get a list of buckets
 			// curl -s -H 'Metadata-Flavor: Google' -H "Authorization: Bearer $(cat bearertoken)" -H "Accept: json" https://www.googleapis.com/storage/v1/b/?project=$(cat projectid)
 			urlListBuckets := "https://www.googleapis.com/storage/v1/b/?project=" + projectID
-			reqListBuckets, err := http.NewRequest("GET", urlListBuckets, nil)
-			reqListBuckets.Header.Add("Metadata-Flavor", "Google")
-			bearerToken := "Bearer " + token
-			reqListBuckets.Header.Add("Authorization", bearerToken)
-			reqListBuckets.Header.Add("Accept", "json")
-			respListBuckets, err := sslClient.Do(reqListBuckets)
-			if err != nil {
-				fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", urlListBuckets, err.Error())
-				respListBuckets.Body.Close()
+			bucketListRaw := GetRequest(urlListBuckets, headers, false)
+			if (bucketListRaw == "") || (strings.HasPrefix(bucketListRaw, "ERROR:")) {
 				break
 			}
-			defer respListBuckets.Body.Close()
-			bodyListBuckets, err := ioutil.ReadAll(respListBuckets.Body)
-			bucketList_lines := strings.Split(string(bodyListBuckets), "\n")
+			bucketListLines := strings.Split(string(bucketListRaw), "\n")
 
 			// Build our list of bucket URLs
 			var bucketUrls []string
-			for _, line := range bucketList_lines {
+			for _, line := range bucketListLines {
 				if strings.Contains(line, "selfLink") {
 					url := strings.Split(line, "\"")[3]
 					bucketUrls = append(bucketUrls, url)
 				}
 			}
+
 			// In every bucket URL, look at the objects
 			// Each bucket has a self-link line.  For each one, run that self-link line with /o appended to get an object list.
 			for _, line := range bucketUrls {
