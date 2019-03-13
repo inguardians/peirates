@@ -46,15 +46,11 @@ func getPodList(connectionString ServerInfo) []string {
 		return []string{}
 	}
 
-	println("DEBUG: Made it past auth check")
-
 	responseJSON, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
 	if err != nil {
 		fmt.Printf("[-] Error while getting pods: %s\n", err.Error())
 		return []string{}
 	}
-
-	println("DEBUG: Made it past get pods -o json")
 
 	type PodsResponse struct {
 		Items []struct {
@@ -66,8 +62,6 @@ func getPodList(connectionString ServerInfo) []string {
 
 	var response PodsResponse
 	json.Unmarshal(responseJSON, &response)
-
-	println("DEBUG: Made it json.Unmarshall")
 
 	if err != nil {
 		fmt.Printf("[-] Error while getting pods: %s\n", err.Error())
@@ -918,9 +912,8 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]Servic
 	if !kubectlAuthCanI(connectionString, "get", "nodes") {
 		println("[-] Permission Denied: your service account isn't allowed to get nodes")
 		return
-	} else {
-		println("DEBUG: passed auth checks")
 	}
+
 	nodeDetailOut, _, err := runKubectlSimple(connectionString, "get", "nodes", "-o", "json")
 	println(nodeDetailOut)
 
@@ -1265,7 +1258,7 @@ Peirates:># `)
 				println("[+] Getting volume mounts for all pods")
 				// BUG: Need to make it so this Get doesn't print all info even though it gathers all info.
 				PrintHostMountPoints(podInfo)
-				//println("[+] Attempting to Mounting RootFS......")
+
 				//MountRootFS(allPods, connectionString)
 			case "2":
 				println("[+] Please provide the pod name: ")
@@ -1518,7 +1511,6 @@ Peirates:># `)
 
 			cmdOpts.commandToRunInPods, _ = readLine()
 
-			println("DEBUG: Running command ", cmdOpts.commandToRunInPods)
 			switch input {
 			case "1":
 				println("[+] Please provide the specified pod to run the command: ")
