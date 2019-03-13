@@ -870,7 +870,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.17 by InGuardians
+	Peirates v1.0.18 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -1504,7 +1504,7 @@ Peirates:># `)
 			break
 		// [21] Run command in one or all pods in this namespace
 		case "21":
-			banner(connectionString)
+
 			println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
 			fmt.Scanln(&input)
 			println("[+] Please provide the command to run in the pods: ")
