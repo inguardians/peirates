@@ -1527,7 +1527,6 @@ Peirates:># `)
 				}
 			case "2":
 				var input string
-				println("DEBUG: Made it into case 2")
 				if cmdOpts.commandToRunInPods != "" {
 					println("About to run execInAllPods")
 					execInAllPods(connectionString, cmdOpts.commandToRunInPods)
