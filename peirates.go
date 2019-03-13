@@ -627,6 +627,8 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 	// TODO: changing parsing to occur via JSON
 	// TODO: check that image exists / handle failure by trying again with the next youngest pod's image or a named pod's image
 
+	// TODO: Create approach 2
+
 	// Approach 1: Try to get the image file for my own pod
 	//./kubectl describe pod `hostname`| grep Image:
 	hostname := os.Getenv("HOSTNAME")
@@ -695,9 +697,8 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 			}
 			if !matched {
 				//added checking to only enumerate running pods
-				// BUG: Did we do this? Check.
+				// TODO: check for potential bug: did we enumerate only running pods as intended?
 				MountInfoVars.image = strings.Fields(line)[7]
-				//println("[+] This is the MountInfoVars.Image output: ", MountInfoVars.image)
 			}
 		}
 	}
