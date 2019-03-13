@@ -31,20 +31,14 @@ func parseOptions(opts *CommandLineOptions) {
 
 	flagset.StringVar(&opts.connectionConfig.RIPAddress, "i", opts.connectionConfig.RIPAddress, "API Server IP address: ex. 10.22.34.67")
 	flagset.StringVar(&opts.connectionConfig.RPort, "p", opts.connectionConfig.RPort, "API Server Port: ex 443, 6443")
-	flagset.StringVar(&podListRaw, "L", "", "List of comma seperated Pods: ex pod1,pod2,pod3")
+	flagset.StringVar(&podListRaw, "L", "", "List of comma-seperated Pods: ex pod1,pod2,pod3")
 	flagset.StringVar(&opts.commandToRunInPods, "c", "hostname", "Command to run in pods")
-	// flag.BoolVar(&connectionString.infoPods, "e", false, "Export pod information from remote Kubernetes server via curl")
-
-	// JAY / TODO: println("FIXME: parseOptions clobbers Builder()")
-
-	// flag.StringVar(&connectionString.Token, "t", "", "Token to be used for accessing Kubernetes server")
-	// flag.StringVar(&connectionString.CAPath, "c", "", "Path to CA certificate")
 
 	// This is the function that actually runs the parser
 	// once you've defined all your options.
 	flagset.Parse(os.Args[1:])
 
-	// If the IP or Port are their empty string, we want
+	// If the IP or Port are an empty string, we want
 	// to just print out usage and crash because they have
 	// to be defined
 	if opts.connectionConfig.RIPAddress == "" {
