@@ -6,10 +6,6 @@
 //
 package peirates
 
-// Imports. If you don't use an import that's an error so
-// I haven't imported json yet.
-// Also, number one rule of Go: Try to stick to the
-// standard library as much as possible
 import (
 	"bufio"
 	"bytes"
@@ -27,8 +23,8 @@ import (
 	"strconv"
 
 	// HTTP client/server
-	"net/http"
-	"net/url"
+	"net/http" // HTTP requests
+	"net/url"  // URL encoding
 	"os/exec"
 	"regexp"
 	"strings"
@@ -142,21 +138,6 @@ func GetGCPBearerTokenFromMetadataAPI(account string) string {
 	} else {
 		println("[-] Error - could not find token in returned body text: ", string(reqTokenRaw))
 		return "ERROR"
-	}
-}
-
-//
-// getHostname runs kubectl with connection string to get hostname from pod
-// In the medium term, this function will disappear
-//
-func getHostname(connectionString ServerInfo, PodName string) string {
-
-	hostname, _, err := runKubectlSimple(connectionString, "exec", "-it", PodName, "hostname")
-	if err != nil {
-		println("[-] Checking for hostname of pod "+PodName+" failed: ", err)
-		return "[-] Pod command exec failed for " + PodName + "\n"
-	} else {
-		return "[+] Pod discovered: " + string(hostname)
 	}
 }
 
@@ -1547,39 +1528,4 @@ Peirates:># `)
 		}
 		clearScreen()
 	}
-	//---------------------------------------------------------
-	//	parseOptions(&cmdOpts)
-
-	//	if inAPod(connectionString) {
-	//		println("+ You are in a pod.")
-	//	} else {
-	//		println("- You are not in a Kubernetes pod.")
-	//	}
-
-	//	allPods := getPodList(connectionString)
-
-	//GetRoles(connectionString, &kubeRoles)
-	//GetPodsInfo(connectionString, &podInfo)
-	//PrintHostMountPoints(podInfo)
-	//PrintHostMountPointsForPod(podInfo, "attack-daemonset-6fmjc")
-	//for _, pod := range allPods {
-	// JAY / TODO: Put me back
-	//	println("Running a hostname command in pod: " + pod)
-	//	print(getHostname(connectionString, pod))
-	//}
-	//if cmdOpts.commandToRunInPods != "" {
-	//	if len(cmdOpts.podsToRunTheCommandIn) > 0 {
-	//		execInListPods(connectionString, cmdOpts.podsToRunTheCommandIn, cmdOpts.commandToRunInPods)
-	//	} else {
-	//		execInAllPods(connectionString, cmdOpts.commandToRunInPods)
-	//	}
-	//}
-	//podCreation := canCreatePods(connectionString)
-	//if podCreation {
-	//	println("+ This token can create pods on the cluster")
-	//} else {
-	//	println(" This token cannot create pods on the cluster")
-	//}
-	//MountRootFS(allPods, connectionString)
-
 }
