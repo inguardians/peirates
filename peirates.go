@@ -1420,6 +1420,7 @@ Peirates:># `)
 			// In every bucket URL, look at the objects
 			// Each bucket has a self-link line.  For each one, run that self-link line with /o appended to get an object list.
 			// We use the same headers[] from the previous GET request.
+		eachbucket:
 			for _, line := range bucketUrls {
 				println("Checking bucket for credentials:", line)
 				urlListObjects := line + "/o"
@@ -1445,8 +1446,7 @@ Peirates:># `)
 							// We use the same headers[] from the previous GET request.
 							bodyToken := GetRequest(saTokenUrl, headers, false)
 							if (bodyToken == "") || (strings.HasPrefix(bodyToken, "ERROR:")) {
-								continue
-								// TODO: mark the continue point
+								continue eachbucket
 							}
 							tokenLines := strings.Split(string(bodyToken), "\n")
 							// TODO: Do we need to check status code?  if respToken.StatusCode != 200 {
