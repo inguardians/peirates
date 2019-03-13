@@ -850,7 +850,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.19 by InGuardians
+	Peirates v1.0.20 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -1049,7 +1049,10 @@ Compromise |
 [20] Gain a reverse rootshell on a node by launching a hostPath-mounting pod
 [21] Run command in one or all pods in this namespace via the API Server (RBAC permitting)
 [22] Run a token-dumping command in all pods via Kubelets (authorization/Webhook permitting)
-
+-----------------+
+Off-Menu         +
+-----------------+
+[0] Run a kubectl command in the current namespace and service account context [beta]
 
 [exit] Exit Peirates 
 ----------------------------------------------------------------
@@ -1079,6 +1082,54 @@ Peirates:># `)
 		case "exit":
 			os.Exit(0)
 
+		//	[0] Run a kubectl command in the current namespace, API server and service account context
+		case "0":
+			println(`
+This function allows you to run a kubectl command, with only a few restrictions.
+
+Your command must not:
+
+- change namespace
+- specify a different service account 
+- change nameservers
+- run for longer than a few seconds (as in kubectl exec)
+
+Your command will crash this program if it is not permitted.
+
+These requirements are dynamic - watch new versions for changes.
+
+Leave off the "kubectl" part of the command.  For example:
+
+- get pods
+- get pod podname -o yaml
+- get secret secretname -o yaml
+
+`)
+
+			fmt.Printf("Please enter a kubectl command: ")
+			input, _ = readLine()
+
+			arguments := strings.Fields(input)
+			for _, arg := range arguments {
+				println("Argument:", arg)
+			}
+			// TODO: Create an authorization check
+			// if !kubectlAuthCanI(connectionString, "get", "secret") {
+			//	println("[-] Permission Denied: your service account isn't allowed to get secrets")
+			//	break
+			//}
+
+			// func runKubectlSimple(cfg ServerInfo, cmdArgs ...string) ([]byte, []byte, error) {
+			kubectlOutput, _, err := runKubectlSimple(connectionString, arguments...)
+			if err != nil {
+				println("[-] Could not perform action")
+				break
+			}
+			kubectlOutputLines := strings.Split(string(kubectlOutput), "\n")
+			for _, line := range kubectlOutputLines {
+				println(line)
+			}
+			break
 		// [1] Enter a different service account token
 		case "1":
 			fmt.Printf("\nCurrent primary service account: %s\n\n[1] List service accounts\n[2] Select primary service account\n[3] Add new service account\n[4] Export service accounts to JSON\n[5] Import service accounts from JSON\n", connectionString.TokenName)
@@ -1494,7 +1545,6 @@ Peirates:># `)
 
 				if cmdOpts.commandToRunInPods != "" {
 					if len(cmdOpts.podsToRunTheCommandIn) > 0 {
-						// BUG: execInListPods and execInAllPods both need to be able to split the command on whitespace
 						execInListPods(connectionString, cmdOpts.podsToRunTheCommandIn, cmdOpts.commandToRunInPods)
 					}
 				}
