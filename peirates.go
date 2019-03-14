@@ -1258,7 +1258,7 @@ Leave off the "kubectl" part of the command.  For example:
 
 		// [2] List namespaces or change namespace
 		case "2":
-			println("\n[1] List namespaces]\n[2] Switch namespace\n[3] List namespaces then switch namespaces")
+			println("\n[1] List namespaces\n[2] Switch namespace\n[3] List namespaces then switch namespaces")
 			fmt.Scanln(&input)
 			switch input {
 			case "1":
