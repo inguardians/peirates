@@ -2,7 +2,11 @@
 package peirates
 
 import (
+	"bytes"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 )
@@ -12,42 +16,119 @@ type HeaderLine struct {
 	RHS string
 }
 
-func GetRequest(url string, headers []HeaderLine, tls_checking bool) string {
-	// These are two examples of HTTP requests we're making
+// KubernetesAPIRequest makes an API request to a kubernetes API server,
+// using the connection parameters and authentication from the provided
+// ServerInfo. It marshals the provided query structure to JSON, and
+// unmarshalls the response JSON to the response structure pointer.
+// For an example of usage, see kubectlAuthCanI.
+func DoKubernetesAPIRequest(cfg ServerInfo, httpVerb, apiPath string, query interface{}, response interface{}) error {
 
-	// Need to get project ID from metadata API
-	var client *http.Client
-	if !(tls_checking) {
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	queryJSON, err := json.Marshal(query)
+	if err != nil {
+		fmt.Printf("[-] KubernetesAPIRequest failed marshalling %s to JSON: %s\n", query, err.Error())
+		return err
+	}
+
+	jsonReader := bytes.NewReader(queryJSON)
+	remotePath := fmt.Sprintf("https://%s:%s/%s", cfg.RIPAddress, cfg.RPort, apiPath)
+	req, err := http.NewRequest(httpVerb, remotePath, jsonReader)
+	if err != nil {
+		fmt.Printf("[-] KubernetesAPIRequest failed building a request from URL %s : %s\n", remotePath, err.Error())
+		return err
+	}
+
+	req.Header.Add("Authorization", "Bearer "+cfg.Token)
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Accept", "application/json")
+
+	responseJSON, err := DoHTTPRequestAndGetBody(req, false, cfg.CAPath)
+	if err != nil {
+		fmt.Printf("[-] KubernetesAPIRequest failed to access the kubernetes API: %s\n", err.Error())
+		return err
+	}
+
+	err = json.Unmarshal(responseJSON, response)
+	if err != nil {
+		fmt.Printf("[-] KubernetesAPIRequest failed to unmarshal JSON %s: %s\n", responseJSON, err.Error())
+		return err
+	}
+
+	return nil
+}
+
+// DoHTTPRequestAndGetBody performs an HTTP request, and returns the full
+// body of the reponse as a string. If ignoreTLSErrors is  true, all TLS
+// errors, such as invalid certificates, will be ignored. If caCertPath is
+// not an empty string, a TLS certificate will be read from the provided path
+// and added to the pool of valid certificates.
+func DoHTTPRequestAndGetBody(req *http.Request, ignoreTLSErrors bool, caCertPath string) ([]byte, error) {
+
+	caCertPool, err := x509.SystemCertPool()
+
+	if err != nil {
+		fmt.Printf("[-] DoHTTPRequestAndGetBody failed to get system cert pool: %s\n", err.Error())
+		return []byte{}, err
+	}
+
+	if caCertPath != "" {
+		caCert, err := ioutil.ReadFile(caCertPath)
+		if err != nil {
+			fmt.Printf("[-] DoHTTPRequestAndGetBody failed reading CA cert from %s: %s\n", caCertPath, err.Error())
+			return []byte{}, err
 		}
-		client = &http.Client{Transport: tr}
-	} else {
-		client = &http.Client{}
+		caCertPool.AppendCertsFromPEM(caCert)
 	}
 
-	request, err := http.NewRequest("GET", url, nil)
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs:            caCertPool,
+				InsecureSkipVerify: ignoreTLSErrors,
+			},
+		},
+	}
+
+	responseHTTP, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("[-] DoHTTPRequestAndGetBody failed to perform the request: %s\n", err.Error())
+		return []byte{}, err
+	}
+
+	responseBody, err := ioutil.ReadAll(responseHTTP.Body)
+	if err != nil {
+		fmt.Printf("[-] DoHTTPRequestAndGetBody failed to read HTTP response body: %s\n", err.Error())
+		return []byte{}, err
+	}
+
+	if responseHTTP.StatusCode < 200 || responseHTTP.StatusCode > 299 {
+		fmt.Printf("[-] DoHTTPRequestAndGetBody got a %s status instead of a successful 2XX status. Failing and printing response: \n%s\n", responseHTTP.Status, string(responseBody))
+		return []byte{}, fmt.Errorf("DoHTTPRequestAndGetBody failed with status %s", responseHTTP.Status)
+	}
+
+	return responseBody, err
+}
+
+// GetRequest is a simple helper function for making HTTP GET requests to the
+// provided URL with custom headers, and the option to ignore TLS errors.
+// For a more advanced helper, see DoHTTPRequestAndGetBody.
+func GetRequest(url string, headers []HeaderLine, ignoreTLSErrors bool) string {
+
+	req, err := http.NewRequest("GET", url, nil)
+
+	if err != nil {
+		fmt.Printf("[-] GetRequest failed to construct an HTTP request from URL %s : %s\n", url, err.Error())
+		return ""
+	}
+
 	for _, header := range headers {
-		request.Header.Add(header.LHS, header.RHS)
+		req.Header.Add(header.LHS, header.RHS)
 	}
-	response, err := client.Do(request)
-	if err != nil {
-		println("Error - could not perform request " + url)
-		response.Body.Close()
-		return ""
 
-	}
-	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
+	reponse, err := DoHTTPRequestAndGetBody(req, ignoreTLSErrors, "")
 	if err != nil {
-		println("Error: could not parse HTTP response")
+		fmt.Printf("[-] GetRequest could not perform request to %s : %s\n", url, err.Error())
 		return ""
+	}
 
-	}
-	if response.Status != "200 OK" {
-		return ("ERROR: Status code " + response.Status)
-	}
-	// Parse result as one or more accounts, then construct a request asking for each account's credentials
-	// return string(body)
-	return string(body)
+	return string(reponse)
 }
