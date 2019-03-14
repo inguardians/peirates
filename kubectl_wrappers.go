@@ -59,7 +59,6 @@ func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) er
 			case <-ctx.Done():
 				return
 			default:
-				// TODO we shouldnt crash kubectl exec calls
 				log.Fatalf(
 					"\nKubectl took too long! This usually happens because the remote IP is wrong.\n"+
 						"Check that you've passed the right IP address with -i. If that doesn't help,\n"+
