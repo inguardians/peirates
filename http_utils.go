@@ -16,7 +16,7 @@ type HeaderLine struct {
 	RHS string
 }
 
-// KubernetesAPIRequest makes an API request to a kubernetes API server,
+// DoKubernetesAPIRequest makes an API request to a kubernetes API server,
 // using the connection parameters and authentication from the provided
 // ServerInfo. It marshals the provided query structure to JSON, and
 // unmarshalls the response JSON to the response structure pointer.
