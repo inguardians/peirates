@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"flag" // Command line flag parsing
@@ -249,16 +250,118 @@ func runKubectlSimple(cfg ServerInfo, cmdArgs ...string) ([]byte, []byte, error)
 	return stdout.Bytes(), stderr.Bytes(), err
 }
 
-func kubectlAuthCanI(cfg ServerInfo, cmdArgs ...string) bool {
-	authArgs := []string{"auth", "can-i"}
-	out, _, err := runKubectlSimple(cfg, append(authArgs, cmdArgs...)...)
+// runKubectlWithByteSliceForStdin is runKubectlSimple but you can pass in some bytes for stdin. Conven
+func runKubectlWithByteSliceForStdin(cfg ServerInfo, stdinBytes []byte, cmdArgs ...string) ([]byte, []byte, error) {
+	stdin := bytes.NewReader(append(stdinBytes, '\n'))
+	stdout := bytes.Buffer{}
+	stderr := bytes.Buffer{}
+
+	err := runKubectlWithConfig(cfg, stdin, &stdout, &stderr, cmdArgs...)
+
+	return stdout.Bytes(), stderr.Bytes(), err
+}
+
+// kubectlAuthCanI now has a history... We can't use the built in
+// `kubectl auth can-i <args...>`, because when the response to the auth check
+// is "no", kubectl exits with exit code 1. This has the unfortunate side
+// effect of exiting peirates too, since we aren't running kubectl as a
+// subprocess.
+//
+// The takeaway here is that we have to do it another way. See https://kubernetes.io/docs/reference/access-authn-authz/authorization/#checking-api-access
+// for more details.
+func kubectlAuthCanI(cfg ServerInfo, verb, resource string) bool {
+
+	type SelfSubjectAccessReviewResourceAttributes struct {
+		Group     string `json:"group,omitempty"`
+		Resource  string `json:"resource"`
+		Verb      string `json:"verb"`
+		Namespace string `json:"namespace,omitempty"`
+	}
+
+	type SelfSubjectAccessReviewSpec struct {
+		ResourceAttributes SelfSubjectAccessReviewResourceAttributes `json:"resourceAttributes"`
+	}
+
+	type SelfSubjectAccessReviewQuery struct {
+		APIVersion string                      `json:"apiVersion"`
+		Kind       string                      `json:"kind"`
+		Spec       SelfSubjectAccessReviewSpec `json:"spec"`
+	}
+
+	query := SelfSubjectAccessReviewQuery{
+		APIVersion: "authorization.k8s.io/v1",
+		Kind:       "SelfSubjectAccessReview",
+		Spec: SelfSubjectAccessReviewSpec{
+			ResourceAttributes: SelfSubjectAccessReviewResourceAttributes{
+				Group:     "",
+				Resource:  resource,
+				Verb:      verb,
+				Namespace: cfg.Namespace,
+			},
+		},
+	}
+
+	queryJSON, err := json.Marshal(query)
 	if err != nil {
+		fmt.Printf("[-] kubectlAuthCanI failed to serialize query %s with error %s: assuming you don't have permissions.\n", query, err.Error())
 		return false
 	}
-	var canYouDoTheThing string
-	// Extract the first word
-	fmt.Sscan(string(out), &canYouDoTheThing)
-	return canYouDoTheThing == "yes"
+
+	caCert, err := ioutil.ReadFile(cfg.CAPath)
+	if err != nil {
+		fmt.Printf("[-] kubectlAuthCanI failed to read cert %s with error %s: assuming you don't have permissions.\n", cfg.CAPath, err.Error())
+		return false
+	}
+
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: caCertPool,
+			},
+		},
+	}
+
+	jsonReader := bytes.NewReader(queryJSON)
+	remotePath := fmt.Sprintf("https://%s:%s/apis/authorization.k8s.io/v1/selfsubjectaccessreviews", cfg.RIPAddress, cfg.RPort)
+	req, err := http.NewRequest("POST", remotePath, jsonReader)
+	if err != nil {
+		fmt.Printf("[-] kubectlAuthCanI failed because something is wrong with the remote host or port setting. %s isn't a valid URL. assuming you don't have permissions.\n", remotePath)
+		return false
+	}
+
+	req.Header.Add("Authorization", "Bearer "+cfg.Token)
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Accept", "application/json")
+
+	responseHTTP, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("[-] kubectlAuthCanI failed to access the kubernetes API with error %s. assuming you don't have permissions.\n", err.Error())
+		return false
+	}
+
+	responseJSON, err := ioutil.ReadAll(responseHTTP.Body)
+	if err != nil {
+		fmt.Printf("[-] kubectlAuthCanI failed to read JSON response with error %s: assuming you don't have permissions.\n", err.Error())
+		return false
+	}
+
+	type SelfSubjectAccessReviewResponse struct {
+		Status struct {
+			Allowed bool `json:"allowed"`
+		} `json:"status"`
+	}
+
+	var response SelfSubjectAccessReviewResponse
+	err = json.Unmarshal(responseJSON, &response)
+	if err != nil {
+		fmt.Printf("[-] kubectlAuthCanI failed to decode response JSON %s with error %s: assuming you don't have permissions.\n", responseJSON, err.Error())
+		return false
+	}
+
+	return response.Status.Allowed
 }
 
 // readLine reads up through the next \n from stdin. The returned string does
