@@ -1438,7 +1438,6 @@ Leave off the "kubectl" part of the command.  For example:
 			case "2":
 				var input string
 				if cmdOpts.commandToRunInPods != "" {
-					println("About to run execInAllPods")
 					execInAllPods(connectionString, cmdOpts.commandToRunInPods)
 				} else {
 					fmt.Print("[-] ERROR - command string was empty.")
