@@ -12,6 +12,10 @@ You run Peirates from a container running on Kubernetes.
 
 Yes, it absolutely does. Talk to your lawyer and the cluster owners before using this tool in a Kubernetes cluster.
 
+## Who creates Peirates?
+
+InGuardians' CTO Jay Beale first conceived of Peirates and put together a group of InGuardians developers to create it with him, including Faith Alderson, Adam Crompton and Dave Mayer. Faith convinced us to all learn Golang, so she could implement the tool's use of the kubectl library from the Kubernetes project. Adam persuaded the group to use a highly-interactive user interface. Dave brought contagious enthusiasm. Together, these four developers implemented attacks and began releasing this tool that we use on our penetration tests.
+
 ## Do you welcome contributions?
 
 Yes, we absolutely do. Submit a pull request and/or reach out to contact@inguardians.com.
