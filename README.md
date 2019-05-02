@@ -12,6 +12,14 @@ You run Peirates from a container running on Kubernetes.
 
 Yes, it absolutely does. Talk to your lawyer and the cluster owners before using this tool in a Kubernetes cluster.
 
+## Do you welcome contributions?
+
+Yes, we absolutely do. Submit a pull request and/or reach out to contact@inguardians.com.
+
+## What license is this released under?
+
+Peirates is released under the GPLv2 license.
+
 ## Modules
 
 ## Building and Running
