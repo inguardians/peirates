@@ -27,7 +27,7 @@ func ParseLocalServerInfo() ServerInfo {
 	configInfoVars.RPort = os.Getenv("KUBERNETES_SERVICE_PORT")
 
 	// Reading token file and storing in variable token
-	token, errRead := ioutil.ReadFile("/run/secrets/kubernetes.io/serviceaccount/token")
+	token, errRead := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
 	configInfoVars.Token = string(token)
 
 	//Error message If statement based on failure to read the file
@@ -36,7 +36,7 @@ func ParseLocalServerInfo() ServerInfo {
 	}
 
 	// Reading namespace file and storing in variable namespace
-	namespace, errRead := ioutil.ReadFile("/run/secrets/kubernetes.io/serviceaccount/namespace")
+	namespace, errRead := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if errRead != nil {
 		fmt.Println("Namespaces location error", errRead)
 	}
@@ -46,7 +46,7 @@ func ParseLocalServerInfo() ServerInfo {
 	configInfoVars.TokenName = "Pod ns:" + configInfoVars.Namespace + ":" + os.Getenv("HOSTNAME")
 
 	//Reading Ca.Crt File and storing in variable caCrt
-	configInfoVars.CAPath = "/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+	configInfoVars.CAPath = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 
 	return configInfoVars
 }

