@@ -1486,7 +1486,7 @@ Leave off the "kubectl" part of the command.  For example:
 			println("\nChoose a pod to inject peirates into:\n")
 			runningPods := getPodList(connectionString)
 			for i, listpod := range runningPods {
-				fmt.Printf("[%d] Pod Name: %s\n", i, listpod)
+				fmt.Printf("[%d] %s\n", i, listpod)
 			}
 
 			println("Enter the number of a pod to inject peirates into: ")
