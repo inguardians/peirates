@@ -261,20 +261,19 @@ func injectIntoAPodViaAPIServer(connectionString ServerInfo, pod string) {
 
 	copyIntoPod, _, err := runKubectlSimple(connectionString, "cp", filename, destination)
 	if err != nil {
-		fmt.Printf("[-] Copying peirates into pod %s failed: %s\n", pod)
+		fmt.Printf("[-] Copying peirates into pod %s failed.\n", pod)
 	} else {
 		println(string(copyIntoPod))
 		println("[+] Transfer successful")
 
-		println("Do you wish to [1] move entirely into that pod OR [2] be given a copy-pastable command so you can keep this peirates instance?")
-
-		println("Option 2 is: ")
-		println("Now, start up a new process, put a copy of kubectl in it, and move into that pod by running the following command:\n\n")
-		println("kubectl --token " + connectionString.Token + " --certificate-authority=" + connectionString.CAPath + " -n " + connectionString.Namespace + " exec -it " + pod + " -- /tmp/peirates\n")
+		// println("Do you wish to [1] move entirely into that pod OR [2] be given a copy-pastable command so you can keep this peirates instance?")
 		// Feature request: give the user the option to exec into the next pod.
-
 		// $_
 		// runKubectlSimple (exec -it pod /tmp/peirates)
+
+		// println("Option 2 is: ")
+		println("Now, start up a new process, put a copy of kubectl in it, and move into that pod by running the following command:\n\n")
+		println("kubectl --token " + connectionString.Token + " --certificate-authority=" + connectionString.CAPath + " -n " + connectionString.Namespace + " exec -it " + pod + " -- /tmp/peirates\n")
 
 	}
 }
@@ -769,7 +768,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.22 by InGuardians
+	Peirates v1.0.23 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
