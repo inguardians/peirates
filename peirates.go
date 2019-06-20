@@ -249,7 +249,7 @@ func execInListPods(connectionString ServerInfo, pods []string, command string) 
 	}
 }
 
-func injectIntoAPodViaAPIServer(connectionString ServerInfo, pod string) {
+func injectIntoAPodViaAPIServer(connectionString ServerInfo, remoteState FullPeiratesState, pod string) {
 	if !kubectlAuthCanI(connectionString, "exec", "pods") {
 		println("[-] Permission Denied: your service account isn't allowed to exec into pods")
 		return
@@ -279,7 +279,13 @@ func injectIntoAPodViaAPIServer(connectionString ServerInfo, pod string) {
 
 		// I bet we can get away with io.Copy since the streams will get closed when kubectl is done
 		go func() {
-			// TODO@Faith inject some config here
+			peiratesJSON, err := json.Marshal(remoteState)
+			if err != nil {
+				fmt.Printf("[-] Error exporting peirates data: %s\n", err.Error())
+			} else {
+				fmt.Fprintln(stdinWrite, "41") // Tell peirates to import a full state
+				fmt.Fprintln(stdinWrite, string(peiratesJSON))
+			}
 			io.Copy(stdinWrite, os.Stdin)
 		}()
 		go io.Copy(os.Stdout, stdoutRead)
@@ -1002,6 +1008,11 @@ Compromise |
 [21] Run command in one or all pods in this namespace via the API Server (RBAC permitting)
 [22] Run a token-dumping command in all pods via Kubelets (authorization/Webhook permitting)
 [30] Inject peirates into another pod via API Server (RBAC permitting)
+--------------+
+Peirates Data |
+--------------+
+[40] Export all peirates data
+[41] Import all peirates data (appends to current state)
 -----------------+
 Off-Menu         +
 -----------------+
@@ -1528,8 +1539,27 @@ Leave off the "kubectl" part of the command.  For example:
 			fmt.Scanln(&choice)
 
 			podName := runningPods[choice]
+			fullState := ExportFullPeiratesState(serviceAccounts, connectionString)
 
-			injectIntoAPodViaAPIServer(connectionString, podName)
+			injectIntoAPodViaAPIServer(connectionString, fullState, podName)
+		case "40":
+			fullState := ExportFullPeiratesState(serviceAccounts, connectionString)
+			peiratesJSON, err := json.Marshal(fullState)
+			if err != nil {
+				fmt.Printf("[-] Error exporting peirates data: %s\n", err.Error())
+			} else {
+				println(string(peiratesJSON))
+			}
+		case "41":
+			println("Enter peirates json:")
+			var fullState FullPeiratesState
+			err := json.NewDecoder(os.Stdin).Decode(&fullState)
+			if err != nil {
+				fmt.Printf("[-] Error importing peirates data: %s\n", err.Error())
+			} else {
+				serviceAccounts = append(serviceAccounts, fullState.ServiceAccounts...)
+				fmt.Printf("[+] Successfully imported peirates data\n")
+			}
 		case "98":
 			break
 		case "99":
