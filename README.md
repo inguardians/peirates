@@ -8,7 +8,7 @@ Peirates, a Kubernetes penetration tool, enables an attacker to escalate privile
 
 You run Peirates from a container running on Kubernetes.
 
-## Does Kubernetes attack a cluster?
+## Does Peirates attack a Kubernetes cluster?
 
 Yes, it absolutely does. Talk to your lawyer and the cluster owners before using this tool in a Kubernetes cluster.
 
