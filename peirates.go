@@ -1016,7 +1016,7 @@ Peirates Data |
 -----------------+
 Off-Menu         +
 -----------------+
-[0] Run a kubectl command in the current namespace and service account context [beta]
+[0] Run a kubectl command in the current namespace and service account context
 
 [exit] Exit Peirates 
 ----------------------------------------------------------------
