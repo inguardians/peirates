@@ -10,7 +10,12 @@ build() {
     rmdir peirates-linux-"$1"
 }
 
-build amd64
-build arm
-build arm64
-build 386
+if [ -z $1 ] ; then
+    build amd64
+    build arm
+    build arm64
+    build 386 
+else
+    build $1
+fi
+
