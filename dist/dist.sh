@@ -2,7 +2,7 @@
 
 build() {
     echo "$1"
-    GOOS=linux GOARCH="$1" go build ../cmd/peirates
+    GOOS=linux GOARCH="$1" go build -i ../cmd/peirates
     mkdir peirates-linux-"$1"
     mv peirates peirates-linux-"$1"
     tar cJf peirates-linux-"$1".tar.xz peirates-linux-"$1"
@@ -10,7 +10,12 @@ build() {
     rmdir peirates-linux-"$1"
 }
 
-build amd64
-build arm
-build arm64
-build 386
+if [ -z $1 ] ; then
+    build amd64
+    build arm
+    build arm64
+    build 386 
+else
+    build $1
+fi
+
