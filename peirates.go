@@ -784,7 +784,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.24 by InGuardians
+	Peirates v1.0.25 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -980,7 +980,9 @@ Steal Service Accounts   |
 --------------------------------+
 Interrogate/Abuse Cloud API's   |
 --------------------------------+
-[17] Run AWS S3 List Bucket Commands with Auto-Refreshing Metadata API credentials [AWS] [alpha]
+[17] List AWS S3 Buckets accessible (Auto-Refreshing Metadata API credentials) [AWS]
+[18] List contents of an AWS S3 Bucket (Auto-Refreshing Metadata API credentials) [AWS]
+
 -----------+
 Compromise |
 -----------+
@@ -1451,13 +1453,21 @@ Leave off the "kubectl" part of the command.  For example:
 			break
 
 		case "17":
-			// [17] Run AWS S3 List Bucket Commands with Auto-Refreshing Metadata API credentials [AWS]
-			var bucket string
+			// [17] List AWS S3 Buckets accessible (Auto-Refreshing Metadata API credentials) [AWS]
 
 			var IAMCredentials = PullIamCredentialsFromAWS()
+			ListBuckets(IAMCredentials)
+
+			break
+
+		case "18":
+			// [18] List contents of an AWS S3 Bucket (Auto-Refreshing Metadata API credentials) [AWS]
+			var bucket string
+
 			println("Enter a bucket name to list: ")
 			fmt.Scanln(&bucket)
 
+			var IAMCredentials = PullIamCredentialsFromAWS()
 			ListBucketObjects(IAMCredentials, bucket)
 
 			break
