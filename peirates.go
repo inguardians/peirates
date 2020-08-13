@@ -785,7 +785,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.27 by InGuardians
+	Peirates v1.0.28-dev by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -991,7 +991,8 @@ Compromise |
 -----------------+
 Off-Menu         +
 -----------------+
-[0] Run a kubectl command in the current namespace and service account context [kubectl]
+[90] Run a kubectl command in the current namespace and service account context [kubectl]
+[91] GET to a URL of your choice [curl]
 
 [exit] Exit Peirates 
 ----------------------------------------------------------------
@@ -1020,7 +1021,7 @@ Peirates:># `)
 			os.Exit(0)
 
 		//	[0] Run a kubectl command in the current namespace, API server and service account context
-		case "0", "kubectl":
+		case "0", "90", "kubectl":
 			println(`
 This function allows you to run a kubectl command, with only a few restrictions.
 
@@ -1519,6 +1520,97 @@ Leave off the "kubectl" part of the command.  For example:
 			podName := runningPods[choice]
 
 			injectIntoAPodViaAPIServer(connectionString, podName)
+
+		// [91] Make an HTTP request (GET or POST) to a URL of your choice [curl]
+		case "91", "curl":
+			println("[+] Enter a URL, including http:// or https:// - if parameters are required, you must provide them as part of the URL: ")
+			fmt.Scanln(&input)
+
+			// Trim whitespace
+			full_url := strings.TrimSpace(strings.ToLower(input))
+
+			// Determine whether the URL is https or not:
+			https_present := false
+			if strings.HasPrefix(full_url, "https://") {
+				https_present = true
+			} else {
+				// Make sure the URL begins with http://, if it didn't begin with https://
+				if !strings.HasPrefix(full_url, "http://") {
+					fmt.Println("This URL does not start with http:// or https://")
+					break
+				}
+			}
+
+			// Set up an http client
+			httpClient := &http.Client{}
+			if https_present {
+				tr := &http.Transport{
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				}
+				httpClient = &http.Client{Transport: tr}
+			}
+
+			// Get the HTTP method
+			method := "--undefined--"
+			for (method != "GET") && (method != "POST") {
+				fmt.Println("[+] Enter method - only GET and POST are supported: ")
+				fmt.Scanln(&input)
+				method = strings.TrimSpace(strings.ToUpper(input))
+			}
+
+			input_parameter := "--undefined--"
+
+			// Store the parameters in a map
+			params := map[string]string{}
+
+			for input_parameter != "" {
+				// Request a parameter name
+				fmt.Println("[+] Enter a parameter or a blank line to finish entering parameters: ")
+				fmt.Scanln(&input)
+				input_parameter = strings.TrimSpace(input)
+
+				if input_parameter != "" {
+					// Request a parameter value
+					fmt.Println("[+] Enter a value for " + input_parameter + ":")
+					fmt.Scanln(&input)
+					parameter_value := strings.TrimSpace(input)
+
+					// Add the parameter pair to the list
+					params[input_parameter] = parameter_value
+					input = ""
+				}
+
+			}
+
+			fmt.Println("[+] Using method " + method + " for URL " + full_url)
+
+			fmt.Println("Parameters not yet supported ")
+
+			// urlWithData := full_url
+
+			// data := url.Values{}
+			// data.Set("cmd", "cat "+ServiceAccountPath+"token")
+
+			// request, err := http.NewRequest(method, full_url, strings.NewReader(data.Encode()))
+			request, err := http.NewRequest(method, full_url, nil)
+			// reqExecPod.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+			// reqExecPod.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+			// respExecPod, err := sslClient.Do(reqExecPod)
+			response, err := httpClient.Do(request)
+			if err != nil {
+				fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", full_url, err.Error())
+				response.Body.Close()
+				continue
+			}
+			if response.Status != "200 OK" {
+				fmt.Printf("[-] Error - response code: %s\n", response.Status)
+				continue
+			}
+			defer response.Body.Close()
+			responseBody, err := ioutil.ReadAll(response.Body)
+			responseBodyString := string(responseBody)
+			println(responseBodyString)
+			println("")
 		case "98":
 			break
 		case "99":
