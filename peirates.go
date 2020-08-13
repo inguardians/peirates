@@ -1527,15 +1527,15 @@ Leave off the "kubectl" part of the command.  For example:
 			fmt.Scanln(&input)
 
 			// Trim whitespace
-			full_url := strings.TrimSpace(strings.ToLower(input))
+			fullURL := strings.TrimSpace(strings.ToLower(input))
 
 			// Determine whether the URL is https or not:
-			https_present := false
-			if strings.HasPrefix(full_url, "https://") {
-				https_present = true
+			httpsPresent := false
+			if strings.HasPrefix(fullURL, "https://") {
+				httpsPresent = true
 			} else {
 				// Make sure the URL begins with http://, if it didn't begin with https://
-				if !strings.HasPrefix(full_url, "http://") {
+				if !strings.HasPrefix(fullURL, "http://") {
 					fmt.Println("This URL does not start with http:// or https://")
 					break
 				}
@@ -1543,7 +1543,7 @@ Leave off the "kubectl" part of the command.  For example:
 
 			// Set up an http client
 			httpClient := &http.Client{}
-			if https_present {
+			if httpsPresent {
 				tr := &http.Transport{
 					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 				}
@@ -1573,7 +1573,7 @@ Leave off the "kubectl" part of the command.  For example:
 					// Request a parameter value
 					fmt.Println("[+] Enter a value for " + input_parameter + ":")
 					fmt.Scanln(&input)
-					parameter_value := strings.TrimSpace(input)
+					parameter_value := url.QueryEscape(input)
 
 					// Add the parameter pair to the list
 					params[input_parameter] = parameter_value
@@ -1582,9 +1582,36 @@ Leave off the "kubectl" part of the command.  For example:
 
 			}
 
-			fmt.Println("[+] Using method " + method + " for URL " + full_url)
+			urlWithData := fullURL
 
-			fmt.Println("Parameters not yet supported ")
+			// Construct GET or POST request based on variables
+			if method == "GET" {
+
+				// If there are parameters, add them to the end of urlWithData
+				if len(params) > 0 {
+					query_string := "?"
+
+					for key, value := range params {
+						query_string = query_string + key + "=" + value + "&"
+					}
+					// Strip the final & off the query string
+					urlWithData = fullURL + strings.TrimSuffix(query_string, "&")
+				}
+
+			} else if method == "POST" {
+
+				fmt.Println("POST request not yet supported ")
+				break
+				for key, value := range params {
+					fmt.Printf("key[%s] value[%s]\n", key, value)
+				}
+
+			} else {
+				fmt.Println("ERROR: method " + method + " is not GET or POST - we shouldn't get here.")
+				break
+			}
+
+			fmt.Println("[+] Using method " + method + " for URL " + urlWithData)
 
 			// urlWithData := full_url
 
@@ -1592,13 +1619,13 @@ Leave off the "kubectl" part of the command.  For example:
 			// data.Set("cmd", "cat "+ServiceAccountPath+"token")
 
 			// request, err := http.NewRequest(method, full_url, strings.NewReader(data.Encode()))
-			request, err := http.NewRequest(method, full_url, nil)
+			request, err := http.NewRequest(method, fullURL, nil)
 			// reqExecPod.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 			// reqExecPod.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
 			// respExecPod, err := sslClient.Do(reqExecPod)
 			response, err := httpClient.Do(request)
 			if err != nil {
-				fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", full_url, err.Error())
+				fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", fullURL, err.Error())
 				response.Body.Close()
 				continue
 			}
