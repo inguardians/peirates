@@ -785,7 +785,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.26 by InGuardians
+	Peirates v1.0.27 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -933,8 +933,7 @@ type PodNamespaceContainerTuple struct {
 
 func PeiratesMain() {
 
-	// Create a global variable named "connectionString" initialized to
-	// default values
+	// Create a global variable named "connectionString" initialized to default values
 	connectionString := ParseLocalServerInfo()
 	cmdOpts := CommandLineOptions{connectionConfig: &connectionString}
 	//var kubeRoles KubeRoles
@@ -997,8 +996,6 @@ Off-Menu         +
 [exit] Exit Peirates 
 ----------------------------------------------------------------
 Peirates:># `)
-
-		// [23] Run a command in a pod via its node's Kubelet (authorization/Webhook permitting)
 
 		// Banner items to implement
 
