@@ -785,7 +785,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.28-dev by InGuardians
+	Peirates v1.0.28-beta by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -992,7 +992,7 @@ Compromise |
 Off-Menu         +
 -----------------+
 [90] Run a kubectl command in the current namespace and service account context [kubectl]
-[91] GET to a URL of your choice [curl]
+[91] Make an HTTP request (GET or POST) to a user-specified URL [curl]
 
 [exit] Exit Peirates 
 ----------------------------------------------------------------
@@ -1582,29 +1582,39 @@ Leave off the "kubectl" part of the command.  For example:
 
 			}
 
+			// Store a URL starting point
 			urlWithData := fullURL
+
+			// Create a data structure for values sent in the body of the request.
+
+			var dataSection *strings.Reader
+			dataSection = nil
+			contentLength := ""
 
 			// Construct GET or POST request based on variables
 			if method == "GET" {
 
 				// If there are parameters, add them to the end of urlWithData
 				if len(params) > 0 {
-					query_string := "?"
+					queryString := "?"
 
 					for key, value := range params {
-						query_string = query_string + key + "=" + value + "&"
+						queryString = queryString + key + "=" + value + "&"
 					}
 					// Strip the final & off the query string
-					urlWithData = fullURL + strings.TrimSuffix(query_string, "&")
+					urlWithData = fullURL + strings.TrimSuffix(queryString, "&")
 				}
 
 			} else if method == "POST" {
 
-				fmt.Println("POST request not yet supported ")
-				break
+				data := url.Values{}
 				for key, value := range params {
 					fmt.Printf("key[%s] value[%s]\n", key, value)
+					data.Set(key, value)
 				}
+				encodedData := data.Encode()
+				dataSection = strings.NewReader(encodedData)
+				contentLength = strconv.Itoa(len(encodedData))
 
 			} else {
 				fmt.Println("ERROR: method " + method + " is not GET or POST - we shouldn't get here.")
@@ -1613,16 +1623,12 @@ Leave off the "kubectl" part of the command.  For example:
 
 			fmt.Println("[+] Using method " + method + " for URL " + urlWithData)
 
-			// urlWithData := full_url
+			request, err := http.NewRequest(method, fullURL, dataSection)
+			if method != "GET" {
 
-			// data := url.Values{}
-			// data.Set("cmd", "cat "+ServiceAccountPath+"token")
+				request.Header.Add("Content-Length", contentLength)
+			}
 
-			// request, err := http.NewRequest(method, full_url, strings.NewReader(data.Encode()))
-			request, err := http.NewRequest(method, fullURL, nil)
-			// reqExecPod.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-			// reqExecPod.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
-			// respExecPod, err := sslClient.Do(reqExecPod)
 			response, err := httpClient.Do(request)
 			if err != nil {
 				fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", fullURL, err.Error())
