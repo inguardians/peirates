@@ -186,6 +186,7 @@ func PrintNamespaces(connectionString ServerInfo) []string {
 	var namespaces []string
 
 	NamespacesRaw, _, err := runKubectlSimple(connectionString, "get", "namespaces")
+
 	if err != nil {
 		fmt.Printf("[-] Error while getting namespaces: %s\n", err.Error())
 		return []string{}
@@ -784,7 +785,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.25 by InGuardians
+	Peirates v1.0.26 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -963,37 +964,37 @@ func PeiratesMain() {
 		println(`----------------------------------------------------------------
 Namespaces, Service Accounts and Roles |
 ---------------------------------------+
-[1] List, maintain, or switch service account contexts
-[2] List and/or change namespaces
-[3] Get list of pods
-[4] Get complete info on all pods (json)
-[5] Check all pods for volume mounts
+[1] List, maintain, or switch service account contexts [sa-menu]
+[2] List and/or change namespaces [ns-menu]
+[3] Get list of pods in current namespace [list-pods]
+[4] Get complete info on all pods (json) [dump-pod-info]
+[5] Check all pods for volume mounts [find-volume-mounts]
 -------------------------+
 Steal Service Accounts   |
 -------------------------+
-[10] List secrets from API server
-[11] Get a service account token from a secret
-[12] Request IAM credentials from AWS Metadata API [AWS only]
-[13] Request IAM credentials from GCP Metadata API [GCP only]
-[14] Request kube-env from GCP Metadata API [GCP only]
-[15] Pull Kubernetes service account tokens from Kop's bucket in GCS [GCP only] 
+[10] List secrets in this namespace from API server [list-secrets]
+[11] Get a service account token from a secret [secret-to-sa]
+[12] Request IAM credentials from AWS Metadata API [get-aws-token]
+[13] Request IAM credentials from GCP Metadata API [get-gcp-token]
+[14] Request kube-env from GCP Metadata API [attack-kube-env-gcp]
+[15] Pull Kubernetes service account tokens from kops' GCS bucket (Google Cloud only) [attack-kops-gcs-1] 
 --------------------------------+
 Interrogate/Abuse Cloud API's   |
 --------------------------------+
-[17] List AWS S3 Buckets accessible (Auto-Refreshing Metadata API credentials) [AWS]
-[18] List contents of an AWS S3 Bucket (Auto-Refreshing Metadata API credentials) [AWS]
+[17] List AWS S3 Buckets accessible (Auto-Refreshing Metadata API credentials) [aws-s3-ls]
+[18] List contents of an AWS S3 Bucket (Auto-Refreshing Metadata API credentials) [aws-s3-ls-objects]
 
 -----------+
 Compromise |
 -----------+
-[20] Gain a reverse rootshell on a node by launching a hostPath-mounting pod
-[21] Run command in one or all pods in this namespace via the API Server (RBAC permitting)
-[22] Run a token-dumping command in all pods via Kubelets (authorization/Webhook permitting)
-[30] Inject peirates into another pod via API Server (RBAC permitting)
+[20] Gain a reverse rootshell on a node by launching a hostPath-mounting pod [attack-pod-hostpath-mount]
+[21] Run command in one or all pods in this namespace via the API Server [exec-via-api]
+[22] Run a token-dumping command in all pods via Kubelets (authorization permitting) [exec-via-kubelet]
+[30] Inject peirates into another pod via API Server [inject-and-exec]
 -----------------+
 Off-Menu         +
 -----------------+
-[0] Run a kubectl command in the current namespace and service account context [beta]
+[0] Run a kubectl command in the current namespace and service account context [kubectl]
 
 [exit] Exit Peirates 
 ----------------------------------------------------------------
@@ -1020,11 +1021,11 @@ Peirates:># `)
 		switch input {
 
 		// exit
-		case "exit":
+		case "exit", "quit":
 			os.Exit(0)
 
 		//	[0] Run a kubectl command in the current namespace, API server and service account context
-		case "0":
+		case "0", "kubectl":
 			println(`
 This function allows you to run a kubectl command, with only a few restrictions.
 
@@ -1051,9 +1052,10 @@ Leave off the "kubectl" part of the command.  For example:
 			input, _ = readLine()
 
 			arguments := strings.Fields(input)
-			for _, arg := range arguments {
-				println("Argument:", arg)
-			}
+
+			// for _, arg := range arguments {
+			// 	println("Argument:", arg)
+			//}
 			// TODO: Create an authorization check
 			// if !kubectlAuthCanI(connectionString, "get", "secret") {
 			//	println("[-] Permission Denied: your service account isn't allowed to get secrets")
@@ -1063,7 +1065,7 @@ Leave off the "kubectl" part of the command.  For example:
 			// func runKubectlSimple(cfg ServerInfo, cmdArgs ...string) ([]byte, []byte, error) {
 			kubectlOutput, _, err := runKubectlSimple(connectionString, arguments...)
 			if err != nil {
-				println("[-] Could not perform action")
+				println("[-] Could not perform action: kubectl ", input)
 				break
 			}
 			kubectlOutputLines := strings.Split(string(kubectlOutput), "\n")
@@ -1072,8 +1074,8 @@ Leave off the "kubectl" part of the command.  For example:
 			}
 			break
 		// [1] Enter a different service account token
-		case "1":
-			fmt.Printf("\nCurrent primary service account: %s\n\n[1] List service accounts\n[2] Select primary service account\n[3] Add new service account\n[4] Export service accounts to JSON\n[5] Import service accounts from JSON\n", connectionString.TokenName)
+		case "1", "sa-menu", "service-account-menu", "sa", "service-account":
+			fmt.Printf("\nCurrent primary service account: %s\n\n[1] List service accounts\n[2] Switch primary service account\n[3] Add new service account\n[4] Export service accounts to JSON\n[5] Import service accounts from JSON\n", connectionString.TokenName)
 			fmt.Scanln(&input)
 			switch input {
 			case "1":
@@ -1141,17 +1143,14 @@ Leave off the "kubectl" part of the command.  For example:
 			}
 
 		// [2] List namespaces or change namespace
-		case "2":
-			println("\n[1] List namespaces\n[2] Switch namespace\n[3] List namespaces then switch namespaces")
+		case "2", "ns-menu", "namespace-menu", "ns", "namespace":
+			println("\n[1] List namespaces\n[2] Switch namespace")
 			fmt.Scanln(&input)
 			switch input {
 			case "1":
 				Namespaces = PrintNamespaces(connectionString)
 				break
 			case "2":
-				SwitchNamespace(&connectionString)
-				break
-			case "3":
 				Namespaces = PrintNamespaces(connectionString)
 				SwitchNamespace(&connectionString)
 				break
@@ -1160,18 +1159,18 @@ Leave off the "kubectl" part of the command.  For example:
 			}
 
 		// [3] Get list of pods
-		case "3":
+		case "3", "get-pods", "list-pods":
 			println("\n[+] Printing a list of Pods in this namespace......")
 			printListOfPods(connectionString)
 			break
 
 		//[4] Get complete info on all pods (json)
-		case "4":
+		case "4", "dump-podinfo", "dump-pod-info":
 			GetPodsInfo(connectionString, &podInfo)
 			break
 
 		//	[10] Get secrets from API server
-		case "10":
+		case "10", "list-secrets":
 			secrets, serviceAccountTokens := getSecretList(connectionString)
 			for _, secret := range secrets {
 				println("[+] Secret found: ", secret)
@@ -1182,7 +1181,7 @@ Leave off the "kubectl" part of the command.  For example:
 			break
 
 		// [11] Get a service account token from a secret
-		case "11":
+		case "11", "get-secret", "secret-to-sa":
 			println("\nPlease enter the name of the secret for which you'd like the contents: ")
 			var secretName string
 			fmt.Scanln(&secretName)
@@ -1219,7 +1218,7 @@ Leave off the "kubectl" part of the command.  For example:
 			}
 
 		// [5] Check all pods for volume mounts
-		case "5":
+		case "5", "find-volume-mounts", "find-mounts":
 			println("\n[1] Get all host mount points\n[2] Get volume mount points for a specific pod\n\nPeirates:># ")
 			fmt.Scanln(&input)
 
@@ -1240,7 +1239,7 @@ Leave off the "kubectl" part of the command.  For example:
 			}
 
 		// [20] Gain a reverse rootshell by launching a hostPath / pod
-		case "20":
+		case "20", "attack-pod-hostpath-mount", "attack-hostpath-mount", "attack-pod-mount", "attack-hostmount-pod":
 			allPods := getPodList(connectionString)
 			println("What IP and Port will your netcat listener be listening on?")
 			var ip, port string
@@ -1253,7 +1252,7 @@ Leave off the "kubectl" part of the command.  For example:
 			break
 
 		// [12] Request IAM credentials from AWS Metadata API [AWS only]
-		case "12":
+		case "12", "get-aws-token":
 			// Pull IAM credentials from the Metadata API, store in a struct and display
 			var IAMCredentials = PullIamCredentialsFromAWS()
 			DisplayAWSIAMCredentials(IAMCredentials)
@@ -1261,7 +1260,7 @@ Leave off the "kubectl" part of the command.  For example:
 			break
 
 		// [13] Request IAM credentials from GCP Metadata API [GCP only]
-		case "13":
+		case "13", "get-gcp-token":
 
 			// Make a request for our service account(s)
 			var headers []HeaderLine
@@ -1287,7 +1286,7 @@ Leave off the "kubectl" part of the command.  For example:
 			break
 
 		// [14] Request kube-env from GCP Metadata API [GCP only]
-		case "14":
+		case "14", "attack-kube-env-gcp":
 			// Make a request for kube-env, in case it is in the instance attributes, as with a number of installers
 			var headers []HeaderLine
 			headers = []HeaderLine{
@@ -1332,7 +1331,7 @@ Leave off the "kubectl" part of the command.  For example:
 			break
 
 		// [15] Pull Kubernetes service account tokens from Kop's bucket in GCS [GCP only]
-		case "15":
+		case "15", "attack-kops-gcs-1":
 			var storeTokens string
 			var placeTokensInStore bool
 
@@ -1452,7 +1451,7 @@ Leave off the "kubectl" part of the command.  For example:
 
 			break
 
-		case "17":
+		case "17", "aws-s3-ls", "aws-ls-s3", "ls-s3", "s3-ls":
 			// [17] List AWS S3 Buckets accessible (Auto-Refreshing Metadata API credentials) [AWS]
 
 			var IAMCredentials = PullIamCredentialsFromAWS()
@@ -1460,7 +1459,7 @@ Leave off the "kubectl" part of the command.  For example:
 
 			break
 
-		case "18":
+		case "18", "aws-s3-ls-objects", "aws-s3-list-objects", "aws-s3-list-bucket":
 			// [18] List contents of an AWS S3 Bucket (Auto-Refreshing Metadata API credentials) [AWS]
 			var bucket string
 
@@ -1475,7 +1474,7 @@ Leave off the "kubectl" part of the command.  For example:
 		case "19":
 			break
 		// [21] Run command in one or all pods in this namespace
-		case "21":
+		case "21", "exec-via-api":
 
 			println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
 			fmt.Scanln(&input)
@@ -1507,9 +1506,9 @@ Leave off the "kubectl" part of the command.  For example:
 
 			}
 		// [22] Use the kubelet to gain the token in every pod where we can run a command
-		case "22":
+		case "22", "exec-via-kubelet", "exec-via-kubelets":
 			ExecuteCodeOnKubelet(connectionString, &serviceAccounts)
-		case "30":
+		case "30", "inject-and-exec":
 
 			println("\nChoose a pod to inject peirates into:\n")
 			runningPods := getPodList(connectionString)
@@ -1529,8 +1528,10 @@ Leave off the "kubectl" part of the command.  For example:
 			break
 		case "99":
 			break
-
+		default:
+			fmt.Println("Command unrecognized.")
 		}
+
 		clearScreen()
 	}
 }
