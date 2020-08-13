@@ -18,4 +18,3 @@ if [ -z $1 ] ; then
 else
     build $1
 fi
-
