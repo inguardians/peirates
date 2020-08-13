@@ -37,10 +37,10 @@ Get peirates
 
     go get -v "github.com/inguardians/peirates"
 
-Get kubectl's source if you haven't already (Warning: this will take almost a
+Get libary sources if you haven't already (Warning: this will take almost a
 gig of space because it needs the whole kubernetes repository)
 
-    go get -v "k8s.io/kubernetes/pkg/kubectl/cmd"
+    go get -v "k8s.io/kubernetes/pkg/kubectl/cmd" "github.com/aws/aws-sdk-go"
 
 Build the executable
 
