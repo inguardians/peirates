@@ -1627,6 +1627,7 @@ Leave off the "kubectl" part of the command.  For example:
 
 			}
 
+			////// START thing to be abstracted
 			// Store a URL starting point
 			urlWithData := fullURL
 
@@ -1686,6 +1687,9 @@ Leave off the "kubectl" part of the command.  For example:
 			}
 
 			response, err := httpClient.Do(request)
+
+			////// END thing to be abstracted
+
 			if err != nil {
 				fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", fullURL, err.Error())
 				response.Body.Close()
