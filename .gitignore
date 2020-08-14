@@ -1,4 +1,5 @@
-./peirates
-dist/peirates-*
+/peirates
+/dist/peirates-*
+/dist/peirates
 .DS_Store
 .vscode
