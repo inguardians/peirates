@@ -995,8 +995,8 @@ Off-Menu         +
 [91] Make an HTTP request (GET or POST) to a user-specified URL [curl]
 
 [exit] Exit Peirates 
-----------------------------------------------------------------
-Peirates:># `)
+----------------------------------------------------------------`)
+		fmt.Printf("Peirates:># ")
 
 		// Banner items to implement
 
@@ -1237,6 +1237,11 @@ Leave off the "kubectl" part of the command.  For example:
 		// [20] Gain a reverse rootshell by launching a hostPath / pod
 		case "20", "attack-pod-hostpath-mount", "attack-hostpath-mount", "attack-pod-mount", "attack-hostmount-pod":
 			allPods := getPodList(connectionString)
+			// TODO: Tell the user what IP address they are on:
+			// ip addr | grep inet | grep -v inet6 | grep -v "host lo" | awk '{print $2}' | awk -F\/ '{print $1}'
+			println("Your IP addresses: ")
+			GetMyIPAddressesNative()
+
 			println("What IP and Port will your netcat listener be listening on?")
 			var ip, port string
 			println("IP:")
@@ -1541,6 +1546,9 @@ Leave off the "kubectl" part of the command.  For example:
 				}
 			}
 
+			// TODO: Can we abstract the HTTP portion of this into http_utils.go
+			//       the way we did with GetRequest()?
+
 			// Set up an http client
 			httpClient := &http.Client{}
 			if httpsPresent {
@@ -1567,7 +1575,6 @@ Leave off the "kubectl" part of the command.  For example:
 				// Request a parameter name
 
 				fmt.Println("[+] Enter a parameter or a blank line to finish entering parameters: ")
-
 				input, _ = readLine()
 
 				inputParameter = strings.TrimSpace(input)
@@ -1579,6 +1586,34 @@ Leave off the "kubectl" part of the command.  For example:
 
 					// Add the parameter pair to the list
 					params[inputParameter] = url.QueryEscape(input)
+				}
+
+			}
+
+			// Store the headers in a list
+			var headers []HeaderLine
+
+			inputHeader := "undefined"
+
+			fmt.Println("[+] Specify custom header lines, if desired, entering the Header name, hitting Enter, then the Header value.")
+			for inputHeader != "" {
+				// Request a header name
+
+				fmt.Println("[+] Enter a header name or a blank line if done: ")
+				input, _ = readLine()
+
+				inputHeader = strings.TrimSpace(input)
+
+				if inputHeader != "" {
+					// Request a header rhs (value)
+					fmt.Println("[+] Enter a value for " + inputHeader + ":")
+					input, _ = readLine()
+
+					// Add the header value to the list
+					var header HeaderLine
+					header.LHS = inputHeader
+					header.RHS = input
+					headers = append(headers, header)
 				}
 
 			}
@@ -1623,9 +1658,21 @@ Leave off the "kubectl" part of the command.  For example:
 
 			fmt.Println("[+] Using method " + method + " for URL " + urlWithData)
 
+			// Build the request, adding in any headers found so far.
 			request, err := http.NewRequest(method, fullURL, nil)
+			for _, header := range headers {
+				request.Header.Add(header.LHS, header.RHS)
+			}
+
+			// For posts, we replace the request -- can we combine the code
+			// just above with this code by getting the request variable scoped
+			// outside this if block?
 			if method != "GET" {
 				request, err = http.NewRequest(method, fullURL, dataSection)
+				for _, header := range headers {
+					request.Header.Add(header.LHS, header.RHS)
+				}
+
 				request.Header.Add("Content-Length", contentLength)
 			}
 

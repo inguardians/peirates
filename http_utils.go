@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 )
 
@@ -131,4 +132,44 @@ func GetRequest(url string, headers []HeaderLine, ignoreTLSErrors bool) string {
 	}
 
 	return string(reponse)
+}
+
+// GetMyIPAddressesNative gets a list of IP addresses available via Golang's Net library
+func GetMyIPAddressesNative() []string {
+
+	var ipAddresses []string
+
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		println("ERROR: could not get interface list")
+		return nil
+	}
+	for _, iface := range ifaces {
+		addrs, err := iface.Addrs()
+		if err != nil {
+			println("ERROR: could not get interface information")
+			return nil
+		}
+
+		var allIPs []net.IP
+
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			ipString := ip.String()
+			if ipString != "127.0.0.1" {
+				println(ipString)
+				ipAddresses = append(ipAddresses, ipString)
+				allIPs = append(allIPs, ip)
+			}
+
+		}
+	}
+	return ipAddresses
 }
