@@ -785,7 +785,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.28-beta by InGuardians
+	Peirates v1.0.28 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
