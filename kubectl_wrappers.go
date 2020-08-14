@@ -29,12 +29,17 @@ import (
 //
 // NOTE: You should generally use runKubectlSimple(), which calls runKubectlWithConfig, which calls this.
 func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
-	// Based on code from https://github.com/kubernetes/kubernetes/blob/2e0e1681a6ca7fe795f3bd5ec8696fb14687b9aa/cmd/kubectl/kubectl.go#L44
+	cmd := exec.Cmd{
+		Path:   "/proc/self/exe",
+		Args:   append([]string{"kubectl"}, cmdArgs...),
+		Stdin:  stdin,
+		Stdout: stdout,
+		Stderr: stderr,
+	}
+	cmd.Start()
 
 	// runKubectl has a timeout to deal with kubectl commands running forever.
-	// In the future, it would be good to return an error when this happens, but
-	// for now the only method we have to deal with the command hanging is to
-	// crash the program. However, `kubectl exec` commands may take an arbitrary
+	// However, `kubectl exec` commands may take an arbitrary
 	// amount of time, so we disable the timeout when `exec` is found in the args.
 	isExec := false
 	for _, arg := range cmdArgs {
@@ -59,7 +64,7 @@ func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) er
 			case <-ctx.Done():
 				return
 			default:
-				log.Fatalf(
+				log.Printf(
 					"\nKubectl took too long! This usually happens because the remote IP is wrong.\n"+
 						"Check that you've passed the right IP address with -i. If that doesn't help,\n"+
 						"and you're running in a test environment, try restarting the entire cluster.\n"+
@@ -71,28 +76,13 @@ func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) er
 						"\t%s\n",
 					os.Args,
 					append([]string{"kubectl"}, cmdArgs...))
+				cmd.Process.Kill()
 				return
 			}
 		}()
 	}
 
-	// NewKubectlCommand adds the global flagset for some reason, so we have to
-	// copy it, temporarily replace it, and then restore it.
-	// oldFlagSet := flag.CommandLine
-	// flag.CommandLine = flag.NewFlagSet("kubectl", flag.ContinueOnError)
-	// cmd := kubectl.NewKubectlCommand(stdin, stdout, stderr)
-	// flag.CommandLine = oldFlagSet
-	// cmd.SetArgs(cmdArgs)
-	// return cmd.Execute()
-	cmd := exec.Cmd{
-		Path:   "/proc/self/exe",
-		Args:   append([]string{"kubectl"}, cmdArgs...),
-		Stdin:  stdin,
-		Stdout: stdout,
-		Stderr: stderr,
-	}
-
-	return cmd.Run()
+	return cmd.Wait()
 }
 
 // runKubectlWithConfig takes a server config, and a list of arguments. It executes kubectl internally,
@@ -194,6 +184,7 @@ func kubectlAuthCanI(cfg ServerInfo, verb, resource string) bool {
 
 // ExecKubectlAndExit runs the internally compiled `kubectl` code as if this was the `kubectl` binary. stdin/stdout/stderr are process streams. args are process args.
 func ExecKubectlAndExit() {
+	// Based on code from https://github.com/kubernetes/kubernetes/blob/2e0e1681a6ca7fe795f3bd5ec8696fb14687b9aa/cmd/kubectl/kubectl.go#L44
 	cmd := kubectl.NewKubectlCommand(os.Stdin, os.Stdout, os.Stderr)
 	if err := cmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
