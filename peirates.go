@@ -785,7 +785,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.28 by InGuardians
+	Peirates v1.0.28a by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -1558,26 +1558,27 @@ Leave off the "kubectl" part of the command.  For example:
 				method = strings.TrimSpace(strings.ToUpper(input))
 			}
 
-			input_parameter := "--undefined--"
+			inputParameter := "--undefined--"
 
 			// Store the parameters in a map
 			params := map[string]string{}
 
-			for input_parameter != "" {
+			for inputParameter != "" {
 				// Request a parameter name
-				fmt.Println("[+] Enter a parameter or a blank line to finish entering parameters: ")
-				fmt.Scanln(&input)
-				input_parameter = strings.TrimSpace(input)
 
-				if input_parameter != "" {
+				fmt.Println("[+] Enter a parameter or a blank line to finish entering parameters: ")
+
+				input, _ = readLine()
+
+				inputParameter = strings.TrimSpace(input)
+
+				if inputParameter != "" {
 					// Request a parameter value
-					fmt.Println("[+] Enter a value for " + input_parameter + ":")
+					fmt.Println("[+] Enter a value for " + inputParameter + ":")
 					fmt.Scanln(&input)
-					parameter_value := url.QueryEscape(input)
 
 					// Add the parameter pair to the list
-					params[input_parameter] = parameter_value
-					input = ""
+					params[inputParameter] = url.QueryEscape(input)
 				}
 
 			}
@@ -1587,9 +1588,8 @@ Leave off the "kubectl" part of the command.  For example:
 
 			// Create a data structure for values sent in the body of the request.
 
-			var dataSection *strings.Reader
-			dataSection = nil
-			contentLength := ""
+			var dataSection *strings.Reader = nil
+			var contentLength string
 
 			// Construct GET or POST request based on variables
 			if method == "GET" {
@@ -1623,9 +1623,9 @@ Leave off the "kubectl" part of the command.  For example:
 
 			fmt.Println("[+] Using method " + method + " for URL " + urlWithData)
 
-			request, err := http.NewRequest(method, fullURL, dataSection)
+			request, err := http.NewRequest(method, fullURL, nil)
 			if method != "GET" {
-
+				request, err = http.NewRequest(method, fullURL, dataSection)
 				request.Header.Add("Content-Length", contentLength)
 			}
 
