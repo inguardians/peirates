@@ -785,7 +785,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.28a by InGuardians
+	Peirates v1.0.29 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -987,7 +987,6 @@ Compromise |
 [20] Gain a reverse rootshell on a node by launching a hostPath-mounting pod [attack-pod-hostpath-mount]
 [21] Run command in one or all pods in this namespace via the API Server [exec-via-api]
 [22] Run a token-dumping command in all pods via Kubelets (authorization permitting) [exec-via-kubelet]
-[30] Inject peirates into another pod via API Server [inject-and-exec]
 -----------------+
 Off-Menu         +
 -----------------+
@@ -1235,10 +1234,9 @@ Leave off the "kubectl" part of the command.  For example:
 			}
 
 		// [20] Gain a reverse rootshell by launching a hostPath / pod
-		case "20", "attack-pod-hostpath-mount", "attack-hostpath-mount", "attack-pod-mount", "attack-hostmount-pod":
+		case "20", "attack-pod-hostpath-mount", "attack-hostpath-mount", "attack-pod-mount", "attack-hostmount-pod", "attack-mount-pod":
 			allPods := getPodList(connectionString)
-			// TODO: Tell the user what IP address they are on:
-			// ip addr | grep inet | grep -v inet6 | grep -v "host lo" | awk '{print $2}' | awk -F\/ '{print $1}'
+
 			println("Your IP addresses: ")
 			GetMyIPAddressesNative()
 
@@ -1509,8 +1507,11 @@ Leave off the "kubectl" part of the command.  For example:
 		// [22] Use the kubelet to gain the token in every pod where we can run a command
 		case "22", "exec-via-kubelet", "exec-via-kubelets":
 			ExecuteCodeOnKubelet(connectionString, &serviceAccounts)
+
+		// [30] Inject peirates into another pod via API Server [inject-and-exec]
 		case "30", "inject-and-exec":
 
+			println("\nThis item has been removed from the menu and is currently not supported.\n")
 			println("\nChoose a pod to inject peirates into:\n")
 			runningPods := getPodList(connectionString)
 			for i, listpod := range runningPods {
