@@ -1,5 +1,6 @@
-// http_utils.go contains URL requests
 package peirates
+
+// http_utils.go contains URL requests
 
 import (
 	"bytes"
@@ -12,6 +13,7 @@ import (
 	"net/http"
 )
 
+// HeaderLine contains the left hand side (header name) and right hand side (header value) of an HTTP header.
 type HeaderLine struct {
 	LHS string
 	RHS string

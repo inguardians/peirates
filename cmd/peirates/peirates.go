@@ -14,6 +14,6 @@ func main() {
 	} else if filepath.Base(os.Args[0]) == "kubectl" {
 		peirates.ExecKubectlAndExit()
 	} else {
-		peirates.PeiratesMain()
+		peirates.Main()
 	}
 }

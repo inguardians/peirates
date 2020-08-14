@@ -310,14 +310,14 @@ func randSeq(length int) string {
 	return string(b)
 }
 
-// Used by mountRootfs
+// MountInfo is used by mountRootfs
 type MountInfo struct {
 	yamlBuild string
 	image     string
 	namespace string
 }
 
-// Used for JSON parsing
+// KubeRoles are used for JSON parsing
 type KubeRoles struct {
 	APIVersion string `json:"apiVersion"`
 	Items      []struct {
@@ -347,7 +347,7 @@ type KubeRoles struct {
 	} `json:"metadata"`
 }
 
-// Populated by GetPodsInfo (JSON parsing from kubectl get pods)
+// PodDetails is populated by GetPodsInfo (JSON parsing from kubectl get pods)
 type PodDetails struct {
 	APIVersion string `json:"apiVersion"`
 	Items      []struct {
@@ -459,7 +459,8 @@ type PodDetails struct {
 	} `json:"metadata"`
 }
 
-type Secret_Details struct {
+// SecretDetails unmarshalls secrets
+type SecretDetails struct {
 	Data []struct {
 		Namespace string `json:"namespace"`
 		Token     string `json:"token"`
@@ -470,7 +471,8 @@ type Secret_Details struct {
 	SecretType string `json:"type"`
 }
 
-type Get_Node_Details struct {
+// GetNodeDetails unmarshalls node data
+type GetNodeDetails struct {
 	Items []struct {
 		Metadata struct {
 			Name string `json:"name"`
@@ -550,6 +552,7 @@ func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
 	}
 }
 
+// MountRootFS creates a pod that mounts its node's root filesystem.
 func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP, callbackPort string) {
 	var MountInfoVars = MountInfo{}
 
@@ -709,6 +712,7 @@ func clearScreen() {
 
 // SERVICE ACCOUNT MANAGEMENT functions start here
 
+// ServiceAccount stores service account information.
 type ServiceAccount struct {
 	Name            string    // Service account name
 	Token           string    // Service account token
@@ -838,7 +842,7 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]Servic
 	if err != nil {
 		println("[-] Unable to retrieve node details: ")
 	} else {
-		var getnodeDetail Get_Node_Details
+		var getnodeDetail GetNodeDetails
 		err := json.Unmarshal(nodeDetailOut, &getnodeDetail)
 		if err != nil {
 			println("[-] Error unmarshaling data in this secret: ", err)
@@ -934,8 +938,8 @@ type PodNamespaceContainerTuple struct {
 
 //------------------------------------------------------------------------------------------------------------------------------------------------
 
-// PeiratesMain starts Peirates
-func PeiratesMain() {
+// Main starts Peirates
+func Main() {
 
 	// Create a global variable named "connectionString" initialized to default values
 	connectionString := ParseLocalServerInfo()
