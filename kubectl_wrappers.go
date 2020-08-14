@@ -8,11 +8,11 @@ package peirates
 import (
 	"bytes"
 	"context"
-	"flag"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -78,12 +78,21 @@ func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) er
 
 	// NewKubectlCommand adds the global flagset for some reason, so we have to
 	// copy it, temporarily replace it, and then restore it.
-	oldFlagSet := flag.CommandLine
-	flag.CommandLine = flag.NewFlagSet("kubectl", flag.ContinueOnError)
-	cmd := kubectl.NewKubectlCommand(stdin, stdout, stderr)
-	flag.CommandLine = oldFlagSet
-	cmd.SetArgs(cmdArgs)
-	return cmd.Execute()
+	// oldFlagSet := flag.CommandLine
+	// flag.CommandLine = flag.NewFlagSet("kubectl", flag.ContinueOnError)
+	// cmd := kubectl.NewKubectlCommand(stdin, stdout, stderr)
+	// flag.CommandLine = oldFlagSet
+	// cmd.SetArgs(cmdArgs)
+	// return cmd.Execute()
+	cmd := exec.Cmd{
+		Path:   "/proc/self/exe",
+		Args:   append([]string{"kubectl"}, cmdArgs...),
+		Stdin:  stdin,
+		Stdout: stdout,
+		Stderr: stderr,
+	}
+
+	return cmd.Run()
 }
 
 // runKubectlWithConfig takes a server config, and a list of arguments. It executes kubectl internally,
@@ -181,4 +190,14 @@ func kubectlAuthCanI(cfg ServerInfo, verb, resource string) bool {
 	}
 
 	return response.Status.Allowed
+}
+
+// ExecKubectlAndExit runs the internally compiled `kubectl` code as if this was the `kubectl` binary. stdin/stdout/stderr are process streams. args are process args.
+func ExecKubectlAndExit() {
+	cmd := kubectl.NewKubectlCommand(os.Stdin, os.Stdout, os.Stderr)
+	if err := cmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
+	}
+	os.Exit(0)
 }
