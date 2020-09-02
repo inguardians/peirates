@@ -8,7 +8,6 @@ package peirates
 //
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/tls"
 	"encoding/base64"
@@ -20,6 +19,8 @@ import (
 	"os"            // Environment variables ...
 	"strconv"
 	"syscall"
+
+	"github.com/peterh/liner"
 
 	// HTTP client/server
 	"net/http" // HTTP requests
@@ -150,14 +151,33 @@ func SwitchNamespace(connectionString *ServerInfo) bool {
 }
 
 // readLine reads up through the next \n from stdin. The returned string does
-// not include the \n.
+// not include the \n
+
+var (
+	lineReader *liner.State
+)
+
 func readLine() (string, error) {
-	reader := bufio.NewReader(os.Stdin)
-	line, err := reader.ReadString('\n')
+	line, err := lineReader.Prompt("")
 	if err != nil {
 		return "", err
 	}
-	return line[:len(line)-1], err
+	return line, err
+}
+
+func readLineNew(dst *string) error {
+	line, err := lineReader.Prompt("")
+	*dst = line
+	return err
+}
+
+func readLineWithHistory(dst *string) error {
+	line, err := lineReader.Prompt("")
+	*dst = line
+	if err == nil {
+		lineReader.AppendHistory(line)
+	}
+	return err
 }
 
 // canCreatePods() runs kubectl to check if current token can create a pod
@@ -171,7 +191,7 @@ func inAPod(connectionString ServerInfo) bool {
 	} else {
 		println("[-] You may not be in a Kubernetes pod. Press ENTER to continue.")
 		var input string
-		fmt.Scanln(&input)
+		readLineNew(&input)
 		return false
 	}
 }
@@ -703,7 +723,7 @@ spec:
 func clearScreen() {
 	fmt.Print("Press Enter to Proceed .....")
 	var input string
-	fmt.Scanln(&input)
+	readLineNew(&input)
 	//fmt.Print(input)
 	c := exec.Command("clear")
 	c.Stdout = os.Stdout
@@ -964,6 +984,8 @@ func Main() {
 	// Watch the documentation on these variables for changes:
 	// https://kubernetes.io/docs/concepts/containers/container-environment-variables/
 
+	lineReader = liner.NewLiner()
+	defer lineReader.Close()
 	var input int
 	for ok := true; ok; ok = (input != 2) {
 		banner(connectionString)
@@ -983,7 +1005,7 @@ Steal Service Accounts   |
 [12] Request IAM credentials from AWS Metadata API [get-aws-token]
 [13] Request IAM credentials from GCP Metadata API [get-gcp-token]
 [14] Request kube-env from GCP Metadata API [attack-kube-env-gcp]
-[15] Pull Kubernetes service account tokens from kops' GCS bucket (Google Cloud only) [attack-kops-gcs-1] 
+[15] Pull Kubernetes service account tokens from kops' GCS bucket (Google Cloud only) [attack-kops-gcs-1]
 --------------------------------+
 Interrogate/Abuse Cloud API's   |
 --------------------------------+
@@ -1001,7 +1023,7 @@ Off-Menu         +
 [90] Run a kubectl command in the current namespace and service account context [kubectl]
 [91] Make an HTTP request (GET or POST) to a user-specified URL [curl]
 
-[exit] Exit Peirates 
+[exit] Exit Peirates
 ----------------------------------------------------------------`)
 		fmt.Printf("Peirates:># ")
 
@@ -1019,7 +1041,7 @@ Off-Menu         +
 
 		var input string
 		var userResponse string
-		fmt.Scanln(&input)
+		readLineNew(&input)
 		// Peirates MAIN MENU
 		switch input {
 
@@ -1035,7 +1057,7 @@ This function allows you to run a kubectl command, with only a few restrictions.
 Your command must not:
 
 - change namespace
-- specify a different service account 
+- specify a different service account
 - change nameservers
 - run for longer than a few seconds (as in kubectl exec)
 
@@ -1079,7 +1101,7 @@ Leave off the "kubectl" part of the command.  For example:
 		// [1] Enter a different service account token
 		case "1", "sa-menu", "service-account-menu", "sa", "service-account":
 			fmt.Printf("\nCurrent primary service account: %s\n\n[1] List service accounts\n[2] Switch primary service account\n[3] Add new service account\n[4] Export service accounts to JSON\n[5] Import service accounts from JSON\n", connectionString.TokenName)
-			fmt.Scanln(&input)
+			readLineNew(&input)
 			switch input {
 			case "1":
 				println("\nAvailable Service Accounts:")
@@ -1101,7 +1123,7 @@ Leave off the "kubectl" part of the command.  For example:
 				}
 				println("\nEnter service account number")
 				var tokNum int
-				fmt.Scanln(&input)
+				readLineNew(&input)
 				_, err := fmt.Sscan(input, &tokNum)
 				if err != nil {
 					fmt.Printf("Error parsing service account selection: %s\n", err.Error())
@@ -1116,7 +1138,7 @@ Leave off the "kubectl" part of the command.  For example:
 				serviceAccounts = append(serviceAccounts, serviceAccount)
 
 				println("\n[1] Switch to this service account\n[2] Maintain current service account")
-				fmt.Scanln(&input)
+				readLineNew(&input)
 				switch input {
 				case "1":
 					assignServiceAccountToConnection(serviceAccount, &connectionString)
@@ -1148,7 +1170,7 @@ Leave off the "kubectl" part of the command.  For example:
 		// [2] List namespaces or change namespace
 		case "2", "ns-menu", "namespace-menu", "ns", "namespace":
 			println("\n[1] List namespaces\n[2] Switch namespace")
-			fmt.Scanln(&input)
+			readLineNew(&input)
 			switch input {
 			case "1":
 				Namespaces = PrintNamespaces(connectionString)
@@ -1187,7 +1209,7 @@ Leave off the "kubectl" part of the command.  For example:
 		case "11", "get-secret", "secret-to-sa":
 			println("\nPlease enter the name of the secret for which you'd like the contents: ")
 			var secretName string
-			fmt.Scanln(&secretName)
+			readLineNew(&secretName)
 
 			if !kubectlAuthCanI(connectionString, "get", "secret") {
 				println("[-] Permission Denied: your service account isn't allowed to get secrets")
@@ -1223,7 +1245,7 @@ Leave off the "kubectl" part of the command.  For example:
 		// [5] Check all pods for volume mounts
 		case "5", "find-volume-mounts", "find-mounts":
 			println("\n[1] Get all host mount points\n[2] Get volume mount points for a specific pod\n\nPeirates:># ")
-			fmt.Scanln(&input)
+			readLineNew(&input)
 
 			GetPodsInfo(connectionString, &podInfo)
 
@@ -1236,7 +1258,7 @@ Leave off the "kubectl" part of the command.  For example:
 				//MountRootFS(allPods, connectionString)
 			case "2":
 				println("[+] Please provide the pod name: ")
-				fmt.Scanln(&userResponse)
+				readLineNew(&userResponse)
 				fmt.Printf("[+] Printing volume mount points for %s\n", userResponse)
 				PrintHostMountPointsForPod(podInfo, userResponse)
 			}
@@ -1251,9 +1273,9 @@ Leave off the "kubectl" part of the command.  For example:
 			println("What IP and Port will your netcat listener be listening on?")
 			var ip, port string
 			println("IP:")
-			fmt.Scanln(&ip)
+			readLineNew(&ip)
 			println("Port:")
-			fmt.Scanln(&port)
+			readLineNew(&port)
 			// TODO: Rename/refactor MountRootFS so we get more capabilities in case the node does not run cron
 			MountRootFS(allPods, connectionString, ip, port)
 			break
@@ -1344,7 +1366,7 @@ Leave off the "kubectl" part of the command.  For example:
 
 			println("[1] Store all tokens found in Peirates data store")
 			println("[2] Retrieve all tokens - I will copy and paste")
-			fmt.Scanln(&storeTokens)
+			readLineNew(&storeTokens)
 			storeTokens = strings.TrimSpace(storeTokens)
 
 			if storeTokens == "1" {
@@ -1471,7 +1493,7 @@ Leave off the "kubectl" part of the command.  For example:
 			var bucket string
 
 			println("Enter a bucket name to list: ")
-			fmt.Scanln(&bucket)
+			readLineNew(&bucket)
 
 			var IAMCredentials = PullIamCredentialsFromAWS()
 			ListBucketObjects(IAMCredentials, bucket)
@@ -1484,7 +1506,7 @@ Leave off the "kubectl" part of the command.  For example:
 		case "21", "exec-via-api":
 
 			println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
-			fmt.Scanln(&input)
+			readLineNew(&input)
 			println("[+] Please provide the command to run in the pods: ")
 
 			cmdOpts.commandToRunInPods, _ = readLine()
@@ -1492,9 +1514,8 @@ Leave off the "kubectl" part of the command.  For example:
 			switch input {
 			case "1":
 				println("[+] Please provide the specified pod to run the command: ")
-				fmt.Scanln(&cmdOpts.podsToRunTheCommandIn)
 				var podToRunIn string
-				fmt.Scanln(&podToRunIn)
+				readLineNew(&podToRunIn)
 				cmdOpts.podsToRunTheCommandIn = []string{podToRunIn}
 
 				if cmdOpts.commandToRunInPods != "" {
@@ -1508,7 +1529,7 @@ Leave off the "kubectl" part of the command.  For example:
 					execInAllPods(connectionString, cmdOpts.commandToRunInPods)
 				} else {
 					fmt.Print("[-] ERROR - command string was empty.")
-					fmt.Scanln(&input)
+					readLineNew(&input)
 				}
 
 			}
@@ -1528,8 +1549,13 @@ Leave off the "kubectl" part of the command.  For example:
 
 			println("Enter the number of a pod to inject peirates into: ")
 
-			var choice int
-			fmt.Scanln(&choice)
+			var input string
+			readLineNew(&input)
+			choice, err := strconv.Atoi(input)
+			if err != nil {
+				fmt.Printf("[-] Error: %s\n", err.Error())
+				break
+			}
 
 			podName := runningPods[choice]
 
@@ -1538,7 +1564,7 @@ Leave off the "kubectl" part of the command.  For example:
 		// [91] Make an HTTP request (GET or POST) to a URL of your choice [curl]
 		case "91", "curl":
 			println("[+] Enter a URL, including http:// or https:// - if parameters are required, you must provide them as part of the URL: ")
-			fmt.Scanln(&input)
+			readLineNew(&input)
 
 			// Trim whitespace
 			fullURL := strings.TrimSpace(strings.ToLower(input))
@@ -1571,7 +1597,7 @@ Leave off the "kubectl" part of the command.  For example:
 			method := "--undefined--"
 			for (method != "GET") && (method != "POST") {
 				fmt.Println("[+] Enter method - only GET and POST are supported: ")
-				fmt.Scanln(&input)
+				readLineNew(&input)
 				method = strings.TrimSpace(strings.ToUpper(input))
 			}
 
@@ -1591,7 +1617,7 @@ Leave off the "kubectl" part of the command.  For example:
 				if inputParameter != "" {
 					// Request a parameter value
 					fmt.Println("[+] Enter a value for " + inputParameter + ":")
-					fmt.Scanln(&input)
+					readLineNew(&input)
 
 					// Add the parameter pair to the list
 					params[inputParameter] = url.QueryEscape(input)
