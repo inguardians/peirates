@@ -158,6 +158,10 @@ func kubectlAuthCanI(cfg ServerInfo, verb, resource string) bool {
 		} `json:"status"`
 	}
 
+	if UseAuthCanI != true {
+		return true
+	}
+
 	query := SelfSubjectAccessReviewQuery{
 		APIVersion: "authorization.k8s.io/v1",
 		Kind:       "SelfSubjectAccessReview",

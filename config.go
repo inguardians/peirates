@@ -11,12 +11,13 @@ import (
 const ServiceAccountPath = "/var/run/secrets/kubernetes.io/serviceaccount/"
 
 type ServerInfo struct {
-	RIPAddress string
-	RPort      string
-	Token      string // token ASCII text
-	TokenName  string // name of the token
-	CAPath     string // path to ca certificate
-	Namespace  string // namespace that this pod's service account is tied to
+	RIPAddress  string
+	RPort       string
+	Token       string // token ASCII text
+	TokenName   string // name of the token
+	CAPath      string // path to ca certificate
+	Namespace   string // namespace that this pod's service account is tied to
+	UseAuthCanI bool
 }
 
 func ParseLocalServerInfo() ServerInfo {

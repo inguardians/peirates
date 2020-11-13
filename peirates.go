@@ -16,9 +16,10 @@ import (
 	"fmt"           // String formatting (Printf, Sprintf)
 	"io/ioutil"     // Utils for dealing with IO streams
 	"log"           // Logging utils
-	"math/rand"     // Random module for creating random string building
+	"math/rand"     // Module for creating random string building
 	"os"            // Environment variables ...
-	"strconv"
+	"strconv"       // String parsing
+	"strings"
 	"syscall"
 
 	// HTTP client/server
@@ -26,10 +27,11 @@ import (
 	"net/url"  // URL encoding
 	"os/exec"  // for exec
 	"regexp"
-	"strings"
 	"time" // Time modules
 	// kubernetes client
 )
+
+var UseAuthCanI bool = true
 
 // getPodList returns an array of running pod names, parsed from "kubectl -n namespace get pods"
 func getPodList(connectionString ServerInfo) []string {
@@ -657,9 +659,11 @@ spec:
   - image: %s
     imagePullPolicy: IfNotPresent
     name: attack-container
+    command: ["/bin/sh","-c","sleep infinity"]
     volumeMounts:
     - mountPath: /root
       name: mount-fsroot-into-slashroot
+  restartPolicy: Never
   volumes:
   - name: mount-fsroot-into-slashroot
     hostPath:
@@ -675,7 +679,7 @@ spec:
 		return
 	} else {
 		attackPodName := "attack-pod-" + randomString
-		println("[+] Executing code in " + attackPodName + " to get its underlying host's root password hash - please wait for Pod to stage")
+		println("[+] Executing code in " + attackPodName + " - please wait for Pod to stage")
 		time.Sleep(5 * time.Second)
 		//shadowFileBs, _, err := runKubectlSimple(connectionString, "exec", "-it", attackPodName, "grep", "root", "/root/etc/shadow")
 		//_, _, err := runKubectlSimple(connectionString, "exec", "-it", attackPodName, "grep", "root", "/root/etc/shadow")
@@ -789,7 +793,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.29 by InGuardians
+	Peirates v1.0.30 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -803,7 +807,7 @@ ________________________________________
 	}
 	fmt.Printf("[+] Certificate Authority Certificate: %t\n", haveCa)
 	fmt.Printf("[+] Kubernetes API Server: %s:%s\n", connectionString.RIPAddress, connectionString.RPort)
-	println("[+] Current hostname:", name)
+	println("[+] Current hostname/pod name:", name)
 	println("[+] Current namespace:", connectionString.Namespace)
 
 }
@@ -1000,6 +1004,7 @@ Off-Menu         +
 -----------------+
 [90] Run a kubectl command in the current namespace and service account context [kubectl]
 [91] Make an HTTP request (GET or POST) to a user-specified URL [curl]
+[92] Deactivate "auth can-i" checking before attempting actions [set-auth-can-i] 
 
 [exit] Exit Peirates 
 ----------------------------------------------------------------`)
@@ -1078,10 +1083,18 @@ Leave off the "kubectl" part of the command.  For example:
 			break
 		// [1] Enter a different service account token
 		case "1", "sa-menu", "service-account-menu", "sa", "service-account":
-			fmt.Printf("\nCurrent primary service account: %s\n\n[1] List service accounts\n[2] Switch primary service account\n[3] Add new service account\n[4] Export service accounts to JSON\n[5] Import service accounts from JSON\n", connectionString.TokenName)
+			println("Current primary service account: %s", connectionString.TokenName)
+			println("\n")
+			println("[1] List service accounts [list]")
+			println("[2] Switch primary service account [switch]")
+			println("[3] Enter new service account JWT [add]")
+			println("[4] Export service accounts to JSON [export]")
+			println("[5] Import service accounts from JSON [import]")
+			println("\n")
+
 			fmt.Scanln(&input)
-			switch input {
-			case "1":
+			switch strings.ToLower(input) {
+			case "1", "list":
 				println("\nAvailable Service Accounts:")
 				for i, account := range serviceAccounts {
 					if account.Name == connectionString.TokenName {
@@ -1090,7 +1103,7 @@ Leave off the "kubectl" part of the command.  For example:
 						fmt.Printf("  [%d] %s\n", i, account.Name)
 					}
 				}
-			case "2":
+			case "2", "switch":
 				println("\nAvailable Service Accounts:")
 				for i, account := range serviceAccounts {
 					if account.Name == connectionString.TokenName {
@@ -1099,7 +1112,7 @@ Leave off the "kubectl" part of the command.  For example:
 						fmt.Printf("  [%d] %s\n", i, account.Name)
 					}
 				}
-				println("\nEnter service account number")
+				println("\nEnter service account number or 0 to abort: ")
 				var tokNum int
 				fmt.Scanln(&input)
 				_, err := fmt.Sscan(input, &tokNum)
@@ -1107,11 +1120,13 @@ Leave off the "kubectl" part of the command.  For example:
 					fmt.Printf("Error parsing service account selection: %s\n", err.Error())
 				} else if tokNum < 0 || tokNum >= len(serviceAccounts) {
 					fmt.Printf("Service account %d does not exist!\n", tokNum)
+				} else if tokNum == 0 {
+					println("Aborting service account switch...")
 				} else {
 					assignServiceAccountToConnection(serviceAccounts[tokNum], &connectionString)
 					fmt.Printf("Selected %s // %s\n", connectionString.TokenName, connectionString.Token)
 				}
-			case "3":
+			case "3", "add":
 				serviceAccount := acceptServiceAccountFromUser()
 				serviceAccounts = append(serviceAccounts, serviceAccount)
 
@@ -1127,14 +1142,14 @@ Leave off the "kubectl" part of the command.  For example:
 					println("Input not understood - adding service account but not switching context")
 				}
 				println("")
-			case "4":
+			case "4", "import":
 				serviceAccountJSON, err := json.Marshal(serviceAccounts)
 				if err != nil {
 					fmt.Printf("[-] Error exporting service accounts: %s\n", err.Error())
 				} else {
 					println(string(serviceAccountJSON))
 				}
-			case "5":
+			case "5", "export":
 				var newServiceAccounts []ServiceAccount
 				err := json.NewDecoder(os.Stdin).Decode(&newServiceAccounts)
 				if err != nil {
@@ -1147,13 +1162,16 @@ Leave off the "kubectl" part of the command.  For example:
 
 		// [2] List namespaces or change namespace
 		case "2", "ns-menu", "namespace-menu", "ns", "namespace":
-			println("\n[1] List namespaces\n[2] Switch namespace")
+			println(`
+			[1] List namespaces [list]
+			[2] Switch namespace [switch]
+			`)
 			fmt.Scanln(&input)
 			switch input {
-			case "1":
+			case "1", "list":
 				Namespaces = PrintNamespaces(connectionString)
 				break
-			case "2":
+			case "2", "switch":
 				Namespaces = PrintNamespaces(connectionString)
 				SwitchNamespace(&connectionString)
 				break
@@ -1222,19 +1240,21 @@ Leave off the "kubectl" part of the command.  For example:
 
 		// [5] Check all pods for volume mounts
 		case "5", "find-volume-mounts", "find-mounts":
-			println("\n[1] Get all host mount points\n[2] Get volume mount points for a specific pod\n\nPeirates:># ")
+			println("[1] Get all host mount points [all]")
+			println("[2] Get volume mount points for a specific pod [single]")
+			println("\nPeirates:># ")
 			fmt.Scanln(&input)
 
 			GetPodsInfo(connectionString, &podInfo)
 
 			switch input {
-			case "1":
+			case "1", "all":
 				println("[+] Getting volume mounts for all pods")
 				// BUG: Need to make it so this Get doesn't print all info even though it gathers all info.
 				PrintHostMountPoints(podInfo)
 
 				//MountRootFS(allPods, connectionString)
-			case "2":
+			case "2", "single":
 				println("[+] Please provide the pod name: ")
 				fmt.Scanln(&userResponse)
 				fmt.Printf("[+] Printing volume mount points for %s\n", userResponse)
@@ -1704,6 +1724,30 @@ Leave off the "kubectl" part of the command.  For example:
 			responseBodyString := string(responseBody)
 			println(responseBodyString)
 			println("")
+		// [92] Deactivate "auth can-i" checking before attempting actions [set-auth-can-i]
+		case "92", "set-auth-can-i":
+			// Toggle UseAuthCanI between true and false
+			println("\nWhen Auth-Can-I is set to true, Peirates uses the kubectl auth can-i feature to determine if an action is permitted before taking it.")
+			println("Toggle this to false if auth can-i results aren't accurate for this cluster.")
+			println("Auth-Can-I is currently set to ", UseAuthCanI)
+			println("\nPlease choose a new value for Auth-Can-I:")
+			println("[true] Set peirates to check whether an action is permitted")
+			println("[false] Set peirates to skip the auth can-i check")
+			println("[exit] Leave the setting at its current value")
+
+			println("\nChoice: ")
+
+			fmt.Scanln(&input)
+
+			switch strings.ToLower(input) {
+			case "exit":
+				continue
+			case "true", "1", "t":
+				UseAuthCanI = true
+			case "false", "0", "f":
+				UseAuthCanI = false
+			}
+
 		case "98":
 			break
 		case "99":
