@@ -683,10 +683,16 @@ spec:
 
 		if err != nil {
 			// BUG: when we remove that timer above and thus get an error condition, program crashes during the runKubectlSimple instead of reaching this message
-			println("[-] Exec into that pod failed. If your privileges do permit this, the pod have need more time.  Use this main menu option to try again: Run command in one or all pods in this namespace.")
+			println("[-] Exec into that pod failed. If your privileges do permit this, the pod may have needed more time.  Use this main menu option to try again: Run command in one or all pods in this namespace.")
 			return
 		} else {
 			println("[+] Netcat callback added sucessfully.")
+			println("[+] Removing attack pod.")
+			err := runKubectlWithConfig(connectionString, stdin, &stdout, &stderr, "delete", "pod", attackPodName)
+			if err != nil {
+				println("May not have been able to delete attack pod.", err)
+			}
+
 		}
 	}
 }
