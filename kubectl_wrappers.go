@@ -41,9 +41,10 @@ func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) er
 	// runKubectl has a timeout to deal with kubectl commands running forever.
 	// However, `kubectl exec` commands may take an arbitrary
 	// amount of time, so we disable the timeout when `exec` is found in the args.
+	// We also do the same for `kubectl delete` commands, as they can wait quite a long time.
 	isExec := false
 	for _, arg := range cmdArgs {
-		if arg == "exec" {
+		if arg == "exec" || arg == "delete" {
 			isExec = true
 			break
 		}
