@@ -748,7 +748,7 @@ func assignServiceAccountToConnection(account ServiceAccount, info *ServerInfo) 
 	info.Token = account.Token
 }
 
-func banner(connectionString ServerInfo) {
+func banner(connectionString ServerInfo, awsCredentials AWSCredentials, assumedAWSRole AWSCredentials) {
 
 	name, err := os.Hostname()
 	if err != nil {
@@ -785,7 +785,7 @@ func banner(connectionString ServerInfo) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.30 by InGuardians
+	Peirates v1.0.31 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -801,6 +801,16 @@ ________________________________________
 	fmt.Printf("[+] Kubernetes API Server: %s:%s\n", connectionString.RIPAddress, connectionString.RPort)
 	println("[+] Current hostname/pod name:", name)
 	println("[+] Current namespace:", connectionString.Namespace)
+	if len(assumedAWSRole.AccessKeyId) > 0 {
+		println("[+] AWS IAM Credentials (assumed): " + assumedAWSRole.AccessKeyId + " (" + assumedAWSRole.accountName + ")\n")
+	}
+	if len(awsCredentials.AccessKeyId) > 0 {
+		if len(awsCredentials.accountName) > 0 {
+			println("[+] AWS IAM Credentials (available): " + awsCredentials.AccessKeyId + " (" + awsCredentials.accountName + ")\n")
+		} else {
+			println("[+] AWS IAM Credentials (available): " + awsCredentials.AccessKeyId + "\n")
+		}
+	}
 
 }
 
@@ -960,9 +970,14 @@ func Main() {
 	// Watch the documentation on these variables for changes:
 	// https://kubernetes.io/docs/concepts/containers/container-environment-variables/
 
+	// Read AWS credentials from environment variables if present.
+	awsCredentials := PullIamCredentialsFromEnvironmentVariables()
+	// Make room for an assumed role.
+	var assumedAWSrole AWSCredentials
+
 	var input int
 	for ok := true; ok; ok = (input != 2) {
-		banner(connectionString)
+		banner(connectionString, awsCredentials, assumedAWSrole)
 		println(`----------------------------------------------------------------
 Namespaces, Service Accounts and Roles |
 ---------------------------------------+
@@ -971,6 +986,9 @@ Namespaces, Service Accounts and Roles |
 [3] Get list of pods in current namespace [list-pods]
 [4] Get complete info on all pods (json) [dump-pod-info]
 [5] Check all pods for volume mounts [find-volume-mounts]
+[6] Enter AWS IAM credentials manually [enter-aws-credentials]
+[7] Attempt to Assume a Different AWS Role [aws-assume-role]
+[8] Deactivate assumed AWS role [aws-empty-assumed-role]
 -------------------------+
 Steal Service Accounts   |
 -------------------------+
@@ -983,8 +1001,8 @@ Steal Service Accounts   |
 --------------------------------+
 Interrogate/Abuse Cloud API's   |
 --------------------------------+
-[17] List AWS S3 Buckets accessible (Auto-Refreshing Metadata API credentials) [aws-s3-ls]
-[18] List contents of an AWS S3 Bucket (Auto-Refreshing Metadata API credentials) [aws-s3-ls-objects]
+[17] List AWS S3 Buckets accessible (Make sure to get credentials via get-aws-token or enter manually) [aws-s3-ls]
+[18] List contents of an AWS S3 Bucket (Make sure to get credentials via get-aws-token or enter manually) [aws-s3-ls-objects]
 -----------+
 Compromise |
 -----------+
@@ -1182,6 +1200,48 @@ Leave off the "kubectl" part of the command.  For example:
 			GetPodsInfo(connectionString, &podInfo)
 			break
 
+		//	[6] Enter AWS IAM credentials manually [enter-aws-credentials]
+		case "6", "enter-aws-credentials", "aws-creds":
+			credentials, err := EnterIamCredentialsForAWS()
+			if err != nil {
+				break
+			}
+
+			awsCredentials = credentials
+			println(" New AWS credentials are: \n")
+			DisplayAWSIAMCredentials(awsCredentials)
+
+			break
+
+		// [7] Attempt to Assume a Different AWS Role [aws-assume-role]
+		case "7", "aws-assume-role":
+
+			// Get role to assume
+			var input string
+			println("[+] Enter a role to assume, in the format arn:aws:iam::123456789012:role/roleName : ")
+			fmt.Scanln(&input)
+
+			matched, _ := regexp.MatchString(`arn:aws:iam::\d{12,}:\w+\/\w+`, input)
+			if !matched {
+
+				println("String entered isn't a AWS role name in the format requested.\n")
+				break
+			}
+			roleToAssume := strings.TrimSpace(input)
+
+			// Attempt to assume role.
+			roleAssumption, err := AWSSTSAssumeRole(awsCredentials, roleToAssume)
+			if err != nil {
+				break
+			}
+
+			assumedAWSrole = roleAssumption
+
+		// [8] Deactivate assumed AWS role [aws-empty-assumed-role]
+		case "8", "aws-empty-assumed-role":
+			assumedAWSrole.AccessKeyId = ""
+			assumedAWSrole.accountName = ""
+
 		//	[10] Get secrets from API server
 		case "10", "list-secrets":
 			secrets, serviceAccountTokens := getSecretList(connectionString)
@@ -1273,8 +1333,8 @@ Leave off the "kubectl" part of the command.  For example:
 		// [12] Request IAM credentials from AWS Metadata API [AWS only]
 		case "12", "get-aws-token":
 			// Pull IAM credentials from the Metadata API, store in a struct and display
-			var IAMCredentials = PullIamCredentialsFromAWS()
-			DisplayAWSIAMCredentials(IAMCredentials)
+			awsCredentials = PullIamCredentialsFromAWS()
+			DisplayAWSIAMCredentials(awsCredentials)
 
 			break
 
@@ -1473,8 +1533,13 @@ Leave off the "kubectl" part of the command.  For example:
 		case "17", "aws-s3-ls", "aws-ls-s3", "ls-s3", "s3-ls":
 			// [17] List AWS S3 Buckets accessible (Auto-Refreshing Metadata API credentials) [AWS]
 
-			var IAMCredentials = PullIamCredentialsFromAWS()
-			ListBuckets(IAMCredentials)
+			// Altering this to allow self-entered credentials.
+			// var IAMCredentials = PullIamCredentialsFromAWS()
+			if len(assumedAWSrole.AccessKeyId) > 0 {
+				ListBuckets(assumedAWSrole)
+			} else {
+				ListBuckets(awsCredentials)
+			}
 
 			break
 
@@ -1485,8 +1550,13 @@ Leave off the "kubectl" part of the command.  For example:
 			println("Enter a bucket name to list: ")
 			fmt.Scanln(&bucket)
 
-			var IAMCredentials = PullIamCredentialsFromAWS()
-			ListBucketObjects(IAMCredentials, bucket)
+			// Altering this to allow self-entered credentials.
+			// var IAMCredentials = PullIamCredentialsFromAWS()
+			if len(assumedAWSrole.AccessKeyId) > 0 {
+				ListBucketObjects(assumedAWSrole, bucket)
+			} else {
+				ListBucketObjects(awsCredentials, bucket)
+			}
 
 			break
 

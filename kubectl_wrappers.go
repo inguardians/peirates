@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	kubectl "k8s.io/kubernetes/pkg/kubectl/cmd"
+	kubectl "k8s.io/kubectl/pkg/cmd"
 )
 
 // runKubectl executes the kubectl library internally, allowing us to use the
