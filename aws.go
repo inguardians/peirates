@@ -96,32 +96,35 @@ func EnterIamCredentialsForAWS() (AWSCredentials, error) {
 }
 
 // PullIamCredentialsFromAWS requests access credentials from the AWS metadata API
-func PullIamCredentialsFromAWS() AWSCredentials {
+func PullIamCredentialsFromAWS() (AWSCredentials, error) {
 
 	var credentials AWSCredentials
 
 	response, err := http.Get("http://169.254.169.254/latest/meta-data/iam/security-credentials/")
 	if err != nil {
-		println("[-] Error - could not perform request http://169.254.169.254/latest/meta-data/iam/security-credentials/ ")
+		problem := "[-] Error - could not perform request http://169.254.169.254/latest/meta-data/iam/security-credentials/"
+		println(problem)
+		return credentials, errors.New(problem)
 	}
 	// Parse result as an account, then construct a request asking for that account's credentials
 	defer response.Body.Close()
 	body, err := ioutil.ReadAll(response.Body)
 	account := string(body)
 	credentials.accountName = account
-	// println(account)
 
 	request := "http://169.254.169.254/latest/meta-data/iam/security-credentials/" + account
 	response2, err := http.Get(request)
 	if err != nil {
-		println("[-] Error - could not perform request ", request)
+		problem := "[-] Error - could not perform HTTP GET request : " + request
+		println(problem)
+		return credentials, errors.New(problem)
 	}
 	defer response2.Body.Close()
 	body2, err := ioutil.ReadAll(response2.Body)
 
 	json.Unmarshal(body2, &credentials)
 
-	return credentials
+	return credentials, nil
 
 }
 
@@ -299,27 +302,22 @@ func ListBucketObjects(IAMCredentials AWSCredentials, bucket string) error {
 }
 
 // ListBuckets lists the buckets accessible from this IAM account.
-func ListBuckets(IAMCredentials AWSCredentials) error {
-	// Initialize a session in us-west-2 that the SDK will use to load
-	// credentials from the shared credentials file ~/.aws/credentials.
+func ListAWSBuckets(IAMCredentials AWSCredentials) (bucketNamesList []string, err error) {
+	// Initialize an S3 session in the current region.
 	svc := StartS3Session(IAMCredentials)
 
 	result, err := svc.ListBuckets(nil)
 	if err != nil {
 		nonexitErrorf("Unable to list buckets, %v", err)
 
-		return err
+		return bucketNamesList, err
 	}
-
-	fmt.Println("Buckets:")
 
 	for _, b := range result.Buckets {
-		fmt.Println(aws.StringValue(b.Name))
-
-		// fmt.Printf("* %s created on %s\n",
-		// 	aws.StringValue(b.Name), aws.TimeValue(b.CreationDate))
+		bucketName := aws.StringValue(b.Name)
+		bucketNamesList = append(bucketNamesList, bucketName)
 	}
-	return nil
+	return bucketNamesList, nil
 }
 
 func nonexitErrorf(msg string, args ...interface{}) {
