@@ -15,10 +15,10 @@ import (
 	"encoding/json" // Command line flag parsing
 	"fmt"           // String formatting (Printf, Sprintf)
 	"io/ioutil"     // Utils for dealing with IO streams
-	"log"           // Logging utils
-	"math/rand"     // Module for creating random string building
-	"os"            // Environment variables ...
-	"strconv"       // String parsing
+	// Logging utils
+	"math/rand" // Module for creating random string building
+	"os"        // Environment variables ...
+	"strconv"   // String parsing
 	"strings"
 	"syscall"
 
@@ -818,15 +818,6 @@ ________________________________________
 		}
 	}
 
-}
-
-// ReadFile reads a file at path filename and prints it out.
-func ReadFile(filename string) {
-	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		log.Panicf("failed reading data from file: %s", err)
-	}
-	fmt.Printf("\nFile Content: %s", data)
 }
 
 // GetNodesInfo runs kubectl get nodes -o json.
