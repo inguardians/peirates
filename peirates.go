@@ -15,6 +15,7 @@ import (
 	"encoding/json" // Command line flag parsing
 	"fmt"           // String formatting (Printf, Sprintf)
 	"io/ioutil"     // Utils for dealing with IO streams
+
 	// Logging utils
 	"math/rand" // Module for creating random string building
 	"os"        // Environment variables ...
@@ -1615,29 +1616,6 @@ Leave off the "kubectl" part of the command.  For example:
 
 				}
 			}
-			break
-
-			// In every bucket URL, look at the objects
-			// Each bucket has a self-link line.  For each one, run that self-link line with /o appended to get an object list.
-			// We use the same headers[] from the previous GET request.
-
-			break
-
-			// We use the same headers[] from the previous GET request.
-			// bodyToken := GetRequest(saTokenURL, headers, false)
-			// if (bodyToken == "") || (strings.HasPrefix(bodyToken, "ERROR:")) {
-			// 	continue eachbucket
-			// }
-			// tokenLines := strings.Split(string(bodyToken), "\n")
-			// // TODO: Do we need to check status code?  if respToken.StatusCode != 200 {
-
-			// for _, line := range tokenLines {
-			// 	// Now parse this line to get the token
-			// 	encodedToken := strings.Split(line, "\"")[3]
-			// 	}
-
-			// }
-
 			break
 
 		case "17", "aws-s3-ls", "aws-ls-s3", "ls-s3", "s3-ls":
