@@ -2,7 +2,7 @@
 
 build() {
     echo "$1"
-    GOOS=linux GOARCH="$1" go build -ldflags="-s -w" -i ../cmd/peirates
+    GOOS=linux GOARCH="$1" go build -ldflags="-s -w" ../cmd/peirates
     mkdir peirates-linux-"$1"
     mv peirates peirates-linux-"$1"
     tar cJf peirates-linux-"$1".tar.xz peirates-linux-"$1"
