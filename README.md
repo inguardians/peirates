@@ -48,4 +48,3 @@ Build the executable
     ./build.sh
 
 This will generate an executable file named `peirates` in the same directory.
-
