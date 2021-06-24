@@ -121,8 +121,8 @@ func getSecretList(connectionString ServerInfo) ([]string, []string) {
 
 // GetGCPBearerTokenFromMetadataAPI takes the name of a GCP service account and returns a token
 func GetGCPBearerTokenFromMetadataAPI(account string) string {
-	var headers []HeaderLine
-	headers = []HeaderLine{
+
+	headers := []HeaderLine{
 		HeaderLine{"Metadata-Flavor", "Google"},
 	}
 	urlSvcAccount := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/" + account + "/token"
@@ -1741,6 +1741,7 @@ Leave off the "kubectl" part of the command.  For example:
 			case "false", "0", "f":
 				UseAuthCanI = false
 			}
+			break
 
 		case "98":
 			break
