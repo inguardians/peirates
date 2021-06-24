@@ -202,14 +202,10 @@ func PrintNamespaces(connectionString ServerInfo) []string {
 
 	lines := strings.Split(string(NamespacesRaw), "\n")
 
+	emptyString := regexp.MustCompile(`^\s*$`)
 	for _, line := range lines {
 		println(line)
-		matched, err := regexp.MatchString(`^\s*$`, line)
-		if err != nil {
-			fmt.Printf("[-] Error while parsing namespaces: %s\n", err.Error())
-			return []string{}
-		}
-		if !matched {
+		if !emptyString.MatchString(line) {
 			// Get rid of blank lines
 			if strings.Fields(line)[1] == "Active" {
 				namespace := strings.Fields(line)[0]
@@ -454,14 +450,11 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 			println("[-] ERROR: Could not get pods")
 			return
 		}
+
+		emptyString := regexp.MustCompile(`^\s*$`)
 		getImageLines := strings.Split(string(getImagesRaw), "\n")
 		for _, line := range getImageLines {
-			matched, err := regexp.MatchString(`^\s*$`, line)
-			if err != nil {
-				println("[-] ERROR: could not parse pod list")
-				return
-			}
-			if !matched {
+			if !emptyString.MatchString(line) {
 				//added checking to only enumerate running pods
 				// TODO: check for potential bug: did we enumerate only running pods as intended?
 				MountInfoVars.image = strings.Fields(line)[7]
