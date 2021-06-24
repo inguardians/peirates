@@ -150,8 +150,7 @@ func GetGCPBearerTokenFromMetadataAPI(account string) string {
 func SwitchNamespace(connectionString *ServerInfo, namespacesList []string) bool {
 
 	println("\nEnter namespace to switch to or hit enter to maintain current namespace: ")
-	input, _ := readLine()
-	input = strings.TrimSpace(input)
+	input, _ := readLineStripWhitespace()
 
 	if input != "" {
 		// Make sure input is in the existing namespace list.
@@ -170,6 +169,13 @@ func SwitchNamespace(connectionString *ServerInfo, namespacesList []string) bool
 
 	}
 	return true
+}
+
+func readLineStripWhitespace() (string, error) {
+	line, err := readLine()
+
+	return strings.TrimSpace(line), err
+
 }
 
 // readLine reads up through the next \n from stdin. The returned string does
@@ -579,9 +585,9 @@ func acceptServiceAccountFromUser() ServiceAccount {
 		DiscoveryMethod: "User Input",
 	}
 	println("\nWhat do you want to name this service account?")
-	serviceAccount.Name, _ = readLine()
+	serviceAccount.Name, _ = readLineStripWhitespace()
 	println("\nPaste the service account token and hit ENTER:")
-	serviceAccount.Token, _ = readLine()
+	serviceAccount.Token, _ = readLineStripWhitespace()
 
 	return serviceAccount
 }
@@ -902,7 +908,7 @@ Leave off the "kubectl" part of the command.  For example:
 `)
 
 			fmt.Printf("Please enter a kubectl command: ")
-			input, _ = readLine()
+			input, _ = readLineStripWhitespace()
 
 			arguments := strings.Fields(input)
 
@@ -1496,7 +1502,7 @@ Leave off the "kubectl" part of the command.  For example:
 			fmt.Scanln(&input)
 			println("[+] Please provide the command to run in the pods: ")
 
-			cmdOpts.commandToRunInPods, _ = readLine()
+			cmdOpts.commandToRunInPods, _ = readLineStripWhitespace()
 
 			switch input {
 			case "1":
@@ -1593,9 +1599,7 @@ Leave off the "kubectl" part of the command.  For example:
 				// Request a parameter name
 
 				fmt.Println("[+] Enter a parameter or a blank line to finish entering parameters: ")
-				input, _ = readLine()
-
-				inputParameter = strings.TrimSpace(input)
+				inputParameter, _ = readLineStripWhitespace()
 
 				if inputParameter != "" {
 					// Request a parameter value
@@ -1618,14 +1622,14 @@ Leave off the "kubectl" part of the command.  For example:
 				// Request a header name
 
 				fmt.Println("[+] Enter a header name or a blank line if done: ")
-				input, _ = readLine()
+				input, _ = readLineStripWhitespace()
 
 				inputHeader = strings.TrimSpace(input)
 
 				if inputHeader != "" {
 					// Request a header rhs (value)
 					fmt.Println("[+] Enter a value for " + inputHeader + ":")
-					input, _ = readLine()
+					input, _ = readLineStripWhitespace()
 
 					// Add the header value to the list
 					var header HeaderLine
