@@ -148,9 +148,10 @@ func GetGCPBearerTokenFromMetadataAPI(account string) string {
 
 // SwitchNamespace switches the current ServerInfo.Namespace to one entered by the user.
 func SwitchNamespace(connectionString *ServerInfo, namespacesList []string) bool {
+
 	println("\nEnter namespace to switch to or hit enter to maintain current namespace: ")
 	input, _ := readLine()
-	// Strip out the whitespace on either side of input.
+	input = strings.TrimSpace(input)
 
 	if input != "" {
 		// Make sure input is in the existing namespace list.
