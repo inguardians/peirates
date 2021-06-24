@@ -3,3 +3,4 @@
 /dist/peirates
 .DS_Store
 .vscode
+go.sum
