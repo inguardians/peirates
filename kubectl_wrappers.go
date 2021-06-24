@@ -161,7 +161,7 @@ func kubectlAuthCanI(cfg ServerInfo, verb, resource string) bool {
 	}
 
 	if UseAuthCanI != true {
-		return true
+		return !UseAuthCanI
 	}
 
 	query := SelfSubjectAccessReviewQuery{
