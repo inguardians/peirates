@@ -153,8 +153,6 @@ func GetMyIPAddressesNative() []string {
 			return nil
 		}
 
-		var allIPs []net.IP
-
 		for _, addr := range addrs {
 			var ip net.IP
 			switch v := addr.(type) {
@@ -168,7 +166,6 @@ func GetMyIPAddressesNative() []string {
 			if ipString != "127.0.0.1" {
 				println(ipString)
 				ipAddresses = append(ipAddresses, ipString)
-				allIPs = append(allIPs, ip)
 			}
 
 		}
