@@ -58,7 +58,7 @@ func EnterIamCredentialsForAWS() (AWSCredentials, error) {
 	if !matched {
 
 		println("String entered isn't a " + component + "\n")
-		return credentials, errors.New("Invalid Id\n")
+		return credentials, errors.New("invalid " + component)
 	}
 	credentials.AccessKeyId = strings.TrimSpace(strings.ToUpper(input))
 
@@ -68,7 +68,7 @@ func EnterIamCredentialsForAWS() (AWSCredentials, error) {
 	matched, _ = regexp.MatchString(`\w{18,}`, input)
 	if !matched {
 		println("String entered isn't a " + component + "\n")
-		return credentials, errors.New("Invalid Id\n")
+		return credentials, errors.New("invalid " + component)
 	}
 	credentials.SecretAccessKey = strings.TrimSpace(input)
 
@@ -78,7 +78,7 @@ func EnterIamCredentialsForAWS() (AWSCredentials, error) {
 	matched, _ = regexp.MatchString(`\w{5,}`, input)
 	if !matched {
 		println("String entered isn't a " + component + "\n")
-		return credentials, errors.New("Invalid Id\n")
+		return credentials, errors.New("Invalid " + component)
 	}
 	credentials.SessionToken = strings.TrimSpace(input)
 
@@ -88,7 +88,7 @@ func EnterIamCredentialsForAWS() (AWSCredentials, error) {
 	matched, _ = regexp.MatchString(`\w{1,}`, input)
 	if !matched {
 		println("Name must include at least one alphanumeric character.\n")
-		return credentials, errors.New("Invalid Id\n")
+		return credentials, errors.New("invalid " + component)
 	}
 	credentials.accountName = strings.TrimSpace(input)
 
@@ -108,7 +108,7 @@ func PullIamCredentialsFromAWS() (AWSCredentials, error) {
 	}
 	// Parse result as an account, then construct a request asking for that account's credentials
 	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
+	body, _ := ioutil.ReadAll(response.Body)
 	account := string(body)
 	credentials.accountName = account
 
@@ -120,7 +120,7 @@ func PullIamCredentialsFromAWS() (AWSCredentials, error) {
 		return credentials, errors.New(problem)
 	}
 	defer response2.Body.Close()
-	body2, err := ioutil.ReadAll(response2.Body)
+	body2, _ := ioutil.ReadAll(response2.Body)
 
 	json.Unmarshal(body2, &credentials)
 
@@ -132,14 +132,14 @@ func AWSSTSAssumeRole(IAMCredentials AWSCredentials, roleToAssumeArn string) (As
 
 	matched, _ := regexp.MatchString(`arn:aws:iam::\d{12,}:\w+\/\w+`, roleToAssumeArn)
 	if !matched {
-		return AssumedCredentials, errors.New("Invalid role entered by user.\n")
+		return AssumedCredentials, errors.New("invalid role entered by user")
 	}
 
 	// Get region
 	region, _, err := GetAWSRegionAndZone()
 	if err != nil {
 		println("ERR: Bailing on session because we could not get region.")
-		return IAMCredentials, errors.New("Could not get region.")
+		return IAMCredentials, errors.New("could not get region")
 	}
 
 	// Start a session
@@ -150,7 +150,7 @@ func AWSSTSAssumeRole(IAMCredentials AWSCredentials, roleToAssumeArn string) (As
 
 	if err != nil {
 		fmt.Println("NewSession Error", err)
-		return IAMCredentials, errors.New("Could not start an STS session for assume-role.")
+		return IAMCredentials, errors.New("could not start an STS session for assume-role")
 	}
 
 	// Create a STS client
@@ -164,7 +164,7 @@ func AWSSTSAssumeRole(IAMCredentials AWSCredentials, roleToAssumeArn string) (As
 
 	if err != nil {
 		fmt.Println("AssumeRole Error", err)
-		return IAMCredentials, errors.New("Assume role failed.")
+		return IAMCredentials, errors.New("assume role failed")
 
 	}
 
@@ -325,7 +325,7 @@ func nonexitErrorf(msg string, args ...interface{}) {
 }
 
 // exitErrorf is from the AWS documentation
-func exitErrorf(msg string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, msg+"\n", args...)
-	os.Exit(1)
-}
+// func exitErrorf(msg string, args ...interface{}) {
+// 	fmt.Fprintf(os.Stderr, msg+"\n", args...)
+// 	os.Exit(1)
+// }
