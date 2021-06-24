@@ -13,8 +13,9 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json" // Command line flag parsing
-	"fmt"           // String formatting (Printf, Sprintf)
-	"io/ioutil"     // Utils for dealing with IO streams
+	"errors"
+	"fmt"       // String formatting (Printf, Sprintf)
+	"io/ioutil" // Utils for dealing with IO streams
 
 	// Logging utils
 	"math/rand" // Module for creating random string building
@@ -146,11 +147,26 @@ func GetGCPBearerTokenFromMetadataAPI(account string) string {
 }
 
 // SwitchNamespace switches the current ServerInfo.Namespace to one entered by the user.
-func SwitchNamespace(connectionString *ServerInfo) bool {
+func SwitchNamespace(connectionString *ServerInfo, namespacesList []string) bool {
 	println("\nEnter namespace to switch to or hit enter to maintain current namespace: ")
 	input, _ := readLine()
+	// Strip out the whitespace on either side of input.
+
 	if input != "" {
-		connectionString.Namespace = input
+		// Make sure input is in the existing namespace list.
+		found := false
+		for _, ns := range namespacesList {
+			if input == ns {
+				found = true
+				connectionString.Namespace = input
+			}
+
+		}
+		if !found {
+			println(input + " is not a valid namespace.")
+			return false
+		}
+
 	}
 	return true
 }
@@ -182,12 +198,13 @@ func inAPod(connectionString ServerInfo) bool {
 	}
 }
 
-// PrintNamespaces prints the output of kubectl get namespaces, but also returns the list of active namespaces
-func PrintNamespaces(connectionString ServerInfo) []string {
+// GetNamespaces returns the list of active namespaces, using kubectl get namespaces
+func GetNamespaces(connectionString ServerInfo) ([]string, error) {
 
 	if !kubectlAuthCanI(connectionString, "get", "namespaces") {
-		println("[-] Permission Denied: your service account isn't allowed to get namespaces")
-		return []string{}
+		errorString := "[-] Permission Denied: your service account isn't allowed to get namespaces"
+		println(errorString)
+		return []string{}, errors.New(errorString)
 	}
 
 	var namespaces []string
@@ -195,8 +212,9 @@ func PrintNamespaces(connectionString ServerInfo) []string {
 	NamespacesRaw, _, err := runKubectlSimple(connectionString, "get", "namespaces")
 
 	if err != nil {
-		fmt.Printf("[-] Error while getting namespaces: %s\n", err.Error())
-		return []string{}
+		errorString := "[-] error while running kubectl get namespaces"
+		println(errorString)
+		return []string{}, errors.New(errorString)
 	}
 	// Iterate over kubectl get namespaces, stripping off the first line which matches NAME and then grabbing the first column
 
@@ -204,7 +222,6 @@ func PrintNamespaces(connectionString ServerInfo) []string {
 
 	emptyString := regexp.MustCompile(`^\s*$`)
 	for _, line := range lines {
-		println(line)
 		if !emptyString.MatchString(line) {
 			// Get rid of blank lines
 			if strings.Fields(line)[1] == "Active" {
@@ -216,7 +233,7 @@ func PrintNamespaces(connectionString ServerInfo) []string {
 		}
 	}
 
-	return namespaces
+	return namespaces, nil
 }
 
 func printListOfPods(connectionString ServerInfo) {
@@ -996,11 +1013,17 @@ Leave off the "kubectl" part of the command.  For example:
 			fmt.Scanln(&input)
 			switch input {
 			case "1", "list":
-				Namespaces = PrintNamespaces(connectionString)
+				Namespaces, _ = GetNamespaces(connectionString)
+				for _, namespace := range Namespaces {
+					fmt.Println(namespace)
+				}
 
 			case "2", "switch":
-				Namespaces = PrintNamespaces(connectionString)
-				SwitchNamespace(&connectionString)
+				Namespaces, _ = GetNamespaces(connectionString)
+				for _, namespace := range Namespaces {
+					fmt.Println(namespace)
+				}
+				SwitchNamespace(&connectionString, Namespaces)
 
 			default:
 				break
