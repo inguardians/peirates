@@ -259,30 +259,6 @@ func StartS3Session(IAMCredentials AWSCredentials) *s3.S3 {
 // This code is an amalgamation of AWS documentation example code.
 func ListBucketObjects(IAMCredentials AWSCredentials, bucket string) error {
 
-	// Initialize a session in us-west-2 that the SDK will use to load
-	// credentials from the shared credentials file ~/.aws/credentials.
-
-	// sess, err := session.NewSession(&aws.Config{
-	// 	Region:      aws.String("us-west-2"),
-	// 	Credentials: credentials.NewStaticCredentials(IAMCredentials.AccessKeyId, IAMCredentials.SecretAccessKey, IAMCredentials.Token),
-	// })
-
-	// if err != nil {
-	// 	println("Couldn't create session")
-	// 	return
-	// }
-	// // Deactivate TLS certificate verification, since the pod we run in may not have
-	// // a global CA store.
-	// tr := &http.Transport{
-	// 	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	// }
-	// client := &http.Client{Transport: tr}
-
-	// // Create S3 service client
-	// svc := s3.New(sess, &aws.Config{
-	// 	HTTPClient: client,
-	// })
-
 	svc := StartS3Session(IAMCredentials)
 	// Get the list of items
 	resp, err := svc.ListObjectsV2(&s3.ListObjectsV2Input{Bucket: aws.String(bucket)})
@@ -324,8 +300,3 @@ func nonexitErrorf(msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, msg+"\n", args...)
 }
 
-// exitErrorf is from the AWS documentation
-// func exitErrorf(msg string, args ...interface{}) {
-// 	fmt.Fprintf(os.Stderr, msg+"\n", args...)
-// 	os.Exit(1)
-// }
