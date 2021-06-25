@@ -120,31 +120,6 @@ func getSecretList(connectionString ServerInfo) ([]string, []string) {
 	return secrets, serviceAccountTokens
 }
 
-// GetGCPBearerTokenFromMetadataAPI takes the name of a GCP service account and returns a token
-func GetGCPBearerTokenFromMetadataAPI(account string) string {
-
-	headers := []HeaderLine{
-		HeaderLine{"Metadata-Flavor", "Google"},
-	}
-	urlSvcAccount := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/" + account + "/token"
-
-	reqTokenRaw := GetRequest(urlSvcAccount, headers, false)
-	if (reqTokenRaw == "") || (strings.HasPrefix(reqTokenRaw, "ERROR:")) {
-		println("[-] Error - could not perform request ", urlSvcAccount)
-		return ("ERROR")
-	}
-	// Body will look like this, unless error has occurred: {"access_token":"xxxxxxx","expires_in":2511,"token_type":"Bearer"}
-	// TODO: Add a check for a 200 status code
-	// Split the body on "" 's for now
-	// TODO: Parse this as JSON
-	tokenElements := strings.Split(string(reqTokenRaw), "\"")
-	if tokenElements[1] == "access_token" {
-		return (tokenElements[3])
-	} else {
-		println("[-] Error - could not find token in returned body text: ", string(reqTokenRaw))
-		return "ERROR"
-	}
-}
 
 // SwitchNamespace switches the current ServerInfo.Namespace to one entered by the user.
 func SwitchNamespace(connectionString *ServerInfo, namespacesList []string) bool {
@@ -890,9 +865,9 @@ This function allows you to run a kubectl command, with only a few restrictions.
 
 Your command must not:
 
-- change namespace
+- use a different namespace
 - specify a different service account 
-- change nameservers
+- use a different API server
 - run for longer than a few seconds (as in kubectl exec)
 
 Your command will crash this program if it is not permitted.
@@ -912,16 +887,6 @@ Leave off the "kubectl" part of the command.  For example:
 
 			arguments := strings.Fields(input)
 
-			// for _, arg := range arguments {
-			// 	println("Argument:", arg)
-			//}
-			// TODO: Create an authorization check
-			// if !kubectlAuthCanI(connectionString, "get", "secret") {
-			//	println("[-] Permission Denied: your service account isn't allowed to get secrets")
-			//	break
-			//}
-
-			// func runKubectlSimple(cfg ServerInfo, cmdArgs ...string) ([]byte, []byte, error) {
 			kubectlOutput, _, err := runKubectlSimple(connectionString, arguments...)
 			if err != nil {
 				println("[-] Could not perform action: kubectl ", input)
@@ -1185,6 +1150,7 @@ Leave off the "kubectl" part of the command.  For example:
 		// [13] Request IAM credentials from GCP Metadata API [GCP only]
 		case "13", "get-gcp-token":
 
+			// TODO: Store the GCP token and display, to bring this inline with the GCP functionality.
 			// Make a request for our service account(s)
 			var headers []HeaderLine
 			headers = []HeaderLine{
