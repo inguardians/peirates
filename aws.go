@@ -21,7 +21,6 @@ import (
 // AWSCredentials stores the credentials
 type AWSCredentials struct {
 	accountName string
-	// We will need one more Get to gather this from http://169.254.169.254/latest/meta-data/iam/info
 	// InstanceProfileArn  string
 	// If we parse this, we can freshen this only as necessary
 	// Expiration			string `json:"Expiration"`
@@ -217,9 +216,6 @@ func GetAWSRegionAndZone() (region string, zone string, err error) {
 // StartS3Session creates a session with S3 using AWS Credentials.
 func StartS3Session(IAMCredentials AWSCredentials) *s3.S3 {
 
-	// Initialize a session in us-west-2 that the SDK will use to load
-	// credentials from the shared credentials file ~/.aws/credentials.
-
 	println("Starting a new session using AWS creds: ")
 	DisplayAWSIAMCredentials(IAMCredentials)
 
@@ -256,7 +252,6 @@ func StartS3Session(IAMCredentials AWSCredentials) *s3.S3 {
 }
 
 // ListBucketObjects lists the objects in a specific bucket
-// This code is an amalgamation of AWS documentation example code.
 func ListBucketObjects(IAMCredentials AWSCredentials, bucket string) error {
 
 	svc := StartS3Session(IAMCredentials)
@@ -299,4 +294,3 @@ func ListAWSBuckets(IAMCredentials AWSCredentials) (bucketNamesList []string, er
 func nonexitErrorf(msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, msg+"\n", args...)
 }
-
