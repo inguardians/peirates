@@ -8,7 +8,6 @@ package peirates
 //
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/tls"
 	"encoding/base64"
@@ -120,12 +119,11 @@ func getSecretList(connectionString ServerInfo) ([]string, []string) {
 	return secrets, serviceAccountTokens
 }
 
-
 // SwitchNamespace switches the current ServerInfo.Namespace to one entered by the user.
 func SwitchNamespace(connectionString *ServerInfo, namespacesList []string) bool {
 
 	println("\nEnter namespace to switch to or hit enter to maintain current namespace: ")
-	input, _ := readLineStripWhitespace()
+	input, _ := ReadLineStripWhitespace()
 
 	if input != "" {
 		// Make sure input is in the existing namespace list.
@@ -144,24 +142,6 @@ func SwitchNamespace(connectionString *ServerInfo, namespacesList []string) bool
 
 	}
 	return true
-}
-
-func readLineStripWhitespace() (string, error) {
-	line, err := readLine()
-
-	return strings.TrimSpace(line), err
-
-}
-
-// readLine reads up through the next \n from stdin. The returned string does
-// not include the \n.
-func readLine() (string, error) {
-	reader := bufio.NewReader(os.Stdin)
-	line, err := reader.ReadString('\n')
-	if err != nil {
-		return "", err
-	}
-	return line[:len(line)-1], err
 }
 
 // canCreatePods() runs kubectl to check if current token can create a pod
@@ -560,9 +540,9 @@ func acceptServiceAccountFromUser() ServiceAccount {
 		DiscoveryMethod: "User Input",
 	}
 	println("\nWhat do you want to name this service account?")
-	serviceAccount.Name, _ = readLineStripWhitespace()
+	serviceAccount.Name, _ = ReadLineStripWhitespace()
 	println("\nPaste the service account token and hit ENTER:")
-	serviceAccount.Token, _ = readLineStripWhitespace()
+	serviceAccount.Token, _ = ReadLineStripWhitespace()
 
 	return serviceAccount
 }
@@ -861,7 +841,7 @@ Off-Menu         +
 		//	[0] Run a kubectl command in the current namespace, API server and service account context
 		case "0", "90", "kubectl":
 			_ = kubectl_interactive(connectionString)
-			
+
 		// [1] Enter a different service account token
 		case "1", "sa-menu", "service-account-menu", "sa", "service-account":
 			println("Current primary service account: %s", connectionString.TokenName)
@@ -1096,7 +1076,6 @@ Off-Menu         +
 			fmt.Scanln(&ip)
 			println("Port:")
 			fmt.Scanln(&port)
-			// TODO: Rename/refactor MountRootFS so we get more capabilities in case the node does not run cron
 			MountRootFS(allPods, connectionString, ip, port)
 
 		// [12] Request IAM credentials from AWS Metadata API [AWS only]
@@ -1433,7 +1412,7 @@ Off-Menu         +
 			fmt.Scanln(&input)
 			println("[+] Please provide the command to run in the pods: ")
 
-			cmdOpts.commandToRunInPods, _ = readLineStripWhitespace()
+			cmdOpts.commandToRunInPods, _ = ReadLineStripWhitespace()
 
 			switch input {
 			case "1":
@@ -1530,7 +1509,7 @@ Off-Menu         +
 				// Request a parameter name
 
 				fmt.Println("[+] Enter a parameter or a blank line to finish entering parameters: ")
-				inputParameter, _ = readLineStripWhitespace()
+				inputParameter, _ = ReadLineStripWhitespace()
 
 				if inputParameter != "" {
 					// Request a parameter value
@@ -1553,14 +1532,14 @@ Off-Menu         +
 				// Request a header name
 
 				fmt.Println("[+] Enter a header name or a blank line if done: ")
-				input, _ = readLineStripWhitespace()
+				input, _ = ReadLineStripWhitespace()
 
 				inputHeader = strings.TrimSpace(input)
 
 				if inputHeader != "" {
 					// Request a header rhs (value)
 					fmt.Println("[+] Enter a value for " + inputHeader + ":")
-					input, _ = readLineStripWhitespace()
+					input, _ = ReadLineStripWhitespace()
 
 					// Add the header value to the list
 					var header HeaderLine

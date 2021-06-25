@@ -29,7 +29,7 @@ Leave off the "kubectl" part of the command.  For example:
 `)
 
 	fmt.Printf("Please enter a kubectl command: ")
-	input, _ := readLineStripWhitespace()
+	input, _ := ReadLineStripWhitespace()
 
 	arguments := strings.Fields(input)
 
