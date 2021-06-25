@@ -1,4 +1,4 @@
-package Peirates
+package peirates
 
 import (
 	"fmt"
