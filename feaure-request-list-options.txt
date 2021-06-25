@@ -1,5 +1,0 @@
-DONE: 1. in "Change namespace setting", list all namespaces upon request
-
-DONE. 2. In "Get a service account token from a secret", list secrets that were acquired to date on request.
-
-3. In "Run command in one or all pods in this namespace", list all pods in this namespace or explain that privileges are lacking for that.
