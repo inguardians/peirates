@@ -860,7 +860,7 @@ Off-Menu         +
 
 		//	[0] Run a kubectl command in the current namespace, API server and service account context
 		case "0", "90", "kubectl":
-			kubectl_interactive()
+			_ = kubectl_interactive(connectionString)
 			
 		// [1] Enter a different service account token
 		case "1", "sa-menu", "service-account-menu", "sa", "service-account":
