@@ -157,7 +157,7 @@ func SwitchNamespace(connectionString *ServerInfo, namespacesList []string) bool
 // 		fmt.Scanln(&input)
 // 		return false
 // 	}
-}
+// }
 
 // GetNamespaces returns the list of active namespaces, using kubectl get namespaces
 func GetNamespaces(connectionString ServerInfo) ([]string, error) {
@@ -1099,7 +1099,7 @@ Off-Menu         +
 			if err != nil {
 				//Append serice accounts to the existing store
 				for _, svcacct := range serviceAccountsReturned {
-					servi ceAccounts = append(serviceAccounts, svcacct)
+					serviceAccounts = append(serviceAccounts, svcacct)
 				}
 			}
 
@@ -1139,13 +1139,13 @@ Off-Menu         +
 				credentialsToUse = awsCredentials
 			}
 
-ntln("[+] Preparing to use this AWS account to list and search S3 buckets: " + awsCredentials.AccessKeyId)
+			println("[+] Preparing to use this AWS account to list and search S3 buckets: " + awsCredentials.AccessKeyId)
 
 			result, err := ListAWSBuckets(credentialsToUse)
 			if err != nil {
 				println("Could not list buckets")
 				break
-						}
+			}
 			listOfBuckets := result
 
 			// Start a single S3 session
