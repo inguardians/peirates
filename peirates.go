@@ -36,6 +36,11 @@ import (
 )
 
 var UseAuthCanI bool = true
+// AWS credentials currently in use.
+var awsCredentials AWSCredentials
+// Make room for an assumed role.
+var assumedAWSrole AWSCredentials
+
 
 // getPodList returns an array of running pod names, parsed from "kubectl -n namespace get pods"
 func getPodList(connectionString ServerInfo) []string {
@@ -723,10 +728,8 @@ func Main() {
 	// https://kubernetes.io/docs/concepts/containers/container-environment-variables/
 
 	// Read AWS credentials from environment variables if present.
-	awsCredentials := PullIamCredentialsFromEnvironmentVariables()
-	// Make room for an assumed role.
-	var assumedAWSrole AWSCredentials
-
+	awsCredentials = PullIamCredentialsFromEnvironmentVariables()
+	
 	var input int
 	for ok := true; ok; ok = (input != 2) {
 		banner(connectionString, awsCredentials, assumedAWSrole)
