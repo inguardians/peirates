@@ -29,16 +29,16 @@ import (
 	"os/exec"  // for exec
 	"regexp"
 	"time" // Time modules
-
 	// kubernetes client
 )
 
 var UseAuthCanI bool = true
+
 // AWS credentials currently in use.
 var awsCredentials AWSCredentials
+
 // Make room for an assumed role.
 var assumedAWSrole AWSCredentials
-
 
 // getPodList returns an array of running pod names, parsed from "kubectl -n namespace get pods"
 func getPodList(connectionString ServerInfo) []string {
