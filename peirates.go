@@ -802,7 +802,7 @@ Off-Menu         +
 
 		// [1] Enter a different service account token
 		case "1", "sa-menu", "service-account-menu", "sa", "service-account":
-			println("Current primary service account: %s", connectionString.TokenName)
+			println("Current primary service account: ", connectionString.TokenName)
 			println("\n")
 			println("[1] List service accounts [list]")
 			println("[2] Switch primary service account [switch]")
@@ -1096,11 +1096,11 @@ Off-Menu         +
 
 		// [15] Pull Kubernetes service account tokens from Kop's bucket in GCS [GCP only]
 		case "15", "attack-kops-gcs-1":
-			serviceAccountsReturned , err := KopsAttackGCP()
-			if (err != nil) {
+			serviceAccountsReturned, err := KopsAttackGCP()
+			if err != nil {
 				// Append service accounts to the existing store
-				for _,svcacct := range serviceAccountsReturned {
-					serviceAccounts = append (serviceAccounts, svcacct)
+				for _, svcacct := range serviceAccountsReturned {
+					serviceAccounts = append(serviceAccounts, svcacct)
 				}
 			}
 
@@ -1139,13 +1139,13 @@ Off-Menu         +
 				awsCredentials = result
 				credentialsToUse = awsCredentials
 			}
-						
+
 			println("[+] Preparing to use this AWS account to list and search S3 buckets: " + awsCredentials.AccessKeyId)
 
 			result, err := ListAWSBuckets(credentialsToUse)
 			if err != nil {
 				println("Could not list buckets")
-	break
+				break
 			}
 			listOfBuckets := result
 
