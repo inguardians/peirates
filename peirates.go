@@ -144,20 +144,19 @@ func SwitchNamespace(connectionString *ServerInfo, namespacesList []string) bool
 	return true
 }
 
-// canCreatePods() runs kubectl to check if current token can create a pod
 // inAPod() attempts to determine if we are running in a pod.
 // Long-term, this will likely go away
-func inAPod(connectionString ServerInfo) bool {
+// func inAPod(connectionString ServerInfo) bool {
 
-	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
-		println("[+] You may be in a Kubernetes pod. API Server to be found at: ", os.Getenv("KUBERNETES_SERVICE_HOST"))
-		return true
-	} else {
-		println("[-] You may not be in a Kubernetes pod. Press ENTER to continue.")
-		var input string
-		fmt.Scanln(&input)
-		return false
-	}
+// 	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
+// 		println("[+] You may be in a Kubernetes pod. API Server to be found at: ", os.Getenv("KUBERNETES_SERVICE_HOST"))
+// 		return true
+// 	} else {
+// 		println("[-] You may not be in a Kubernetes pod. Press ENTER to continue.")
+// 		var input string
+// 		fmt.Scanln(&input)
+// 		return false
+// 	}
 }
 
 // GetNamespaces returns the list of active namespaces, using kubectl get namespaces
@@ -1098,9 +1097,9 @@ Off-Menu         +
 		case "15", "attack-kops-gcs-1":
 			serviceAccountsReturned, err := KopsAttackGCP()
 			if err != nil {
-				// Append service accounts to the existing store
+				//Append serice accounts to the existing store
 				for _, svcacct := range serviceAccountsReturned {
-					serviceAccounts = append(serviceAccounts, svcacct)
+					servi ceAccounts = append(serviceAccounts, svcacct)
 				}
 			}
 
@@ -1140,13 +1139,13 @@ Off-Menu         +
 				credentialsToUse = awsCredentials
 			}
 
-			println("[+] Preparing to use this AWS account to list and search S3 buckets: " + awsCredentials.AccessKeyId)
+ntln("[+] Preparing to use this AWS account to list and search S3 buckets: " + awsCredentials.AccessKeyId)
 
 			result, err := ListAWSBuckets(credentialsToUse)
 			if err != nil {
 				println("Could not list buckets")
 				break
-			}
+						}
 			listOfBuckets := result
 
 			// Start a single S3 session
