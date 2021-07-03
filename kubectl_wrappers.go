@@ -117,17 +117,15 @@ func runKubectlSimple(cfg ServerInfo, cmdArgs ...string) ([]byte, []byte, error)
 }
 
 // runKubectlWithByteSliceForStdin is runKubectlSimple but you can pass in some bytes for stdin. Conven
-// This function is unused and thus commented out for now.
+func runKubectlWithByteSliceForStdin(cfg ServerInfo, stdinBytes []byte, cmdArgs ...string) ([]byte, []byte, error) {
+	stdin := bytes.NewReader(append(stdinBytes, '\n'))
+	stdout := bytes.Buffer{}
+	stderr := bytes.Buffer{}
 
-// func runKubectlWithByteSliceForStdin(cfg ServerInfo, stdinBytes []byte, cmdArgs ...string) ([]byte, []byte, error) {
-// 	stdin := bytes.NewReader(append(stdinBytes, '\n'))
-// 	stdout := bytes.Buffer{}
-// 	stderr := bytes.Buffer{}
+	err := runKubectlWithConfig(cfg, stdin, &stdout, &stderr, cmdArgs...)
 
-// 	err := runKubectlWithConfig(cfg, stdin, &stdout, &stderr, cmdArgs...)
-
-// 	return stdout.Bytes(), stderr.Bytes(), err
-// }
+	return stdout.Bytes(), stderr.Bytes(), err
+}
 
 // kubectlAuthCanI now has a history... We can't use the built in
 // `kubectl auth can-i <args...>`, because when the response to the auth check

@@ -1,5 +1,4 @@
-// Unused - we may use this if and when we need to make HTTP raw (non-library-based) requests, but we should
-// combine this with our HTTP connection libraries.
+// Unused as of 20181026 - we will use this if and when we need to make HTTP raw (non-library-based) requests.
 
 package peirates
 
