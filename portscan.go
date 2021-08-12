@@ -19,7 +19,7 @@ func scan_worker(ip string, ports, results chan int) {
 	}
 }
 
-func scan_controller(ip) {
+func scan_controller(ip string) {
 	ports := make(chan int, 100)
 	results := make(chan int)
 
