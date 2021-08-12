@@ -25,7 +25,7 @@ func scan_controller(ip) {
 
 	var openports []int
 	
-	# Start up one worker per port?
+	// Start up one worker per port?
 	for i := 0 ; i < cap(ports) ; i++ {
 		go scan_worker(ip, ports, results)
 	}
