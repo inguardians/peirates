@@ -31,6 +31,7 @@ func parseOptions(opts *CommandLineOptions) {
 
 	flagset.StringVar(&opts.connectionConfig.RIPAddress, "i", opts.connectionConfig.RIPAddress, "API Server IP address: ex. 10.96.0.1")
 	flagset.StringVar(&opts.connectionConfig.RPort, "p", opts.connectionConfig.RPort, "API Server Port: ex 443, 6443")
+	flagset.StringVar(&opts.connectionConfig.Token, "t", opt.connectionConfig.Token, "Token (JWT)")
 	flagset.StringVar(&podListRaw, "L", "", "List of comma-seperated Pods: ex pod1,pod2,pod3")
 	flagset.StringVar(&opts.commandToRunInPods, "c", "hostname", "Command to run in pods")
 
@@ -48,6 +49,9 @@ func parseOptions(opts *CommandLineOptions) {
 	if opts.connectionConfig.RPort == "" {
 		flagset.Usage()
 		log.Fatal("Error: must provide a port for a Kubernetes API server (-p)")
+	}
+	if opts.connectionConfig.Token != "" {
+		log.Info("JWT provided on the command line.")
 	}
 
 	if podListRaw != "" {
