@@ -769,7 +769,7 @@ Off-Menu         +
 [90] Run a kubectl command in the current namespace and service account context [kubectl]
 [91] Make an HTTP request (GET or POST) to a user-specified URL [curl]
 [92] Deactivate "auth can-i" checking before attempting actions [set-auth-can-i] 
-[93] Run a simple all-ports TCP port scan against a CIDR network (alpha) [tcpscan]
+[93] Run a simple all-ports TCP port scan against an IP address [tcpscan]
 
 [exit] Exit Peirates 
 ----------------------------------------------------------------`)
@@ -1406,14 +1406,13 @@ Off-Menu         +
 				UseAuthCanI = false
 			}
 
-		// [93] Run a simple all-ports TCP port scan against a CIDR network (alpha) [tcpscan]
+		// [93] Run a simple all-ports TCP port scan against an IP address [tcpscan]
 		case "93", "tcpscan", "tcp scan", "portscan", "port scan":
-			println("\nALPHA CODE: note that this is alpha code in testing\n")
 
 			var matched bool
 
 			for !matched {
-				println("Enter a CIDR network / IP address to scan or hit enter to exit the portscan function: ")
+				println("Enter an IP address to scan or hit enter to exit the portscan function: ")
 				fmt.Scan(&input)
 				if input == "" {
 					break
@@ -1435,10 +1434,11 @@ Off-Menu         +
 						continue
 					}
 					if check_pattern_2 {
+						println("Hidden CIDR scan mode used - this may be slow or unpredictable")
 						hostList := cidrHosts(input)
 						for _, host := range hostList {
 							println("Scanning " + host)
-							scan_controller(host)
+							go scan_controller(host)
 						}
 						break
 					} else {
