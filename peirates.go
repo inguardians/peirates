@@ -769,6 +769,7 @@ Off-Menu         +
 [90] Run a kubectl command in the current namespace and service account context [kubectl]
 [91] Make an HTTP request (GET or POST) to a user-specified URL [curl]
 [92] Deactivate "auth can-i" checking before attempting actions [set-auth-can-i] 
+[93] Run a simple all-ports TCP port scan against a CIDR network (alpha) [tcpscan]
 
 [exit] Exit Peirates 
 ----------------------------------------------------------------`)
@@ -1404,6 +1405,51 @@ Off-Menu         +
 			case "false", "0", "f":
 				UseAuthCanI = false
 			}
+
+		// [93] Run a simple all-ports TCP port scan against a CIDR network (alpha) [tcpscan]
+		case "93", "tcpscan", "tcp scan", "portscan", "port scan":
+			println("\nALPHA CODE: note that this is alpha code in testing\n")
+
+			var matched bool
+
+			for !matched {
+				println("Enter a CIDR network / IP address to scan or hit enter to exit the portscan function: ")
+				fmt.Scan(&input)
+				if input == "" {
+					break
+				}
+				check_pattern_1, err := regexp.Match(`^\s*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\s*$`, []byte(input))
+				if err != nil {
+					println("Error on regexp match against IP address pattern.")
+					continue
+				}
+				if check_pattern_1 {
+					// Scan an IP
+					println("Scanning " + input)
+					scan_controller(input)
+					break
+				} else {
+					check_pattern_2, err := regexp.Match(`^\s*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(\/[0,1,2,3]?\d)\s*$`, []byte(input))
+					if err != nil {
+						println("Error on regexp match against ip/bits CIDR pattern.")
+						continue
+					}
+					if check_pattern_2 {
+						hostList := cidrHosts(input)
+						for _, host := range hostList {
+							println("Scanning " + host)
+							scan_controller(host)
+						}
+						break
+					} else {
+						println("Error: input must match an IP address or a CIDR formatted network.")
+						continue
+					}
+
+				}
+			}
+
+			// Check input
 
 		default:
 			fmt.Println("Command unrecognized.")
