@@ -29,7 +29,7 @@ func parseOptions(opts *CommandLineOptions) {
 
 	flagset := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
-	flagset.StringVar(&opts.connectionConfig.RIPAddress, "i", opts.connectionConfig.RIPAddress, "API Server IP address: ex. 10.22.34.67")
+	flagset.StringVar(&opts.connectionConfig.RIPAddress, "i", opts.connectionConfig.RIPAddress, "API Server IP address: ex. 10.96.0.1")
 	flagset.StringVar(&opts.connectionConfig.RPort, "p", opts.connectionConfig.RPort, "API Server Port: ex 443, 6443")
 	flagset.StringVar(&podListRaw, "L", "", "List of comma-seperated Pods: ex pod1,pod2,pod3")
 	flagset.StringVar(&opts.commandToRunInPods, "c", "hostname", "Command to run in pods")
@@ -43,11 +43,11 @@ func parseOptions(opts *CommandLineOptions) {
 		// flag.Usage() prints out an auto-generated usage string.
 		flagset.Usage()
 		// log.Fatal prints a message to stderr and crashes the program.
-		log.Fatal("Error: must provide remote IP address (-i)")
+		log.Fatal("Error: must provide an IP address for the Kubernetes API server (-i)")
 	}
 	if opts.connectionConfig.RPort == "" {
 		flagset.Usage()
-		log.Fatal("Error: must provide remote Port (-p)")
+		log.Fatal("Error: must provide a port for a Kubernetes API server (-p)")
 	}
 
 	if podListRaw != "" {
