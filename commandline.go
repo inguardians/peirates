@@ -38,7 +38,7 @@ func parseOptions(opts *CommandLineOptions) {
 	// once you've defined all your options.
 	flagset.Parse(os.Args[1:])
 
-	// If the IP or Port are an empty string, we want to just print out usage and crash because they have to be defined
+	// If the IP or Port are an empty string, we want to just print out usage and exit.
 	if opts.connectionConfig.RIPAddress == "" {
 		// flag.Usage() prints out an auto-generated usage string.
 		flagset.Usage()
