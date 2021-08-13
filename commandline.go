@@ -51,7 +51,7 @@ func parseOptions(opts *CommandLineOptions) {
 		log.Fatal("Error: must provide a port for a Kubernetes API server (-p)")
 	}
 	if opts.connectionConfig.Token != "" {
-		log.Info("JWT provided on the command line.")
+		log.Println("JWT provided on the command line.")
 	}
 
 	if podListRaw != "" {
