@@ -6,12 +6,14 @@ import (
 	"log"
 	"net"
 	"sort"
+"time"
 )
 
 func scan_worker(ip string, ports, results chan int) {
 	for p := range ports {
 		ip_port := fmt.Sprintf("%s:%d", ip, p)
-		conn, err := net.Dial("tcp", ip_port)
+//		fmt.Printf("DEBUG: checking %s:%d\n", ip, p)
+		conn, err := net.DialTimeout("tcp", ip_port, 50*time.Millisecond)
 		if err != nil {
 			results <- 0
 			continue
@@ -22,7 +24,7 @@ func scan_worker(ip string, ports, results chan int) {
 }
 
 func scan_controller(ip string) {
-	ports := make(chan int, 100)
+	ports := make(chan int, 1000)
 	results := make(chan int)
 
 	var openports []int
