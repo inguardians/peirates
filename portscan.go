@@ -55,7 +55,7 @@ func scan_controller(ip string) {
 	// Sort the set of openports in place.
 	sort.Ints(openports)
 	for _, port := range openports {
-		fmt.Printf("%d/tcp open\n", port)
+		fmt.Printf("%s:%d/tcp open\n", ip, port)
 	}
 }
 
