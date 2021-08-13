@@ -40,7 +40,7 @@ func parseOptions(opts *CommandLineOptions) {
 
 	// If the IP or Port are an empty string, we want to just print out usage and exit.
 	if opts.connectionConfig.RIPAddress == "" {
-		// flag.Usage() prints out an auto-generated usage string.
+		// flag's Usage() function prints out an auto-generated usage string.
 		flagset.Usage()
 		// log.Fatal prints a message to stderr and crashes the program.
 		log.Fatal("Error: must provide an IP address for the Kubernetes API server (-i)")
