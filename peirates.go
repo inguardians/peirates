@@ -1438,7 +1438,7 @@ Off-Menu         +
 						hostList := cidrHosts(input)
 						for _, host := range hostList {
 							println("Scanning " + host)
-							go scan_controller(host)
+							scan_controller(host)
 						}
 						break
 					} else {
