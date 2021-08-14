@@ -549,7 +549,7 @@ func banner(connectionString ServerInfo, awsCredentials AWSCredentials, assumedA
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.33 by InGuardians
+	Peirates v1.0.34 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
