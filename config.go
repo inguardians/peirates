@@ -22,7 +22,7 @@ type ServerInfo struct {
 
 func ParseLocalServerInfo() ServerInfo {
 
-	//creating configInfo type and storing in a variable
+	// Creating an object of ServerInfo type, which we'll poppulate in this function.
 	var configInfoVars ServerInfo
 
 	// Read IP address and port number for API server out of environment variables
@@ -38,6 +38,10 @@ func ParseLocalServerInfo() ServerInfo {
 	if errRead != nil {
 		fmt.Println("Token location error: ", errRead)
 	}
+	else {
+		fmt.Println("Read token from the filesystem: " + configInfoVars.Token)
+	}
+		
 
 	// Reading namespace file and storing in variable namespace
 	namespace, errRead := ioutil.ReadFile(ServiceAccountPath + "namespace")
