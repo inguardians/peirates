@@ -1,6 +1,9 @@
 package peirates
 
 import "time"
+import "gopkg.in/square/go-jose.v2/jwt"
+import "github.com/trung/jwt-tools/display"
+
 
 // SERVICE ACCOUNT MANAGEMENT functions
 
@@ -43,3 +46,15 @@ func assignServiceAccountToConnection(account ServiceAccount, info *ServerInfo) 
 	info.TokenName = account.Name
 	info.Token = account.Token
 }
+
+
+func printJWT(tokenString string) {
+
+    var claims map[string]interface{} 
+    
+    token, _ := jwt.ParseSigned(tokenString)
+    _ = token.UnsafeClaimsWithoutVerification(&claims)
+    
+    display.PrintJSON(claims)
+}
+        
