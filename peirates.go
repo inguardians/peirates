@@ -840,7 +840,6 @@ Off-Menu         +
 				var tokNum int
 				fmt.Scanln(&input)
 				_, err := fmt.Sscan(input, &tokNum)
-				tokNum = tokNum-1
 				if err != nil {
 					fmt.Printf("Error parsing service account selection: %s\n", err.Error())
 				} else if tokNum < 0 || tokNum >= len(serviceAccounts) {
@@ -848,6 +847,7 @@ Off-Menu         +
 				} else if tokNum == 0 {
 					println("Aborting service account switch...")
 				} else {
+					tokNum = tokNum -1
 					assignServiceAccountToConnection(serviceAccounts[tokNum], &connectionString)
 					fmt.Printf("Selected %s // %s\n", connectionString.TokenName, connectionString.Token)
 				}
@@ -909,7 +909,6 @@ Off-Menu         +
 						var tokNum int
 						fmt.Scanln(&input)
 						_, err := fmt.Sscan(input, &tokNum)
-						tokNum = tokNum-1
 						if err != nil {
 							fmt.Printf("Error parsing service account selection: %s\n", err.Error())
 						} else if tokNum < 0 || tokNum >= len(serviceAccounts) {
@@ -917,6 +916,7 @@ Off-Menu         +
 						} else if tokNum == 0 {
 							println("Aborting service account switch...")
 						} else {
+							tokNum = tokNum-1
 							printJWT(serviceAccounts[tokNum].Token)
 						}
 				}
