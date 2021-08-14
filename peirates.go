@@ -886,8 +886,8 @@ Off-Menu         +
 			case "6", "decode":
 				var token string
 				println("\n1) Decode a JWT entered via a string.")
-				println("\n2) Decode a service account token stored here.")
-				println("\nPeirates:># ")
+				println("2) Decode a service account token stored here.")
+				println("Peirates:># ")
 				fmt.Scanln(&input)
 
 				switch input {
@@ -911,7 +911,7 @@ Off-Menu         +
 						_, err := fmt.Sscan(input, &tokNum)
 						if err != nil {
 							fmt.Printf("Error parsing service account selection: %s\n", err.Error())
-						} else if tokNum < 0 || tokNum >= len(serviceAccounts) {
+						} else if tokNum < 0 || tokNum > len(serviceAccounts) {
 							fmt.Printf("Service account %d does not exist!\n", tokNum)
 						} else if tokNum == 0 {
 							println("Aborting service account switch...")
