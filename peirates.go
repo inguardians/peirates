@@ -819,25 +819,28 @@ Off-Menu         +
 			case "1", "list":
 				println("\nAvailable Service Accounts:")
 				for i, account := range serviceAccounts {
+					num := i+1
 					if account.Name == connectionString.TokenName {
-						fmt.Printf("> [%d] %s\n", i, account.Name)
+						fmt.Printf("> [%d] %s\n", num, account.Name)
 					} else {
-						fmt.Printf("  [%d] %s\n", i, account.Name)
+						fmt.Printf("  [%d] %s\n", num, account.Name)
 					}
 				}
 			case "2", "switch":
 				println("\nAvailable Service Accounts:")
 				for i, account := range serviceAccounts {
+					num := i+1
 					if account.Name == connectionString.TokenName {
-						fmt.Printf("> [%d] %s\n", i, account.Name)
+						fmt.Printf("> [%d] %s\n", num, account.Name)
 					} else {
-						fmt.Printf("  [%d] %s\n", i, account.Name)
+						fmt.Printf("  [%d] %s\n", num, account.Name)
 					}
 				}
 				println("\nEnter service account number or 0 to abort: ")
 				var tokNum int
 				fmt.Scanln(&input)
 				_, err := fmt.Sscan(input, &tokNum)
+				tokNum = tokNum-1
 				if err != nil {
 					fmt.Printf("Error parsing service account selection: %s\n", err.Error())
 				} else if tokNum < 0 || tokNum >= len(serviceAccounts) {
@@ -895,16 +898,18 @@ Off-Menu         +
 					case "2":
 						println("\nAvailable Service Accounts:")
 						for i, account := range serviceAccounts {
+							num := i+1
 							if account.Name == connectionString.TokenName {
-								fmt.Printf("> [%d] %s\n", i, account.Name)
+								fmt.Printf("> [%d] %s\n", num, account.Name)
 							} else {
-								fmt.Printf("  [%d] %s\n", i, account.Name)
+								fmt.Printf("  [%d] %s\n", num, account.Name)
 							}
 						}
 						println("\nEnter service account number or 0 to abort: ")
 						var tokNum int
 						fmt.Scanln(&input)
 						_, err := fmt.Sscan(input, &tokNum)
+						tokNum = tokNum-1
 						if err != nil {
 							fmt.Printf("Error parsing service account selection: %s\n", err.Error())
 						} else if tokNum < 0 || tokNum >= len(serviceAccounts) {
