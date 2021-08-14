@@ -810,6 +810,8 @@ Off-Menu         +
 			println("[3] Enter new service account JWT [add]")
 			println("[4] Export service accounts to JSON [export]")
 			println("[5] Import service accounts from JSON [import]")
+			println("[6] Decode a service account token (JWT) [decode]")
+			
 			println("\n")
 
 			fmt.Scanln(&input)
@@ -878,6 +880,42 @@ Off-Menu         +
 					serviceAccounts = append(serviceAccounts, newserviceAccounts...)
 					fmt.Printf("[+] Successfully imported service accounts\n")
 				}
+			case "6", "decode":
+				var token string
+				println("\n1) Decode a JWT entered via a string.")
+				println("\n2) Decode a service account token stored here.")
+				println("\nPeirates:># ")
+				fmt.Scanln(&input)
+
+				switch input {
+					case "1":
+						println("\nEnter a JWT: ")
+						fmt.Scanln(&token)
+						printJWT(token)
+					case "2:
+						println("\nAvailable Service Accounts:")
+						for i, account := range serviceAccounts {
+							if account.Name == connectionString.TokenName {
+								fmt.Printf("> [%d] %s\n", i, account.Name)
+							} else {
+								fmt.Printf("  [%d] %s\n", i, account.Name)
+							}
+						}
+						println("\nEnter service account number or 0 to abort: ")
+						var tokNum int
+						fmt.Scanln(&input)
+						_, err := fmt.Sscan(input, &tokNum)
+						if err != nil {
+							fmt.Printf("Error parsing service account selection: %s\n", err.Error())
+						} else if tokNum < 0 || tokNum >= len(serviceAccounts) {
+							fmt.Printf("Service account %d does not exist!\n", tokNum)
+						} else if tokNum == 0 {
+							println("Aborting service account switch...")
+						} else {
+							printJWT(serviceAccounts[tokNum].Token)
+						}
+				}
+				
 			}
 
 		// [2] List namespaces or change namespace
