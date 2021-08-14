@@ -37,8 +37,7 @@ func ParseLocalServerInfo() ServerInfo {
 	//Error message If statement based on failure to read the file
 	if errRead != nil {
 		fmt.Println("Token location error: ", errRead)
-	}
-	else {
+	} else {
 		fmt.Println("Read token from the filesystem: " + configInfoVars.Token)
 	}
 		

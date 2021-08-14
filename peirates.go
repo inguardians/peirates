@@ -892,7 +892,7 @@ Off-Menu         +
 						println("\nEnter a JWT: ")
 						fmt.Scanln(&token)
 						printJWT(token)
-					case "2:
+					case "2":
 						println("\nAvailable Service Accounts:")
 						for i, account := range serviceAccounts {
 							if account.Name == connectionString.TokenName {
