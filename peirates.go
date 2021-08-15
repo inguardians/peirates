@@ -847,7 +847,6 @@ Off-Menu         +
 				} else if tokNum < 0 || tokNum >= len(serviceAccounts) {
 					fmt.Printf("Service account %d does not exist!\n", tokNum)
 				} else {
-					tokNum = tokNum -1
 					assignServiceAccountToConnection(serviceAccounts[tokNum], &connectionString)
 					fmt.Printf("Selected %s // %s\n", connectionString.TokenName, connectionString.Token)
 				}
