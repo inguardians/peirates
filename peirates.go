@@ -907,8 +907,9 @@ Off-Menu         +
 						println("\nEnter service account number or exit to abort: ")
 						var tokNum int
 						fmt.Scanln(&input)
-						if input == "exit":
+						if input == "exit" {
 							break
+						}
 						_, err := fmt.Sscan(input, &tokNum)
 						if err != nil {
 							fmt.Printf("Error parsing service account selection: %s\n", err.Error())
