@@ -819,33 +819,33 @@ Off-Menu         +
 			case "1", "list":
 				println("\nAvailable Service Accounts:")
 				for i, account := range serviceAccounts {
-					num := i+1
 					if account.Name == connectionString.TokenName {
-						fmt.Printf("> [%d] %s\n", num, account.Name)
+						fmt.Printf("> [%d] %s\n", i, account.Name)
 					} else {
-						fmt.Printf("  [%d] %s\n", num, account.Name)
+						fmt.Printf("  [%d] %s\n", i, account.Name)
 					}
 				}
 			case "2", "switch":
 				println("\nAvailable Service Accounts:")
 				for i, account := range serviceAccounts {
-					num := i+1
 					if account.Name == connectionString.TokenName {
-						fmt.Printf("> [%d] %s\n", num, account.Name)
+						fmt.Printf("> [%d] %s\n", i, account.Name)
 					} else {
-						fmt.Printf("  [%d] %s\n", num, account.Name)
+						fmt.Printf("  [%d] %s\n", i, account.Name)
 					}
 				}
-				println("\nEnter service account number or 0 to abort: ")
+				println("\nEnter service account number or exit to abort: ")
 				var tokNum int
 				fmt.Scanln(&input)
+				if input == "exit" {
+					break
+				}
+				
 				_, err := fmt.Sscan(input, &tokNum)
 				if err != nil {
 					fmt.Printf("Error parsing service account selection: %s\n", err.Error())
 				} else if tokNum < 0 || tokNum >= len(serviceAccounts) {
 					fmt.Printf("Service account %d does not exist!\n", tokNum)
-				} else if tokNum == 0 {
-					println("Aborting service account switch...")
 				} else {
 					tokNum = tokNum -1
 					assignServiceAccountToConnection(serviceAccounts[tokNum], &connectionString)
@@ -898,25 +898,23 @@ Off-Menu         +
 					case "2":
 						println("\nAvailable Service Accounts:")
 						for i, account := range serviceAccounts {
-							num := i+1
 							if account.Name == connectionString.TokenName {
-								fmt.Printf("> [%d] %s\n", num, account.Name)
+								fmt.Printf("> [%d] %s\n", i, account.Name)
 							} else {
-								fmt.Printf("  [%d] %s\n", num, account.Name)
+								fmt.Printf("  [%d] %s\n", i, account.Name)
 							}
 						}
-						println("\nEnter service account number or 0 to abort: ")
+						println("\nEnter service account number or exit to abort: ")
 						var tokNum int
 						fmt.Scanln(&input)
+						if input == "exit":
+							break
 						_, err := fmt.Sscan(input, &tokNum)
 						if err != nil {
 							fmt.Printf("Error parsing service account selection: %s\n", err.Error())
-						} else if tokNum < 0 || tokNum > len(serviceAccounts) {
+						} else if tokNum < 0 || tokNum >= len(serviceAccounts) {
 							fmt.Printf("Service account %d does not exist!\n", tokNum)
-						} else if tokNum == 0 {
-							println("Aborting service account switch...")
 						} else {
-							tokNum = tokNum-1
 							printJWT(serviceAccounts[tokNum].Token)
 						}
 				}
