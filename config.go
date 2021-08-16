@@ -15,7 +15,7 @@ type ServerInfo struct {
 	RPort       string
 	Token       string // token ASCII text
 	TokenName   string // name of the token
-	CAPath      string // path to ca certificate
+	CAPath      string // path to Certificate Authority's certificate (public key)
 	Namespace   string // namespace that this pod's service account is tied to
 	UseAuthCanI bool
 }
