@@ -810,7 +810,7 @@ Off-Menu         +
 			println("[3] Enter new service account JWT [add]")
 			println("[4] Export service accounts to JSON [export]")
 			println("[5] Import service accounts from JSON [import]")
-			println("[6] Decode a service account token (JWT) [decode]")
+			println("[6] Decode a stored or entered service account token (JWT) [decode]")
 			
 			println("\n")
 
