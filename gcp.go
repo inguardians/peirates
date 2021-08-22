@@ -20,7 +20,7 @@ type GCPToken struct {
 	
 	
 // GetGCPBearerTokenFromMetadataAPI takes the name of a GCP service account and returns a token
-func GetGCPBearerTokenFromMetadataAPI(account string) (string, err) {
+func GetGCPBearerTokenFromMetadataAPI(account string) (string, error) {
 
 	headers := []HeaderLine{
 		HeaderLine{"Metadata-Flavor", "Google"},
