@@ -1095,24 +1095,31 @@ Off-Menu         +
 		case "13", "get-gcp-token":
 
 			// TODO: Store the GCP token and display, to bring this inline with the GCP functionality.
-			// Make a request for our service account(s)
+
+
+			// Make a request for a list of service account(s)
 			var headers []HeaderLine
 			headers = []HeaderLine{
 				HeaderLine{"Metadata-Flavor", "Google"},
 			}
-			svcAcctListRaw := GetRequest("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/", headers, false)
+			url := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/"
+			svcAcctListRaw := GetRequest(url, headers, false)
 			if (svcAcctListRaw == "") || (strings.HasPrefix(svcAcctListRaw, "ERROR:")) {
 				break
 			}
+
+			// Parse the output service accounts into svcAcctListLines
 			svcAcctListLines := strings.Split(string(svcAcctListRaw), "\n")
 
+			// For each line found found, request a token corresponding to that line and print it.
 			for _, line := range svcAcctListLines {
+
 				if strings.TrimSpace(string(line)) == "" {
 					continue
 				}
 				account := strings.TrimRight(string(line), "/")
-				fmt.Printf("\n[+] GCP Credentials for account %s\n\n", account)
 
+				fmt.Printf("\n[+] GCP Credentials for account %s\n\n", account)
 				println(GetGCPBearerTokenFromMetadataAPI(account))
 			}
 			println(" ")

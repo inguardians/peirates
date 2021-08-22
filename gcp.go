@@ -13,11 +13,12 @@ func GetGCPBearerTokenFromMetadataAPI(account string) string {
 	headers := []HeaderLine{
 		HeaderLine{"Metadata-Flavor", "Google"},
 	}
-	urlSvcAccount := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/" + account + "/token"
+	baseURL := http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/" 
+	urlSvcAccount := baseURL + account + "/token"
 
 	reqTokenRaw := GetRequest(urlSvcAccount, headers, false)
 	if (reqTokenRaw == "") || (strings.HasPrefix(reqTokenRaw, "ERROR:")) {
-		println("[-] Error - could not perform request ", urlSvcAccount)
+		println("[-] Error - could not perform request for ", urlSvcAccount)
 		return ("ERROR")
 	}
 	// Body will look like this, unless error has occurred: {"access_token":"xxxxxxx","expires_in":2511,"token_type":"Bearer"}
@@ -26,7 +27,15 @@ func GetGCPBearerTokenFromMetadataAPI(account string) string {
 	// TODO: Parse this as JSON
 	tokenElements := strings.Split(string(reqTokenRaw), "\"")
 	if tokenElements[1] == "access_token" {
-		return (tokenElements[3])
+		// TODO: STORE this token, replacing any with the same name that have <= this one's time to live.
+		tokenJWT := tokenElements[3]
+		// Parse out time to live - tokenElements[6] will look like :9999,
+		expiresInRight := (strings.Split(tokenElements[6], ":"))[1]
+		expiresInString := (strings.Split(expiresInRight, ","))[0]
+		expiresIn := int(exPiresInString)
+		fmt.Printf("Expires in %d seconds\n",expiresIn)
+		
+		return (tokenJWT)
 	} else {
 		println("[-] Error - could not find token in returned body text: ", string(reqTokenRaw))
 		return "ERROR"
