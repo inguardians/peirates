@@ -25,7 +25,7 @@ func GetGCPBearerTokenFromMetadataAPI(account string) (string, err) {
 	headers := []HeaderLine{
 		HeaderLine{"Metadata-Flavor", "Google"},
 	}
-	baseURL := http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/" 
+	baseURL := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/" 
 	urlSvcAccount := baseURL + account + "/token"
 
 	reqTokenRaw := GetRequest(urlSvcAccount, headers, false)
