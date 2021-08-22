@@ -13,14 +13,14 @@ import (
 
 type GCPToken struct {
 	Token string `json:"access_token"`
-	Expires int `json:"expires_in"`
+	Expires int64 `json:"expires_in"`
 	ExpirationTime time.Time
 	Type string `json:"token_type"`
 }
 	
 	
-// GetGCPBearerTokenFromMetadataAPI takes the name of a GCP service account and returns a token
-func GetGCPBearerTokenFromMetadataAPI(account string) (string, error) {
+// GetGCPBearerTokenFromMetadataAPI takes the name of a GCP service account and returns a token, a time it will expire and an error
+func GetGCPBearerTokenFromMetadataAPI(account string) (string, time.Time, error) {
 
 	headers := []HeaderLine{
 		HeaderLine{"Metadata-Flavor", "Google"},
@@ -34,23 +34,24 @@ func GetGCPBearerTokenFromMetadataAPI(account string) (string, error) {
 	if (reqTokenRaw == "") || (strings.HasPrefix(reqTokenRaw, "ERROR:")) {
 		errorString := "[-] Error - could not perform request for " + urlSvcAccount
 		println(errorString)
-		return "", errors.New(errorString)
+		return "", time.Now(), errors.New(errorString)
 	}
 
 	var token GCPToken
 	err := json.Unmarshal([]byte(reqTokenRaw), &token)
 	if err != nil {
-		return "",err
+		return "", time.Now(), err
 	}
 	
 	
 	if token.Type == "Bearer" {
-		returnStr := fmt.Sprintf("%s --- expiring in approx %d seconds ", token.Token, token.Expires)
-		return returnStr, nil
+		now := time.Now()
+		expiration := now.Add(time.Duration(token.Expires))
+		return token.Token, expiration, nil
 	} else {	
 		errorStr := "[-] Error - could not find token in returned body text: " + string(reqTokenRaw) 
 		println(errorStr)
-		return "", errors.New(errorStr)
+		return "", time.Now() , errors.New(errorStr)
 	}
 }
 
@@ -67,8 +68,8 @@ func KopsAttackGCP() (serviceAccountsToReturn []ServiceAccount, err error) {
 		placeTokensInStore = true
 	}
 
-	token := GetGCPBearerTokenFromMetadataAPI("default")
-	if token == "ERROR" {
+	token, _, err := GetGCPBearerTokenFromMetadataAPI("default")
+	if err != nil {
 		msg := "[-] Could not get GCP default token from metadata API"
 		println(msg)
 		return nil, errors.New(msg)
