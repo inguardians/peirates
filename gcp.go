@@ -2,13 +2,25 @@ package peirates
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
+// Tokens returned by the metadata API will look like this, unless error has occurred: {"access_token":"xxxxxxx","expires_in":2511,"token_type":"Bearer"}
+
+type GCPToken struct {
+	Token string `json:"access_token"`
+	Expires int `json:"expires_in"`
+	ExpirationTime time.Time
+	Type string `json:"token_type"`
+}
+	
+	
 // GetGCPBearerTokenFromMetadataAPI takes the name of a GCP service account and returns a token
-func GetGCPBearerTokenFromMetadataAPI(account string) string {
+func GetGCPBearerTokenFromMetadataAPI(account string) (string, err) {
 
 	headers := []HeaderLine{
 		HeaderLine{"Metadata-Flavor", "Google"},
@@ -17,28 +29,28 @@ func GetGCPBearerTokenFromMetadataAPI(account string) string {
 	urlSvcAccount := baseURL + account + "/token"
 
 	reqTokenRaw := GetRequest(urlSvcAccount, headers, false)
-	if (reqTokenRaw == "") || (strings.HasPrefix(reqTokenRaw, "ERROR:")) {
-		println("[-] Error - could not perform request for ", urlSvcAccount)
-		return ("ERROR")
-	}
-	// Body will look like this, unless error has occurred: {"access_token":"xxxxxxx","expires_in":2511,"token_type":"Bearer"}
+
 	// TODO: Add a check for a 200 status code
-	// Split the body on "" 's for now
-	// TODO: Parse this as JSON
-	tokenElements := strings.Split(string(reqTokenRaw), "\"")
-	if tokenElements[1] == "access_token" {
-		// TODO: STORE this token, replacing any with the same name that have <= this one's time to live.
-		tokenJWT := tokenElements[3]
-		// Parse out time to live - tokenElements[6] will look like :9999,
-		expiresInRight := (strings.Split(tokenElements[6], ":"))[1]
-		expiresInString := (strings.Split(expiresInRight, ","))[0]
-		expiresIn := int(exPiresInString)
-		fmt.Printf("Expires in %d seconds\n",expiresIn)
-		
-		return (tokenJWT)
-	} else {
-		println("[-] Error - could not find token in returned body text: ", string(reqTokenRaw))
-		return "ERROR"
+	if (reqTokenRaw == "") || (strings.HasPrefix(reqTokenRaw, "ERROR:")) {
+		errorString := "[-] Error - could not perform request for " + urlSvcAccount
+		println(errorString)
+		return "", errors.New(errorString)
+	}
+
+	var token GCPToken
+	err := json.Unmarshal(reqTokenRaw, &token)
+	if err != nil {
+		return "",err
+	}
+	
+	
+	if token.Type == "Bearer" {
+		returnStr := fmt.Sprintf("%s --- expiring in approx %d seconds ", token.Token, token.Expires)
+		return returnStr, nil
+	} else {	
+		errorStr := "[-] Error - could not find token in returned body text: " + string(reqTokenRaw) 
+		println(errorStr)
+		return "", errors.New(errorStr)
 	}
 }
 
