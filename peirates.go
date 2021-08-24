@@ -1120,7 +1120,10 @@ Off-Menu         +
 				account := strings.TrimRight(string(line), "/")
 
 				fmt.Printf("\n[+] GCP Credentials for account %s\n\n", account)
-				println(GetGCPBearerTokenFromMetadataAPI(account))
+				token, _, err := GetGCPBearerTokenFromMetadataAPI(account)
+				if err == nil {
+				   println(token)
+				}
 			}
 			println(" ")
 
