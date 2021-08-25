@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -12,20 +13,19 @@ import (
 // Tokens returned by the metadata API will look like this, unless error has occurred: {"access_token":"xxxxxxx","expires_in":2511,"token_type":"Bearer"}
 
 type GCPToken struct {
-	Token string `json:"access_token"`
-	Expires int64 `json:"expires_in"`
+	Token          string `json:"access_token"`
+	Expires        int64  `json:"expires_in"`
 	ExpirationTime time.Time
-	Type string `json:"token_type"`
+	Type           string `json:"token_type"`
 }
-	
-	
+
 // GetGCPBearerTokenFromMetadataAPI takes the name of a GCP service account and returns a token, a time it will expire and an error
 func GetGCPBearerTokenFromMetadataAPI(account string) (string, time.Time, error) {
 
 	headers := []HeaderLine{
 		HeaderLine{"Metadata-Flavor", "Google"},
 	}
-	baseURL := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/" 
+	baseURL := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/"
 	urlSvcAccount := baseURL + account + "/token"
 
 	reqTokenRaw := GetRequest(urlSvcAccount, headers, false)
@@ -38,22 +38,30 @@ func GetGCPBearerTokenFromMetadataAPI(account string) (string, time.Time, error)
 	}
 
 	println("DEBUG: found token: " + reqTokenRaw)
-	
+
 	var token GCPToken
 	err := json.Unmarshal([]byte(reqTokenRaw), &token)
 	if err != nil {
 		return "", time.Now(), err
 	}
-	
-	
+
+	// Remove any padding (...) from the token value.
+	// Regexp: ^(.*[^.])\.*$ - grab the first match group from this.
+
+	re := regexp.MustCompile(`^(.*[^.])\.*$`)
+	if re.Match([]byte(token.Token)) {
+		matches := re.FindSubmatch([]byte(token.Token))
+		token.Token = string(matches[1])
+	}
+
 	if token.Type == "Bearer" {
 		now := time.Now()
 		expiration := now.Add(time.Duration(token.Expires))
 		return token.Token, expiration, nil
-	} else {	
-		errorStr := "[-] Error - could not find token in returned body text: " + string(reqTokenRaw) 
+	} else {
+		errorStr := "[-] Error - could not find token in returned body text: " + string(reqTokenRaw)
 		println(errorStr)
-		return "", time.Now() , errors.New(errorStr)
+		return "", time.Now(), errors.New(errorStr)
 	}
 }
 
