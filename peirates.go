@@ -549,7 +549,7 @@ func banner(connectionString ServerInfo, awsCredentials AWSCredentials, assumedA
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.34 by InGuardians
+	Peirates v1.0.35 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -811,7 +811,7 @@ Off-Menu         +
 			println("[4] Export service accounts to JSON [export]")
 			println("[5] Import service accounts from JSON [import]")
 			println("[6] Decode a stored or entered service account token (JWT) [decode]")
-			
+
 			println("\n")
 
 			fmt.Scanln(&input)
@@ -840,7 +840,7 @@ Off-Menu         +
 				if input == "exit" {
 					break
 				}
-				
+
 				_, err := fmt.Sscan(input, &tokNum)
 				if err != nil {
 					fmt.Printf("Error parsing service account selection: %s\n", err.Error())
@@ -890,35 +890,35 @@ Off-Menu         +
 				fmt.Scanln(&input)
 
 				switch input {
-					case "1":
-						println("\nEnter a JWT: ")
-						fmt.Scanln(&token)
-						printJWT(token)
-					case "2":
-						println("\nAvailable Service Accounts:")
-						for i, account := range serviceAccounts {
-							if account.Name == connectionString.TokenName {
-								fmt.Printf("> [%d] %s\n", i, account.Name)
-							} else {
-								fmt.Printf("  [%d] %s\n", i, account.Name)
-							}
-						}
-						println("\nEnter service account number or exit to abort: ")
-						var tokNum int
-						fmt.Scanln(&input)
-						if input == "exit" {
-							break
-						}
-						_, err := fmt.Sscan(input, &tokNum)
-						if err != nil {
-							fmt.Printf("Error parsing service account selection: %s\n", err.Error())
-						} else if tokNum < 0 || tokNum >= len(serviceAccounts) {
-							fmt.Printf("Service account %d does not exist!\n", tokNum)
+				case "1":
+					println("\nEnter a JWT: ")
+					fmt.Scanln(&token)
+					printJWT(token)
+				case "2":
+					println("\nAvailable Service Accounts:")
+					for i, account := range serviceAccounts {
+						if account.Name == connectionString.TokenName {
+							fmt.Printf("> [%d] %s\n", i, account.Name)
 						} else {
-							printJWT(serviceAccounts[tokNum].Token)
+							fmt.Printf("  [%d] %s\n", i, account.Name)
 						}
+					}
+					println("\nEnter service account number or exit to abort: ")
+					var tokNum int
+					fmt.Scanln(&input)
+					if input == "exit" {
+						break
+					}
+					_, err := fmt.Sscan(input, &tokNum)
+					if err != nil {
+						fmt.Printf("Error parsing service account selection: %s\n", err.Error())
+					} else if tokNum < 0 || tokNum >= len(serviceAccounts) {
+						fmt.Printf("Service account %d does not exist!\n", tokNum)
+					} else {
+						printJWT(serviceAccounts[tokNum].Token)
+					}
 				}
-				
+
 			}
 
 		// [2] List namespaces or change namespace
@@ -1096,7 +1096,6 @@ Off-Menu         +
 
 			// TODO: Store the GCP token and display, to bring this inline with the GCP functionality.
 
-
 			// Make a request for a list of service account(s)
 			var headers []HeaderLine
 			headers = []HeaderLine{
@@ -1122,7 +1121,7 @@ Off-Menu         +
 				fmt.Printf("\n[+] GCP Credentials for account %s\n\n", account)
 				token, _, err := GetGCPBearerTokenFromMetadataAPI(account)
 				if err == nil {
-				   println(token)
+					println(token)
 				}
 			}
 			println(" ")
