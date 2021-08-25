@@ -37,8 +37,6 @@ func GetGCPBearerTokenFromMetadataAPI(account string) (string, time.Time, error)
 		return "", time.Now(), errors.New(errorString)
 	}
 
-	println("DEBUG: found token: " + reqTokenRaw)
-
 	var token GCPToken
 	err := json.Unmarshal([]byte(reqTokenRaw), &token)
 	if err != nil {
