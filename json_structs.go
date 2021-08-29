@@ -172,7 +172,7 @@ type GetNodeDetails struct {
 		Status struct {
 			Addresses []struct {
 				Address string `json:"address"`
-				Type    string `"json:type"`
+				Type    string `json:"type"`
 			} `json:"addresses"`
 		} `json:"status"`
 	} `json:"items"`
