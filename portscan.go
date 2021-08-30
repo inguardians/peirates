@@ -89,6 +89,6 @@ func cidrHosts(network string) []string {
 	return hosts
 }
 
-func main() {
-	scan_controller("192.168.48.1/24")
+func test() {
+	scan_controller(cidrHosts("192.168.48.0/24"))
 }
