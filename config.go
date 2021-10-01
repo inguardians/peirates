@@ -25,6 +25,9 @@ func ParseLocalServerInfo() ServerInfo {
 	// Creating an object of ServerInfo type, which we'll poppulate in this function.
 	var configInfoVars ServerInfo
 
+	// Check to see if the configuration information we require is in environment variables and
+	// a token file, as it would be in a running pod under default configuration.
+
 	// Read IP address and port number for API server out of environment variables
 	configInfoVars.RIPAddress = os.Getenv("KUBERNETES_SERVICE_HOST")
 	configInfoVars.RPort = os.Getenv("KUBERNETES_SERVICE_PORT")
@@ -32,28 +35,27 @@ func ParseLocalServerInfo() ServerInfo {
 	// Reading token file and storing in variable token
 	const tokenFile = ServiceAccountPath + "token"
 	token, errRead := ioutil.ReadFile(tokenFile)
-	configInfoVars.Token = string(token)
 
-	//Error message If statement based on failure to read the file
-	if errRead != nil {
-		fmt.Println("Token location error: ", errRead)
-	} else {
-		fmt.Println("Read token from the filesystem: " + configInfoVars.Token)
+	// Only return output if a JWT was found.
+	if errRead == nil {
+		configInfoVars.Token = string(token)
+		fmt.Println("Read a service account token from " + tokenFile)
+		// Name the token for its hostname / pod
+		configInfoVars.TokenName = "Pod ns:" + configInfoVars.Namespace + ":" + os.Getenv("HOSTNAME")
 	}
-		
 
-	// Reading namespace file and storing in variable namespace
+	// Reading namespace file and store in variable namespace
 	namespace, errRead := ioutil.ReadFile(ServiceAccountPath + "namespace")
-	if errRead != nil {
-		fmt.Println("Namespaces location error", errRead)
+	if errRead == nil {
+		configInfoVars.Namespace = string(namespace)
 	}
-	configInfoVars.Namespace = string(namespace)
 
-	// Name the token for its pod
-	configInfoVars.TokenName = "Pod ns:" + configInfoVars.Namespace + ":" + os.Getenv("HOSTNAME")
-
-	//Reading Ca.Crt File and storing in variable caCrt
-	configInfoVars.CAPath = ServiceAccountPath + "ca.crt"
+	// Attempt to read a ca.crt file from the normal pod location - store if found.
+	expectedCACertPath := ServiceAccountPath + "ca.crt"
+	_, err := ioutil.ReadFile(expectedCACertPath)
+	if err == nil {
+		configInfoVars.CAPath = expectedCACertPath
+	}
 
 	return configInfoVars
 }
