@@ -3,21 +3,26 @@
 package peirates
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 )
 
 const ServiceAccountPath = "/var/run/secrets/kubernetes.io/serviceaccount/"
 
 type ServerInfo struct {
-	RIPAddress  string
-	RPort       string
-	Token       string // token ASCII text
-	TokenName   string // name of the token
-	CAPath      string // path to Certificate Authority's certificate (public key)
-	Namespace   string // namespace that this pod's service account is tied to
-	UseAuthCanI bool
+	RIPAddress     string
+	RPort          string
+	Token          string // service account token ASCII text, if present
+	TokenName      string // name of the service account token, if present
+	ClientCertPath string // path to the client certificate, if present
+	ClientKeyPath  string // path to the client key, if present
+	ClientCertName string // name of the client cert, if present
+	CAPath         string // path to Certificate Authority's certificate (public key)
+	Namespace      string // namespace that this pod's service account is tied to
+	UseAuthCanI    bool
 }
 
 func ParseLocalServerInfo() ServerInfo {
@@ -60,8 +65,110 @@ func ParseLocalServerInfo() ServerInfo {
 	return configInfoVars
 }
 
-func checkForNodeCredentials() []ServiceAccount, Error {
+func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) error {
 
-	println("TODO: Implement this. Next few lines are a kludge.")
-	return ("Implement this stub")
+	// Paths to explore:
+	// /etc/kubernetes/kubelet.conf
+	// /var/lib/kubelet/kubeconfig
+	// /
+
+	// Determine if one of the paths above exists and use it to get kubelet keypairs
+	kubeletKubeconfigFilePaths := make([]string, 0)
+
+	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/etc/kubernetes/kubelet.conf")
+	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/var/lib/kubelet/kubeconfig")
+
+	for _, path := range kubeletKubeconfigFilePaths {
+		// On each path, check for existence of the file.
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			//println("DEBUG: no file found at " + path)
+			continue
+		}
+
+		file, err := os.Open(path)
+		if err != nil {
+			// println("DEBUG: Could not open file at " + path)
+			continue
+		}
+
+		scanner := bufio.NewScanner(file)
+		scanner.Split(bufio.ScanLines)
+
+		// We're parsing this part of the file, looking for these lines:
+		// users:
+		// - name: system:node:nodename
+		// user:
+		//   client-certificate: /var/lib/kubelet/pki/kubelet-client-current.pem
+		//   client-key: /var/lib/kubelet/pki/kubelet-client-current.pem
+
+		const clientCertConst = "client-certificate: "
+		const clientKeyConst = "client-key: "
+		const usersBlockStart = "users:"
+		const userStart = "user:"
+		const nameLineStart = "- name: "
+
+		foundFirstUsersBlock := false
+		foundFirstUser := false
+
+		// Create empty strings for the client cert-key pair object
+		clientName := "kubelet"
+		clientCertPath := ""
+		clientKeyPath := ""
+
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+
+			if !foundFirstUsersBlock {
+				if strings.HasPrefix(line, usersBlockStart) {
+					foundFirstUsersBlock = true
+				}
+				// until we have found the Users: block, we're not looking for the other patterns.
+				continue
+			}
+
+			// We've found the users block, now looking for a name or a user statement.
+			if !foundFirstUser {
+				if strings.HasPrefix(line, userStart) {
+					foundFirstUser = true
+				} else if strings.HasPrefix(line, nameLineStart) {
+					clientName = strings.TrimPrefix(line, nameLineStart)
+				}
+
+				// until we have found the User: block, we're not looking for user's key and cert.
+				continue
+			}
+
+			if strings.Contains(line, clientCertConst) {
+
+				clientCertPath = strings.TrimPrefix(line, clientCertConst)
+
+				// TODO: confirm we can read the file
+			} else if strings.Contains(line, clientKeyConst) {
+				clientKeyPath = strings.TrimPrefix(line, clientKeyConst)
+				// TODO: confirm we can read the file
+			}
+
+			// Can we stop yet?
+			// Feature request: abstract this to parse any client certificate items, not just kubelet.
+			if len(clientKeyPath) > 0 && len(clientCertPath) > 0 {
+				// Store the key!
+				println("Found key " + clientName)
+
+				var thisClientCertKeyPair ClientCertificateKeyPair
+				thisClientCertKeyPair.ClientCertificatePath = clientCertPath
+				thisClientCertKeyPair.ClientKeyPath = clientKeyPath
+				thisClientCertKeyPair.Name = clientName
+
+				*clientCertificates = append(*clientCertificates, thisClientCertKeyPair)
+
+				break
+
+			}
+
+		}
+		file.Close()
+
+	}
+
+	return (nil)
 }

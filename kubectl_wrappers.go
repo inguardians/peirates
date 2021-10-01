@@ -8,6 +8,7 @@ package peirates
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -88,17 +89,37 @@ func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) er
 }
 
 // runKubectlWithConfig takes a server config, and a list of arguments. It executes kubectl internally,
-// setting the namespace, token, certificate authority, and server based on the provided config, and
+// setting the namespace, authn secrets, certificate authority, and server based on the provided config, and
 // appending the supplied arguments to the end of the command.
 //
 // NOTE: You should generally use runKubectlSimple() to call this.
 func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
+
+	// Confirm that we have a server IP address
+	if len(cfg.RIPAddress) == 0 {
+		return errors.New("API server IP address missing.")
+	}
+	if len(cfg.RPort) == 0 {
+		return errors.New("API server port missing.")
+	}
+
+	// Confirm that we have a certificate authority path entry.
+	if len(cfg.CAPath) == 0 {
+		return errors.New("Certificate Authority Path not defined - will not communicate with API server")
+	}
+
 	connArgs := []string{
 		"-n", cfg.Namespace,
-		"--token=" + cfg.Token,
 		"--certificate-authority=" + cfg.CAPath,
 		"--server=https://" + cfg.RIPAddress + ":" + cfg.RPort,
 	}
+
+	// If we are using token-based authentication, append that.
+	if len(cfg.Token) > 0 {
+		// Append the token to connArgs
+		connArgs = append(connArgs, "--token="+cfg.Token)
+	}
+
 	return runKubectl(stdin, stdout, stderr, append(connArgs, cmdArgs...)...)
 }
 
