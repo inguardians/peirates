@@ -712,9 +712,6 @@ func Main() {
 	var Namespaces []string
 	println(Namespaces)
 
-	//kubeData.arg =""
-	//kubeData.list = {}
-
 	// Run the option parser to initialize connectionStrings
 	parseOptions(&cmdOpts)
 
