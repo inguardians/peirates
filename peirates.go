@@ -40,7 +40,7 @@ var awsCredentials AWSCredentials
 // Make room for an assumed role.
 var assumedAWSrole AWSCredentials
 
-// getPodList returns an array of running pod names, parsed from "kubectl -n namespace get pods"
+// getPodList returns an array of running pod information, parsed from "kubectl -n namespace get pods -o json"
 func getPodList(connectionString ServerInfo) []string {
 
 	if !kubectlAuthCanI(connectionString, "get", "pods") {
