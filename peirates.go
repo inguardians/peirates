@@ -718,6 +718,15 @@ func Main() {
 	// List of current service accounts
 	serviceAccounts := []ServiceAccount{MakeNewServiceAccount(connectionString.TokenName, connectionString.Token, "Loaded at startup")}
 
+	// Add the kubelet kubeconfig and authentication information if available.
+	_, err := checkForNodeCredentials()
+	if err == nil
+		println("STUB: Found one or more service accounts on the node")
+		println("TODO: Implement me - we got a Kubelet cert?")
+	}
+
+	// Add the service account tokens for any pods found in /var/lib/kubelet/pods/.
+
 	// Check environment variables - see KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT
 	// Watch the documentation on these variables for changes:
 	// https://kubernetes.io/docs/concepts/containers/container-environment-variables/

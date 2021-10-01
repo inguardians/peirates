@@ -59,3 +59,9 @@ func ParseLocalServerInfo() ServerInfo {
 
 	return configInfoVars
 }
+
+func checkForNodeCredentials() []ServiceAccount, Error {
+
+	println("TODO: Implement this. Next few lines are a kludge.")
+	return ("Implement this stub")
+}
