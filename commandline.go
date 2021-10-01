@@ -47,8 +47,7 @@ func parseOptions(opts *CommandLineOptions) {
 		log.Fatal("Error: must provide an IP address for the Kubernetes API server (-i)")
 	}
 	if opts.connectionConfig.RPort == "" {
-		flagset.Usage()
-		log.Fatal("Error: must provide a port for a Kubernetes API server (-p)")
+		opts.connectionConfig.RPort = "443"
 	}
 	if opts.connectionConfig.Token != "" {
 		log.Println("JWT provided on the command line.")
