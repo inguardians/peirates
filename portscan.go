@@ -6,13 +6,13 @@ import (
 	"log"
 	"net"
 	"sort"
-"time"
+	"time"
 )
 
 func scan_worker(ip string, ports, results chan int) {
 	for p := range ports {
 		ip_port := fmt.Sprintf("%s:%d", ip, p)
-//		fmt.Printf("DEBUG: checking %s:%d\n", ip, p)
+		//		fmt.Printf("DEBUG: checking %s:%d\n", ip, p)
 		conn, err := net.DialTimeout("tcp", ip_port, 50*time.Millisecond)
 		if err != nil {
 			results <- 0
@@ -90,5 +90,6 @@ func cidrHosts(network string) []string {
 }
 
 func test() {
-	scan_controller(cidrHosts("192.168.48.0/24"))
+	println("Test")
+	// scan_controller(cidrHosts("192.168.48.0/24"))
 }
