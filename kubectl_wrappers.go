@@ -113,7 +113,8 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 	if len(cfg.KubeconfigFilePath) > 0 {
 		// We are in kubeconfig mode.
 		println("DEBUG: using kubeconfig")
-		connArgs = append(connArgs, "--kubeconfig "+cfg.KubeconfigFilePath)
+		connArgs = append(connArgs, "--kubeconfig ")
+		connArgs = append(connArgs, cfg.KubeconfigFilePath)
 
 		for _, item := range connArgs {
 			println("Conn arg:" + item + "===")
