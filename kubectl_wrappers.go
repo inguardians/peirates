@@ -30,6 +30,12 @@ import (
 //
 // NOTE: You should generally use runKubectlSimple(), which calls runKubectlWithConfig, which calls this.
 func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
+
+	println("DEBUG: arguments for kubectl")
+	for _, str := range cmdArgs {
+		println("DEBUG: " + str)
+	}
+
 	cmd := exec.Cmd{
 		Path:   "/proc/self/exe",
 		Args:   append([]string{"kubectl"}, cmdArgs...),
