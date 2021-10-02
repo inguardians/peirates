@@ -17,11 +17,11 @@ type ServiceAccount struct {
 	DiscoveryMethod string    // How the service account was discovered (file on disk, secrets, user input, etc.)
 }
 
-// ClientCertificateKeyPair stores certificate and key information for one principal.
-type ClientCertificateKeyPair struct {
-	Name                  string // Client cert-key pair name
-	ClientKeyPath         string // Client key file path
-	ClientCertificatePath string // Client cert file path
+// KubeconfigFile stores the path to a kubeconfig file, like a Kubelet, kube-proxy, or a user.
+type KubeconfigFile struct {
+	Name string
+	Path string // Path to the kubeconfig file
+
 }
 
 // MakeNewServiceAccount creates a new service account with the provided name,
@@ -35,11 +35,10 @@ func MakeNewServiceAccount(name, token, discoveryMethod string) ServiceAccount {
 	}
 }
 
-func MakeClientCertificateKeyPair(name, clientCertificatePath, clientKeyPath string) ClientCertificateKeyPair {
-	return ClientCertificateKeyPair{
-		Name:                  name,
-		ClientKeyPath:         clientKeyPath,
-		ClientCertificatePath: clientCertificatePath,
+func MakeNewKubeconfigFile(name, path string) KubeconfigFile {
+	return KubeconfigFile{
+		Name: name,
+		Path: path,
 	}
 }
 
@@ -63,17 +62,15 @@ func assignServiceAccountToConnection(account ServiceAccount, info *ServerInfo) 
 	info.TokenName = account.Name
 	info.Token = account.Token
 
-	// Zero out any client certificate + key, so it's clear what to authenticate with.
-	info.ClientCertPath = ""
-	info.ClientKeyPath = ""
-	info.ClientCertName = ""
+	// Zero out any kubeconfig file, so it's clear what to authenticate with.
+	info.KubeconfigFileName = ""
+	info.KubeconfigFilePath = ""
 
 }
 
-func assignAuthenticationCertificateAndKeyToConnection(keypair ClientCertificateKeyPair, info *ServerInfo) {
-	info.ClientCertPath = keypair.ClientCertificatePath
-	info.ClientKeyPath = keypair.ClientKeyPath
-	info.ClientCertName = keypair.Name
+func assignKubeconfigFileToConnection(thisKubeconfigFile KubeconfigFile, info *ServerInfo) {
+	info.KubeconfigFileName = thisKubeconfigFile.Name
+	info.KubeconfigFilePath = thisKubeconfigFile.Path
 
 	// Zero out any service account token, so it's clear what to authenticate with.
 	info.TokenName = ""

@@ -95,29 +95,51 @@ func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) er
 // NOTE: You should generally use runKubectlSimple() to call this.
 func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
 
-	// Confirm that we have a server IP address
-	if len(cfg.RIPAddress) == 0 {
-		return errors.New("API server IP address missing.")
-	}
-	if len(cfg.RPort) == 0 {
-		return errors.New("API server port missing.")
+	connArgs := make([]string, 0)
+	// connArgs := []string{}
+
+	if len(cfg.Namespace) > 0 {
+		connArgs = append(connArgs, "-n "+cfg.Namespace)
 	}
 
-	// Confirm that we have a certificate authority path entry.
-	if len(cfg.CAPath) == 0 {
-		return errors.New("Certificate Authority Path not defined - will not communicate with API server")
-	}
+	println("DEBUG: here is filepath " + cfg.KubeconfigFilePath)
+	// Check to see if we're in kubeconfig mode or token mode..
+	if len(cfg.KubeconfigFilePath) > 0 {
+		// We are in kubeconfig mode.
+		println("DEBUG: using kubeconfig")
+		connArgs = append(connArgs, "--kubeconfig "+cfg.KubeconfigFilePath)
 
-	connArgs := []string{
-		"-n", cfg.Namespace,
-		"--certificate-authority=" + cfg.CAPath,
-		"--server=https://" + cfg.RIPAddress + ":" + cfg.RPort,
-	}
+		for _, item := range connArgs {
+			println("Conn arg:" + item + "===")
+		}
+	} else if len(cfg.Token) > 0 {
+		// We are in token mode
+		println("DEBUG: we are in token mode")
 
-	// If we are using token-based authentication, append that.
-	if len(cfg.Token) > 0 {
-		// Append the token to connArgs
-		connArgs = append(connArgs, "--token="+cfg.Token)
+		// Confirm that we have a server IP address
+		if len(cfg.RIPAddress) == 0 {
+			return errors.New("API server IP address missing.")
+		}
+		if len(cfg.RPort) == 0 {
+			return errors.New("API server port missing.")
+		} else {
+			connArgs = append(connArgs, "--server=https://"+cfg.RIPAddress+":"+cfg.RPort)
+		}
+
+		// Confirm that we have a certificate authority path entry.
+		if len(cfg.CAPath) == 0 {
+			return errors.New("Certificate Authority Path not defined - will not communicate with API server")
+		} else {
+			connArgs = append(connArgs, "--certificate-authority="+cfg.CAPath)
+		}
+
+		// If we are using token-based authentication, append that.
+		if len(cfg.Token) > 0 {
+			// Append the token to connArgs
+			connArgs = append(connArgs, "--token="+cfg.Token)
+		}
+	} else {
+		return (errors.New("No authentication defined!"))
 	}
 
 	return runKubectl(stdin, stdout, stderr, append(connArgs, cmdArgs...)...)

@@ -48,7 +48,7 @@ func getPodList(connectionString ServerInfo) []string {
 		return []string{}
 	}
 
-	responseJSON, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
+	responseJSON, _, err := runKubectlSimple(connectionString, " get", "pods", "-o", "json")
 	if err != nil {
 		fmt.Printf("[-] Error while getting pods: %s\n", err.Error())
 		return []string{}
@@ -557,8 +557,8 @@ ________________________________________
 
 		fmt.Printf("[+] Service Account Loaded: %s\n", connectionString.TokenName)
 	}
-	if connectionString.ClientCertPath != "" {
-		fmt.Printf("[+] Client Certificate/Key Pair Loaded: %s\n", connectionString.ClientCertName)
+	if connectionString.KubeconfigFilePath != "" {
+		fmt.Printf("[+] Client Certificate/Key Pair Loaded: %s\n", connectionString.KubeconfigFileName)
 	}
 	var haveCa bool = false
 	if connectionString.CAPath != "" {
@@ -721,16 +721,14 @@ func Main() {
 	// List of current service accounts
 	serviceAccounts := []ServiceAccount{MakeNewServiceAccount(connectionString.TokenName, connectionString.Token, "Loaded at startup")}
 
-	// List of current client cert/key pairs
-	clientCertificates := []ClientCertificateKeyPair{}
+	// List of current kubeconfig files
+	kubeconfigFiles := []KubeconfigFile{}
 
 	// Add the kubelet kubeconfig and authentication information if available.
-	err := checkForNodeCredentials(&clientCertificates)
+	err := checkForNodeCredentials(&kubeconfigFiles)
 	if err != nil {
 		println("Error found when testing for kubelet or other node credentials.")
 	}
-	println("Length of clientCertificates is ")
-	println(len(clientCertificates))
 	// Add the service account tokens for any pods found in /var/lib/kubelet/pods/.
 
 	// Check environment variables - see KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT
@@ -1007,12 +1005,12 @@ Off-Menu         +
 			assumedAWSrole.AccessKeyId = ""
 			assumedAWSrole.accountName = ""
 
-		// [9] Switch authentication contexts: certificate-based authentication (kubelet, kubeproxy, manually-entered) [cert-menu]
+		// [9] Use kubeconfig file for authentication contexts (kubelet, kubeproxy, manually-entered path) [kubeconfig]
 		case "9", "cert-menu":
-			println("Current certificate-based authentication: ", connectionString.ClientCertName)
+			println("Current kubeconfig file: ", connectionString.KubeconfigFileName)
 			println("\n")
-			println("[1] List client certificates [list]")
-			println("[2] Switch active client certificates [switch]")
+			println("[1] List kubeconfig files [list]")
+			println("[2] Switch active kubeconfig files [switch]")
 			// println("[3] Enter new client certificate and key [add]")
 			// println("[4] Export service accounts to JSON [export]")
 			// println("[5] Import service accounts from JSON [import]")
@@ -1023,16 +1021,16 @@ Off-Menu         +
 			fmt.Scanln(&input)
 			switch strings.ToLower(input) {
 			case "1", "list":
-				println("\nAvailable Client Certificate/Key Pairs:")
-				for i, account := range clientCertificates {
+				println("\nAvailable kubeconfig files:")
+				for i, account := range kubeconfigFiles {
 					fmt.Printf("  [%d] %s\n", i, account.Name)
 				}
 			case "2", "switch":
 				println("\nAvailable Client Certificate/Key Pairs:")
-				for i, account := range clientCertificates {
+				for i, account := range kubeconfigFiles {
 					fmt.Printf("  [%d] %s\n", i, account.Name)
 				}
-				println("\nEnter certificate/key pair number or exit to abort: ")
+				println("\nEnter kubeconfig file number or exit to abort: ")
 				var tokNum int
 				fmt.Scanln(&input)
 				if input == "exit" {
@@ -1041,12 +1039,12 @@ Off-Menu         +
 
 				_, err := fmt.Sscan(input, &tokNum)
 				if err != nil {
-					fmt.Printf("Error parsing certificate/key pair selection: %s\n", err.Error())
-				} else if tokNum < 0 || tokNum >= len(clientCertificates) {
-					fmt.Printf("Certificate/key pair  %d does not exist!\n", tokNum)
+					fmt.Printf("Error kubeconfig file selection: %s\n", err.Error())
+				} else if tokNum < 0 || tokNum >= len(kubeconfigFiles) {
+					fmt.Printf("kubeconfig file %d does not exist!\n", tokNum)
 				} else {
-					assignAuthenticationCertificateAndKeyToConnection(clientCertificates[tokNum], &connectionString)
-					fmt.Printf("Selected %s\n", connectionString.ClientCertName)
+					assignKubeconfigFileToConnection(kubeconfigFiles[tokNum], &connectionString)
+					fmt.Printf("Selected %s\n", connectionString.KubeconfigFileName)
 				}
 			}
 
