@@ -205,6 +205,9 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 		return
 	}
 
+	// Store a count of how many service accounts are currently held, so we can report if we found new ones.
+	startingNumberServiceAccounts := len(*serviceAccounts)
+
 	// Read the directory for a list of subdirs (pods)
 	// dir in * ; do  echo "-------"; echo $dir; ls $dir/volumes/kuber*secret/; done | less
 	dirs, err := ioutil.ReadDir(kubeletPodsDir)
@@ -220,67 +223,41 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 		// default-token-5sfvg  registry-htpasswd  registry-pki
 		//
 		secretPath := kubeletPodsDir + pod.Name() + subDir
-		println("Checking out " + secretPath)
 
 		if _, err := os.Stat(secretPath); os.IsNotExist(err) {
 			continue
 		}
 		secrets, err := ioutil.ReadDir(secretPath)
 		if err != nil {
-			println("DEBUG: directory can't be read " + secretPath)
-			var input string
-			fmt.Scanln(&input)
-			println(input)
-
 			continue
 		}
 		fmt.Printf("DEBUG: found %d secrets\n", len(secrets))
 		for _, secret := range secrets {
-			println("DEBUG: Secret name is " + secret.Name())
 			if strings.Contains(secret.Name(), "-token-") {
-				println("DEBUG: found a token directory")
 				tokenFilePath := secretPath + secret.Name() + "/token"
-				println("DEBUG: checking out " + tokenFilePath)
 				if _, err := os.Stat(tokenFilePath); os.IsNotExist(err) {
-					println("DEBUG: file dne " + tokenFilePath)
-					var input string
-					fmt.Scanln(&input)
-					println(input)
 					continue
 				}
 				println("DEBUG: getting read to read token file")
 				tokenBytes, err := ioutil.ReadFile(tokenFilePath)
 				if err != nil {
-					println("DEBUG: couldn't read file")
-					var input string
-					fmt.Scanln(&input)
-					println(input)
-
 					continue
 				}
 				token := string(tokenBytes)
-				println("DEBUG: parsed out JWT!")
 
 				// If possible, name the token for the namespace
 				namespacePath := secretPath + "/" + secret.Name() + "/namespace"
 				if _, err := os.Stat(namespacePath); os.IsNotExist(err) {
-					println("DEBUG: couldn't find namespace file " + namespacePath)
-					var input string
-					fmt.Scanln(&input)
-					println(input)
 					continue
 				}
 				namespaceBytes, err := ioutil.ReadFile(namespacePath)
 				if err != nil {
-					println("DEBUG: couldn't read namespace file " + namespacePath)
-					var input string
-					fmt.Scanln(&input)
-					println(input)
 					continue
 				}
 				namespace := string(namespaceBytes)
 				secretName := namespace + "/" + secret.Name()
-				// FEATURE REQUEST: spell out which node.
+				// FEATURE REQUEST: spell out which node this was found on in the last arg.
+				// FEATURE REQUEST: don't add a service account if we already have it.
 				*serviceAccounts = append(*serviceAccounts, MakeNewServiceAccount(secretName, string(token), "pod secret harvested from node "))
 			} else {
 				println("DEBUG: non-token secret found in " + pod.Name() + " called " + secret.Name())
@@ -288,9 +265,12 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 		}
 	}
 
-	var input string
-	fmt.Scanln(&input)
-	println(input)
-	return
+	newServiceAccountsCount := len(*serviceAccounts) - startingNumberServiceAccounts
+	if newServiceAccountsCount > 0 {
+		fmt.Printf("%d new service accounts pulled from this node's %s directory.\nPlease hit Enter to continue.", newServiceAccountsCount, kubeletPodsDir)
+		var input string
+		fmt.Scanln(&input)
+		println(input)
+	}
 
 }
