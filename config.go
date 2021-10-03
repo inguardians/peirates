@@ -240,7 +240,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 
 			continue
 		}
-		println("DEBUG: found " + len(secrets) + "secrets")
+		fmt.Printf("DEBUG: found %d secrets", len(secrets))
 		for _, secret := range secrets {
 			if strings.Contains(secret.Name(), "-token-") {
 				println("DEBUG: found a token directory")
