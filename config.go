@@ -249,7 +249,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 					continue
 				}
 				println("DEBUG: getting read to read token file")
-				tokenBase64Bytes, err := ioutil.ReadFile(tokenFilePath)
+				tokenBytes, err := ioutil.ReadFile(tokenFilePath)
 				if err != nil {
 					println("DEBUG: couldn't read file")
 					var input string
@@ -258,23 +258,24 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 
 					continue
 				}
-				token, err := base64.StdEncoding.DecodeString(string(tokenBase64Bytes))
-				if err != nil {
-					println("DEBUG: Base64 decoding failed")
-					var input string
-					fmt.Scanln(&input)
-					println(input)
-					continue
-				}
+				token := string(tokenBytes)
 				println("DEBUG: parsed out JWT!")
 
 				// If possible, name the token for the namespace
 				namespacePath := secretPath + "/" + secret.Name() + "/namespace"
 				if _, err := os.Stat(namespacePath); os.IsNotExist(err) {
+					println("DEBUG: couldn't find namespace file " + namespacePath)
+					var input string
+					fmt.Scanln(&input)
+					println(input)
 					continue
 				}
 				namespaceBytes, err := ioutil.ReadFile(namespacePath)
 				if err != nil {
+					println("DEBUG: couldn't read namespace file " + namespacePath)
+					var input string
+					fmt.Scanln(&input)
+					println(input)
 					continue
 				}
 				namespace := string(namespaceBytes)
