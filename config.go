@@ -262,6 +262,10 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 			}
 		}
 	}
+
+	var input string
+	fmt.Scanln(&input)
+	println(input)
 	return
 
 }
