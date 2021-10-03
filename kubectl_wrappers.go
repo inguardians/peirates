@@ -181,7 +181,11 @@ func kubectlAuthCanI(cfg ServerInfo, verb, resource string) bool {
 	}
 
 	if UseAuthCanI != true {
-		return !UseAuthCanI
+		return true
+	}
+	// This doesn't work for certificate authentication yet.
+	if len(cfg.ClientCertPath) > 0 {
+		return true
 	}
 
 	query := SelfSubjectAccessReviewQuery{

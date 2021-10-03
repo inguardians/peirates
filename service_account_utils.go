@@ -81,14 +81,15 @@ func assignAuthenticationCertificateAndKeyToConnection(keypair ClientCertificate
 	const CAPath = "/tmp/ca.crt"
 	file, err := os.Create(CAPath)
 	if err != nil {
-		println("DEBUG: could not open for writing: " + CAPath)
+		println("ERROR: could not open for writing: " + CAPath)
 		return
 	}
 	defer file.Close()
 
 	_, err2 := file.WriteString(keypair.CACert)
 	if err2 != nil {
-		println("DEBUG: could not write certificate authority cert to " + CAPath)
+		println("ERROR: could not write certificate authority cert to " + CAPath)
+		return
 	}
 
 	info.CAPath = CAPath

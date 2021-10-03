@@ -32,7 +32,7 @@ import (
 	// kubernetes client
 )
 
-var UseAuthCanI bool = false
+var UseAuthCanI bool = true
 
 // AWS credentials currently in use.
 var awsCredentials AWSCredentials
@@ -549,7 +549,7 @@ func banner(connectionString ServerInfo, awsCredentials AWSCredentials, assumedA
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.35 by InGuardians
+	Peirates v1.0.36 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -715,13 +715,17 @@ func Main() {
 
 	// Store all acquired namespaces for this cluster in a global variable, populated and refreshed by PrintNamespaces()
 	var Namespaces []string
-	println(Namespaces)
+	// println(Namespaces)
 
 	// Run the option parser to initialize connectionStrings
 	parseOptions(&cmdOpts)
 
+	var serviceAccounts []ServiceAccount
+
 	// List of current service accounts
-	serviceAccounts := []ServiceAccount{MakeNewServiceAccount(connectionString.TokenName, connectionString.Token, "Loaded at startup")}
+	if len(connectionString.TokenName) > 0 {
+		serviceAccounts = append(serviceAccounts, MakeNewServiceAccount(connectionString.TokenName, connectionString.Token, "Loaded at startup"))
+	}
 
 	// List of current client cert/key pairs
 	clientCertificates := []ClientCertificateKeyPair{}
@@ -733,9 +737,16 @@ func Main() {
 	} else {
 		// If there are no service accounts, but there are node credentials, switch the context to the node credentials
 		if len(serviceAccounts) == 0 {
+			println("No service accounts")
 			if len(clientCertificates) > 0 {
 				assignAuthenticationCertificateAndKeyToConnection(clientCertificates[0], &connectionString)
+			} else {
+				os.Exit(0)
 			}
+		} else {
+			println("Serviceaccount length")
+			println(len(serviceAccounts))
+
 		}
 	}
 	// Add the service account tokens for any pods found in /var/lib/kubelet/pods/.

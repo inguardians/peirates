@@ -82,13 +82,11 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 	for _, path := range kubeletKubeconfigFilePaths {
 		// On each path, check for existence of the file.
 		if _, err := os.Stat(path); os.IsNotExist(err) {
-			//println("DEBUG: no file found at " + path)
 			continue
 		}
 
 		file, err := os.Open(path)
 		if err != nil {
-			// println("DEBUG: Could not open file at " + path)
 			continue
 		}
 
