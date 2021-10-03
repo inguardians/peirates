@@ -196,43 +196,72 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 	return (nil)
 }
 
-
-	// Add the service account tokens for any pods found in /var/lib/kubelet/pods/.
+// Add the service account tokens for any pods found in /var/lib/kubelet/pods/.
 func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 
 	// Exit if /var/lib/kubelet/pods does not exist
 	const kubeletPodsDir = "/var/lib/kubelet/pods"
-	if _, err := os.Stat(kubeletPodsDir); os.IsNotExist(kubeletPodsDir) {
-			return
+	if _, err := os.Stat(kubeletPodsDir); os.IsNotExist(err) {
+		return
 	}
-	
+
 	// Read the directory for a list of subdirs (pods)
 	// dir in * ; do  echo "-------"; echo $dir; ls $dir/volumes/kuber*secret/; done | less
 	dirs, err := ioutil.ReadDir(kubeletPodsDir)
 	if err != nil {
 		return
 	}
-	
+
 	const subDir = "/volumes/kubernetes.io~secret/"
-	for _ , pod := range(dirs) {
+	for _, pod := range dirs {
 		// In each dir, we are seeking to find its secret volume mounts.
 		// Example:
 		// ls volumes/kubernetes.io~secret/
 		// default-token-5sfvg  registry-htpasswd  registry-pki
-		// 	
-		secretPath := kubeletPodsDir + pod.Name + subDir
-		secrets , err := ioutil.ReadDir(secretPath)
+		//
+		secretPath := kubeletPodsDir + pod.Name() + subDir
+		if _, err := os.Stat(secretPath); os.IsNotExist(err) {
+			return
+		}
+		secrets, err := ioutil.ReadDir(secretPath)
 		if err != nil {
 			continue
 		}
-		for _ , secret := range(secrets) {
-			if strings.Contains(secret.Name, "-token-") {
-				println("DEBUG: found a token")
+		for _, secret := range secrets {
+			if strings.Contains(secret.Name(), "-token-") {
+				println("DEBUG: found a token directory")
+				tokenFilePath := secretPath + "/" + secret.Name() + "/token"
+				if _, err := os.Stat(tokenFilePath); os.IsNotExist(err) {
+					continue
+				}
+				tokenBase64Bytes, err := ioutil.ReadFile(tokenFilePath)
+				if err != nil {
+					continue
+				}
+				token, err := base64.StdEncoding.DecodeString(string(tokenBase64Bytes))
+				if err != nil {
+					continue
+				}
+				println("DEBUG: parsed out JWT!")
+
+				// If possible, name the token for the namespace
+				namespacePath := secretPath + "/" + secret.Name() + "/namespace"
+				if _, err := os.Stat(namespacePath); os.IsNotExist(err) {
+					continue
+				}
+				namespaceBytes, err := ioutil.ReadFile(namespacePath)
+				if err != nil {
+					continue
+				}
+				namespace := string(namespaceBytes)
+				secretName := namespace + "/" + secret.Name()
+				// FEATURE REQUEST: spell out which node.
+				*serviceAccounts = append(*serviceAccounts, MakeNewServiceAccount(secretName, string(token), "pod secret harvested from node "))
 			} else {
-				println("DEBUG: non-token secret found in " + pod + " called " + secret.Name)
+				println("DEBUG: non-token secret found in " + pod.Name() + " called " + secret.Name())
 			}
 		}
-	}			
+	}
 	return
-	
+
 }
