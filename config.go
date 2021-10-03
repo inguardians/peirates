@@ -202,21 +202,13 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 	// Exit if /var/lib/kubelet/pods does not exist
 	const kubeletPodsDir = "/var/lib/kubelet/pods"
 	if _, err := os.Stat(kubeletPodsDir); os.IsNotExist(err) {
-		println("DEBUG: directory doesn't exist " + kubeletPodsDir)
-		var input string
-		fmt.Scanln(&input)
-		println(input)
 		return
 	}
-	println("DEBUG: kubelet pods dir exists")
+
 	// Read the directory for a list of subdirs (pods)
 	// dir in * ; do  echo "-------"; echo $dir; ls $dir/volumes/kuber*secret/; done | less
 	dirs, err := ioutil.ReadDir(kubeletPodsDir)
 	if err != nil {
-		println("DEBUG: directory can't be read " + kubeletPodsDir)
-		var input string
-		fmt.Scanln(&input)
-		println(input)
 		return
 	}
 	println("DEBUG: kubelet pods dir read")
@@ -232,12 +224,23 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 		println("Checking out " + secretPath)
 
 		if _, err := os.Stat(secretPath); os.IsNotExist(err) {
+			println("DEBUG: directory dne " + secretPath)
+			var input string
+			fmt.Scanln(&input)
+			println(input)
+
 			continue
 		}
 		secrets, err := ioutil.ReadDir(secretPath)
 		if err != nil {
+			println("DEBUG: directory can't be read " + secretPath)
+			var input string
+			fmt.Scanln(&input)
+			println(input)
+
 			continue
 		}
+		println("DEBUG: found " + len(secrets) + "secrets")
 		for _, secret := range secrets {
 			if strings.Contains(secret.Name(), "-token-") {
 				println("DEBUG: found a token directory")
