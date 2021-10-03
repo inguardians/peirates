@@ -263,7 +263,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 				*serviceAccounts = append(*serviceAccounts, MakeNewServiceAccount(fullSecretName, string(token), "pod secret harvested from node "))
 			} else {
 				pauseOnExit = true
-				println("Peirates used the node's filesystem to discover a secret called %s, associated with pod %s -- explore it with this command:  ls %s\n", secretName, pod.Name(), secretPath+secretName)
+				fmt.Printf("Peirates used the node's filesystem to discover a secret called %s, associated with pod %s -- explore it with this command:  ls %s\n", secretName, pod.Name(), secretPath+secretName)
 			}
 		}
 	}
