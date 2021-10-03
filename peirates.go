@@ -731,25 +731,16 @@ func Main() {
 	clientCertificates := []ClientCertificateKeyPair{}
 
 	// Add the kubelet kubeconfig and authentication information if available.
-	err := checkForNodeCredentials(&clientCertificates)
-	if err != nil {
-		println("Error found when testing for kubelet or other node credentials.")
-	} else {
-		// If there are no service accounts, but there are node credentials, switch the context to the node credentials
-		if len(serviceAccounts) == 0 {
-			println("No service accounts")
-			if len(clientCertificates) > 0 {
-				assignAuthenticationCertificateAndKeyToConnection(clientCertificates[0], &connectionString)
-			} else {
-				os.Exit(0)
-			}
-		} else {
-			println("Serviceaccount length")
-			println(len(serviceAccounts))
-
-		}
+	_ := checkForNodeCredentials(&clientCertificates)
+	// If there are client certs, but no service accounts, switch to the first client cert
+	if (len(serviceAccounts) == 0) && (len(clientCertificates) > 0) {
+		assignAuthenticationCertificateAndKeyToConnection(clientCertificates[0], &connectionString)
 	}
+	
 	// Add the service account tokens for any pods found in /var/lib/kubelet/pods/.
+	_ := gatherPodCredentials(&serviceAccounts)
+	
+	// for dir in /var/lib/kubelet/pods ; do  echo "-------"; echo $dir; ls $dir/volumes/kuber*secret/; done | less
 
 	// Check environment variables - see KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT
 	// Watch the documentation on these variables for changes:

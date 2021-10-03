@@ -195,3 +195,44 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 
 	return (nil)
 }
+
+
+	// Add the service account tokens for any pods found in /var/lib/kubelet/pods/.
+func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
+
+	// Exit if /var/lib/kubelet/pods does not exist
+	const kubeletPodsDir = "/var/lib/kubelet/pods"
+	if _, err := os.Stat(kubeletPodsDir); os.IsNotExist(kubeletPodsDir) {
+			return
+	}
+	
+	// Read the directory for a list of subdirs (pods)
+	// dir in * ; do  echo "-------"; echo $dir; ls $dir/volumes/kuber*secret/; done | less
+	dirs, err := ioutil.ReadDir(kubeletPodsDir)
+	if err != nil {
+		return
+	}
+	
+	const subDir = "/volumes/kubernetes.io~secret/"
+	for _ , pod := range(dirs) {
+		// In each dir, we are seeking to find its secret volume mounts.
+		// Example:
+		// ls volumes/kubernetes.io~secret/
+		// default-token-5sfvg  registry-htpasswd  registry-pki
+		// 	
+		secretPath := kubeletPodsDir + pod.Name + subDir
+		secrets , err := ioutil.ReadDir(secretPath)
+		if err != nil {
+			continue
+		}
+		for _ , secret := range(secrets) {
+			if strings.Contains(secret.Name, "-token-") {
+				println("DEBUG: found a token")
+			} else {
+				println("DEBUG: non-token secret found in " + pod + " called " + secret.Name)
+			}
+		}
+	}			
+	return
+	
+}
