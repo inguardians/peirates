@@ -208,8 +208,11 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 	// Store a count of how many service accounts are currently held, so we can report if we found new ones.
 	startingNumberServiceAccounts := len(*serviceAccounts)
 
+	// Set a boolean for whether we need to pause to tell the user about new service accounts or non-token secrets.
+	// FEATURE REQUEST: create a loot data structure for non-token secrets found on nodes.
+	pauseOnExit := false
+
 	// Read the directory for a list of subdirs (pods)
-	// dir in * ; do  echo "-------"; echo $dir; ls $dir/volumes/kuber*secret/; done | less
 	dirs, err := ioutil.ReadDir(kubeletPodsDir)
 	if err != nil {
 		return
@@ -232,8 +235,9 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 			continue
 		}
 		for _, secret := range secrets {
-			if strings.Contains(secret.Name(), "-token-") {
-				tokenFilePath := secretPath + secret.Name() + "/token"
+			secretName := secret.Name()
+			if strings.Contains(secretName, "-token-") {
+				tokenFilePath := secretPath + secretName + "/token"
 				if _, err := os.Stat(tokenFilePath); os.IsNotExist(err) {
 					continue
 				}
@@ -244,7 +248,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 				token := string(tokenBytes)
 
 				// If possible, name the token for the namespace
-				namespacePath := secretPath + "/" + secret.Name() + "/namespace"
+				namespacePath := secretPath + "/" + secretName + "/namespace"
 				if _, err := os.Stat(namespacePath); os.IsNotExist(err) {
 					continue
 				}
@@ -253,12 +257,13 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 					continue
 				}
 				namespace := string(namespaceBytes)
-				secretName := namespace + "/" + secret.Name()
+				fullSecretName := namespace + "/" + secretName
 				// FEATURE REQUEST: spell out which node this was found on in the last arg.
 				// FEATURE REQUEST: don't add a service account if we already have it.
-				*serviceAccounts = append(*serviceAccounts, MakeNewServiceAccount(secretName, string(token), "pod secret harvested from node "))
+				*serviceAccounts = append(*serviceAccounts, MakeNewServiceAccount(fullSecretName, string(token), "pod secret harvested from node "))
 			} else {
-				println("DEBUG: non-token secret found in " + pod.Name() + " called " + secret.Name())
+				pauseOnExit = true
+				println("Peirates used the node's filesystem to discover a secret called %s, associated with pod %s -- explore it with this command:  ls %s\n", secretName, pod.Name(), secretPath+secretName)
 			}
 		}
 	}
@@ -266,6 +271,9 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 	newServiceAccountsCount := len(*serviceAccounts) - startingNumberServiceAccounts
 	if newServiceAccountsCount > 0 {
 		fmt.Printf("%d new service accounts pulled from this node's %s directory.\nPlease hit Enter to continue.", newServiceAccountsCount, kubeletPodsDir)
+		pauseOnExit = true
+	}
+	if pauseOnExit {
 		var input string
 		fmt.Scanln(&input)
 		println(input)
