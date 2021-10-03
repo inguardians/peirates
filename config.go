@@ -211,7 +211,6 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 	if err != nil {
 		return
 	}
-	println("DEBUG: kubelet pods dir read")
 
 	const subDir = "/volumes/kubernetes.io~secret/"
 	for _, pod := range dirs {
@@ -224,11 +223,6 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 		println("Checking out " + secretPath)
 
 		if _, err := os.Stat(secretPath); os.IsNotExist(err) {
-			println("DEBUG: directory dne " + secretPath)
-			var input string
-			fmt.Scanln(&input)
-			println(input)
-
 			continue
 		}
 		secrets, err := ioutil.ReadDir(secretPath)
@@ -240,16 +234,28 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 
 			continue
 		}
-		fmt.Printf("DEBUG: found %d secrets", len(secrets))
+		fmt.Printf("DEBUG: found %d secrets\n", len(secrets))
 		for _, secret := range secrets {
+			println("DEBUG: Secret name is " + secret.Name())
 			if strings.Contains(secret.Name(), "-token-") {
 				println("DEBUG: found a token directory")
 				tokenFilePath := secretPath + "/" + secret.Name() + "/token"
+				println("DEBUG: checking out " + tokenFilePath)
 				if _, err := os.Stat(tokenFilePath); os.IsNotExist(err) {
+					println("DEBUG: file dne " + tokenFilePath)
+					var input string
+					fmt.Scanln(&input)
+					println(input)
 					continue
 				}
+				println("DEBUG: getting read to read token file")
 				tokenBase64Bytes, err := ioutil.ReadFile(tokenFilePath)
 				if err != nil {
+					println("DEBUG: couldn't read file")
+					var input string
+					fmt.Scanln(&input)
+					println(input)
+
 					continue
 				}
 				token, err := base64.StdEncoding.DecodeString(string(tokenBase64Bytes))
