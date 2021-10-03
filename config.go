@@ -200,7 +200,7 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 
 	// Exit if /var/lib/kubelet/pods does not exist
-	const kubeletPodsDir = "/var/lib/kubelet/pods"
+	const kubeletPodsDir = "/var/lib/kubelet/pods/"
 	if _, err := os.Stat(kubeletPodsDir); os.IsNotExist(err) {
 		return
 	}
