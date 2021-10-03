@@ -260,6 +260,10 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 				}
 				token, err := base64.StdEncoding.DecodeString(string(tokenBase64Bytes))
 				if err != nil {
+					println("DEBUG: Base64 decoding failed")
+					var input string
+					fmt.Scanln(&input)
+					println(input)
 					continue
 				}
 				println("DEBUG: parsed out JWT!")
