@@ -20,7 +20,7 @@ type CommandLineOptions struct {
 func parseOptions(opts *CommandLineOptions) {
 	// This is like the parser.add_option stuff except
 	// it works implicitly on a global parser instance.
-	// Notice the use of pointers (&connectionString.RIPAddress for
+	// Notice the use of pointers (&connectionString.APIServer for
 	// example) to bind flags to variables
 
 	// After parsing flags, this string will be split on commas and stored
@@ -29,8 +29,7 @@ func parseOptions(opts *CommandLineOptions) {
 
 	flagset := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
-	flagset.StringVar(&opts.connectionConfig.RIPAddress, "i", opts.connectionConfig.RIPAddress, "API Server IP address: ex. 10.96.0.1")
-	flagset.StringVar(&opts.connectionConfig.RPort, "p", opts.connectionConfig.RPort, "API Server Port: ex 443, 6443")
+	flagset.StringVar(&opts.connectionConfig.APIServer, "u", opts.connectionConfig.APIServer, "API Server URL: ex. https://10.96.0.1:6443")
 	flagset.StringVar(&opts.connectionConfig.Token, "t", opts.connectionConfig.Token, "Token (JWT)")
 	flagset.StringVar(&podListRaw, "L", "", "List of comma-seperated Pods: ex pod1,pod2,pod3")
 	flagset.StringVar(&opts.commandToRunInPods, "c", "hostname", "Command to run in pods")
@@ -39,15 +38,22 @@ func parseOptions(opts *CommandLineOptions) {
 	// once you've defined all your options.
 	flagset.Parse(os.Args[1:])
 
-	// If the IP or Port are an empty string, we want to just print out usage and exit.
-	if opts.connectionConfig.RIPAddress == "" {
-		// flag's Usage() function prints out an auto-generated usage string.
-		flagset.Usage()
-		// log.Fatal prints a message to stderr and crashes the program.
-		log.Fatal("Error: must provide an IP address for the Kubernetes API server (-i)")
-	}
-	if opts.connectionConfig.RPort == "" {
-		opts.connectionConfig.RPort = "443"
+	// If the API Server URL is passed in, normalize it.
+	if len(opts.connectionConfig.APIServer) > 0 {
+
+		// Trim any leading or trailing whitespace
+		APIServer := strings.TrimSpace(opts.connectionConfig.APIServer)
+
+		// Remove any trailing /
+		APIServer = strings.TrimSuffix(APIServer, "/")
+
+		// Check to see if APIServer begins with http or https, adding https if it does not.
+		if !(strings.HasPrefix(APIServer, "http://") || strings.HasPrefix(APIServer, "https://")) {
+			APIServer = "https://" + APIServer
+		}
+
+		opts.connectionConfig.APIServer = APIServer
+
 	}
 	if opts.connectionConfig.Token != "" {
 		log.Println("JWT provided on the command line.")

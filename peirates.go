@@ -549,7 +549,7 @@ func banner(connectionString ServerInfo, awsCredentials AWSCredentials, assumedA
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.0.35 by InGuardians
+	Peirates v1.0.36 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -557,12 +557,17 @@ ________________________________________
 
 		fmt.Printf("[+] Service Account Loaded: %s\n", connectionString.TokenName)
 	}
+	if connectionString.ClientCertPath != "" {
+		fmt.Printf("[+] Client Certificate/Key Pair Loaded: %s\n", connectionString.ClientCertName)
+	}
 	var haveCa bool = false
 	if connectionString.CAPath != "" {
 		haveCa = true
 	}
 	fmt.Printf("[+] Certificate Authority Certificate: %t\n", haveCa)
-	fmt.Printf("[+] Kubernetes API Server: %s:%s\n", connectionString.RIPAddress, connectionString.RPort)
+	if len(connectionString.APIServer) > 0 {
+		fmt.Printf("[+] Kubernetes API Server: %s\n", connectionString.APIServer)
+	}
 	println("[+] Current hostname/pod name:", name)
 	println("[+] Current namespace:", connectionString.Namespace)
 	if len(assumedAWSRole.AccessKeyId) > 0 {
@@ -710,13 +715,41 @@ func Main() {
 
 	// Store all acquired namespaces for this cluster in a global variable, populated and refreshed by PrintNamespaces()
 	var Namespaces []string
-	println(Namespaces)
+	// println(Namespaces)
 
 	// Run the option parser to initialize connectionStrings
 	parseOptions(&cmdOpts)
 
+	var serviceAccounts []ServiceAccount
+
 	// List of current service accounts
-	serviceAccounts := []ServiceAccount{MakeNewServiceAccount(connectionString.TokenName, connectionString.Token, "Loaded at startup")}
+	if len(connectionString.TokenName) > 0 {
+		serviceAccounts = append(serviceAccounts, MakeNewServiceAccount(connectionString.TokenName, connectionString.Token, "Loaded at startup"))
+	}
+
+	// List of current client cert/key pairs
+	clientCertificates := []ClientCertificateKeyPair{}
+
+	// Add the kubelet kubeconfig and authentication information if available.
+	err := checkForNodeCredentials(&clientCertificates)
+	if err != nil {
+		println("Error found when testing for kubelet or other node credentials.")
+	} else {
+		// If there are no service accounts, but there are node credentials, switch the context to the node credentials
+		if len(serviceAccounts) == 0 {
+			println("No service accounts")
+			if len(clientCertificates) > 0 {
+				assignAuthenticationCertificateAndKeyToConnection(clientCertificates[0], &connectionString)
+			} else {
+				os.Exit(0)
+			}
+		} else {
+			println("Serviceaccount length")
+			println(len(serviceAccounts))
+
+		}
+	}
+	// Add the service account tokens for any pods found in /var/lib/kubelet/pods/.
 
 	// Check environment variables - see KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT
 	// Watch the documentation on these variables for changes:
@@ -739,6 +772,7 @@ Namespaces, Service Accounts and Roles |
 [6] Enter AWS IAM credentials manually [enter-aws-credentials]
 [7] Attempt to Assume a Different AWS Role [aws-assume-role]
 [8] Deactivate assumed AWS role [aws-empty-assumed-role]
+[9] Switch authentication contexts: certificate-based authentication (kubelet, kubeproxy, manually-entered) [cert-menu]
 -------------------------+
 Steal Service Accounts   |
 -------------------------+
@@ -798,7 +832,7 @@ Off-Menu         +
 		case "0", "90", "kubectl":
 			_ = kubectl_interactive(connectionString)
 
-		// [1] Enter a different service account token
+		// [1] List, maintain, or switch service account contexts [sa-menu]
 		case "1", "sa-menu", "service-account-menu", "sa", "service-account":
 			println("Current primary service account: ", connectionString.TokenName)
 			println("\n")
@@ -990,6 +1024,49 @@ Off-Menu         +
 		case "8", "aws-empty-assumed-role":
 			assumedAWSrole.AccessKeyId = ""
 			assumedAWSrole.accountName = ""
+
+		// [9] Switch authentication contexts: certificate-based authentication (kubelet, kubeproxy, manually-entered) [cert-menu]
+		case "9", "cert-menu":
+			println("Current certificate-based authentication: ", connectionString.ClientCertName)
+			println("\n")
+			println("[1] List client certificates [list]")
+			println("[2] Switch active client certificates [switch]")
+			// println("[3] Enter new client certificate and key [add]")
+			// println("[4] Export service accounts to JSON [export]")
+			// println("[5] Import service accounts from JSON [import]")
+			// println("[6] Decode a stored or entered service account token (JWT) [decode]")
+
+			println("\n")
+
+			fmt.Scanln(&input)
+			switch strings.ToLower(input) {
+			case "1", "list":
+				println("\nAvailable Client Certificate/Key Pairs:")
+				for i, account := range clientCertificates {
+					fmt.Printf("  [%d] %s\n", i, account.Name)
+				}
+			case "2", "switch":
+				println("\nAvailable Client Certificate/Key Pairs:")
+				for i, account := range clientCertificates {
+					fmt.Printf("  [%d] %s\n", i, account.Name)
+				}
+				println("\nEnter certificate/key pair number or exit to abort: ")
+				var tokNum int
+				fmt.Scanln(&input)
+				if input == "exit" {
+					break
+				}
+
+				_, err := fmt.Sscan(input, &tokNum)
+				if err != nil {
+					fmt.Printf("Error parsing certificate/key pair selection: %s\n", err.Error())
+				} else if tokNum < 0 || tokNum >= len(clientCertificates) {
+					fmt.Printf("Certificate/key pair  %d does not exist!\n", tokNum)
+				} else {
+					assignAuthenticationCertificateAndKeyToConnection(clientCertificates[tokNum], &connectionString)
+					fmt.Printf("Selected %s\n", connectionString.ClientCertName)
+				}
+			}
 
 		//	[10] Get secrets from API server
 		case "10", "list-secrets":

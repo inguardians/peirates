@@ -33,7 +33,7 @@ func DoKubernetesAPIRequest(cfg ServerInfo, httpVerb, apiPath string, query inte
 	}
 
 	jsonReader := bytes.NewReader(queryJSON)
-	remotePath := fmt.Sprintf("https://%s:%s/%s", cfg.RIPAddress, cfg.RPort, apiPath)
+	remotePath := cfg.APIServer + "/" + apiPath
 	req, err := http.NewRequest(httpVerb, remotePath, jsonReader)
 	if err != nil {
 		fmt.Printf("[-] KubernetesAPIRequest failed building a request from URL %s : %s\n", remotePath, err.Error())
