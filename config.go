@@ -231,14 +231,12 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 		if err != nil {
 			continue
 		}
-		fmt.Printf("DEBUG: found %d secrets\n", len(secrets))
 		for _, secret := range secrets {
 			if strings.Contains(secret.Name(), "-token-") {
 				tokenFilePath := secretPath + secret.Name() + "/token"
 				if _, err := os.Stat(tokenFilePath); os.IsNotExist(err) {
 					continue
 				}
-				println("DEBUG: getting read to read token file")
 				tokenBytes, err := ioutil.ReadFile(tokenFilePath)
 				if err != nil {
 					continue
