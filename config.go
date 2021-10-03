@@ -239,7 +239,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 			println("DEBUG: Secret name is " + secret.Name())
 			if strings.Contains(secret.Name(), "-token-") {
 				println("DEBUG: found a token directory")
-				tokenFilePath := secretPath + "/" + secret.Name() + "/token"
+				tokenFilePath := secretPath + secret.Name() + "/token"
 				println("DEBUG: checking out " + tokenFilePath)
 				if _, err := os.Stat(tokenFilePath); os.IsNotExist(err) {
 					println("DEBUG: file dne " + tokenFilePath)
