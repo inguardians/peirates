@@ -170,7 +170,7 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 			// Feature request: abstract this to parse any client certificate items, not just kubelet.
 			if len(clientKeyPath) > 0 && len(clientCertPath) > 0 {
 				// Store the key!
-				println("Found key " + clientName)
+				println("\n[+] Found Kubelet certificate and secret key: " + clientName)
 
 				var thisClientCertKeyPair ClientCertificateKeyPair
 				thisClientCertKeyPair.ClientCertificatePath = clientCertPath
@@ -263,14 +263,14 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 				*serviceAccounts = append(*serviceAccounts, MakeNewServiceAccount(fullSecretName, string(token), "pod secret harvested from node "))
 			} else {
 				pauseOnExit = true
-				fmt.Printf("Peirates used the node's filesystem to discover a secret called %s, associated with pod %s -- explore it with this command:  ls %s\n", secretName, pod.Name(), secretPath+secretName)
+				fmt.Printf("[+] Found a secret on the node's filesystem called %s, provided to pod %s, -- explore it with this command:  ls %s\n\n", secretName, pod.Name(), secretPath+secretName)
 			}
 		}
 	}
 
 	newServiceAccountsCount := len(*serviceAccounts) - startingNumberServiceAccounts
 	if newServiceAccountsCount > 0 {
-		fmt.Printf("%d new service accounts pulled from this node's %s directory.\nPlease hit Enter to continue.", newServiceAccountsCount, kubeletPodsDir)
+		fmt.Printf("\n%d new service accounts pulled from this node's %s directory.\nPlease hit Enter to continue.\n", newServiceAccountsCount, kubeletPodsDir)
 		pauseOnExit = true
 	}
 	if pauseOnExit {
