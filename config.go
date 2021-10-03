@@ -79,6 +79,7 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/etc/kubernetes/kubelet.conf")
 	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/var/lib/kubelet/kubeconfig")
 
+	// Feature request / technical debt: we should use golang's YAML parsing for this.
 	for _, path := range kubeletKubeconfigFilePaths {
 		// On each path, check for existence of the file.
 		if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -170,7 +171,7 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 			// Feature request: abstract this to parse any client certificate items, not just kubelet.
 			if len(clientKeyPath) > 0 && len(clientCertPath) > 0 {
 				// Store the key!
-				println("\n[+] Found Kubelet certificate and secret key: " + clientName)
+				println("\n[+] Found Kubelet certificate and secret key: " + clientName + "\n")
 
 				var thisClientCertKeyPair ClientCertificateKeyPair
 				thisClientCertKeyPair.ClientCertificatePath = clientCertPath
@@ -270,7 +271,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 
 	newServiceAccountsCount := len(*serviceAccounts) - startingNumberServiceAccounts
 	if newServiceAccountsCount > 0 {
-		fmt.Printf("\n%d new service accounts pulled from this node's %s directory.\nPlease hit Enter to continue.\n", newServiceAccountsCount, kubeletPodsDir)
+		fmt.Printf("\n%d new service accounts pulled from this node's %s directory.\n\nPlease hit Enter to continue.\n", newServiceAccountsCount, kubeletPodsDir)
 		pauseOnExit = true
 	}
 	if pauseOnExit {
