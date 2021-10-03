@@ -271,7 +271,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 
 	newServiceAccountsCount := len(*serviceAccounts) - startingNumberServiceAccounts
 	if newServiceAccountsCount > 0 {
-		fmt.Printf("\n%d new service accounts pulled from this node's %s directory.\n\nPlease hit Enter to continue.\n", newServiceAccountsCount, kubeletPodsDir)
+		fmt.Printf("\n%d new service accounts pulled from this node's %s directory. Explore them from the sa-menu item on the main menu.\n\nPlease hit Enter to continue.\n", newServiceAccountsCount, kubeletPodsDir)
 		pauseOnExit = true
 	}
 	if pauseOnExit {
