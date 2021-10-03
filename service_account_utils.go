@@ -1,6 +1,7 @@
 package peirates
 
 import (
+	"os"
 	"time"
 
 	"github.com/trung/jwt-tools/display"
@@ -22,6 +23,8 @@ type ClientCertificateKeyPair struct {
 	Name                  string // Client cert-key pair name
 	ClientKeyPath         string // Client key file path
 	ClientCertificatePath string // Client cert file path
+	APIServer             string // URL like https://10.96.0.1:443
+	CACert                string // Content of a CA cert
 }
 
 // MakeNewServiceAccount creates a new service account with the provided name,
@@ -35,11 +38,13 @@ func MakeNewServiceAccount(name, token, discoveryMethod string) ServiceAccount {
 	}
 }
 
-func MakeClientCertificateKeyPair(name, clientCertificatePath, clientKeyPath string) ClientCertificateKeyPair {
+func MakeClientCertificateKeyPair(name, clientCertificatePath, clientKeyPath, APIServer, CACert string) ClientCertificateKeyPair {
 	return ClientCertificateKeyPair{
 		Name:                  name,
 		ClientKeyPath:         clientKeyPath,
 		ClientCertificatePath: clientCertificatePath,
+		APIServer:             APIServer,
+		CACert:                CACert,
 	}
 }
 
@@ -71,9 +76,27 @@ func assignServiceAccountToConnection(account ServiceAccount, info *ServerInfo) 
 }
 
 func assignAuthenticationCertificateAndKeyToConnection(keypair ClientCertificateKeyPair, info *ServerInfo) {
+
+	// Write out the CACert to a path
+	const CAPath = "/tmp/ca.crt"
+	file, err := os.Create(CAPath)
+	if err != nil {
+		println("DEBUG: could not open for writing: " + CAPath)
+		return
+	}
+	defer file.Close()
+
+	_, err2 := file.WriteString(keypair.CACert)
+	if err2 != nil {
+		println("DEBUG: could not write certificate authority cert to " + CAPath)
+	}
+
+	info.CAPath = CAPath
 	info.ClientCertPath = keypair.ClientCertificatePath
 	info.ClientKeyPath = keypair.ClientKeyPath
 	info.ClientCertName = keypair.Name
+	info.APIServer = keypair.APIServer
+	info.Namespace = "default"
 
 	// Zero out any service account token, so it's clear what to authenticate with.
 	info.TokenName = ""

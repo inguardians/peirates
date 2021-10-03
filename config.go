@@ -4,6 +4,7 @@ package peirates
 
 import (
 	"bufio"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -13,8 +14,7 @@ import (
 const ServiceAccountPath = "/var/run/secrets/kubernetes.io/serviceaccount/"
 
 type ServerInfo struct {
-	RIPAddress     string
-	RPort          string
+	APIServer      string // URL for the API server - this replaces RIPAddress and RPort
 	Token          string // service account token ASCII text, if present
 	TokenName      string // name of the service account token, if present
 	ClientCertPath string // path to the client certificate, if present
@@ -34,8 +34,9 @@ func ParseLocalServerInfo() ServerInfo {
 	// a token file, as it would be in a running pod under default configuration.
 
 	// Read IP address and port number for API server out of environment variables
-	configInfoVars.RIPAddress = os.Getenv("KUBERNETES_SERVICE_HOST")
-	configInfoVars.RPort = os.Getenv("KUBERNETES_SERVICE_PORT")
+	IPAddress := os.Getenv("KUBERNETES_SERVICE_HOST")
+	port := os.Getenv("KUBERNETES_SERVICE_PORT")
+	configInfoVars.APIServer = "https://" + IPAddress + ":" + port
 
 	// Reading token file and storing in variable token
 	const tokenFile = ServiceAccountPath + "token"
@@ -101,6 +102,8 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 		//   client-certificate: /var/lib/kubelet/pki/kubelet-client-current.pem
 		//   client-key: /var/lib/kubelet/pki/kubelet-client-current.pem
 
+		const certificateAuthorityDataLHS = "certificate-authority-data: "
+		const serverLHS = "server: "
 		const clientCertConst = "client-certificate: "
 		const clientKeyConst = "client-key: "
 		const usersBlockStart = "users:"
@@ -114,11 +117,28 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 		clientName := "kubelet"
 		clientCertPath := ""
 		clientKeyPath := ""
+		CACert := ""
+		APIServer := ""
 
 		for scanner.Scan() {
 			line := strings.TrimSpace(scanner.Text())
 
 			if !foundFirstUsersBlock {
+
+				if strings.HasPrefix(line, certificateAuthorityDataLHS) {
+					CACertBase64Encoded := strings.TrimPrefix(line, certificateAuthorityDataLHS)
+
+					CACertBytes, err := base64.StdEncoding.DecodeString(CACertBase64Encoded)
+					if err != nil {
+						println("[-] ERROR: couldn't decode")
+					}
+					CACert = string(CACertBytes)
+				}
+
+				if strings.HasPrefix(line, serverLHS) {
+					APIServer = strings.TrimPrefix(line, serverLHS)
+				}
+
 				if strings.HasPrefix(line, usersBlockStart) {
 					foundFirstUsersBlock = true
 				}
@@ -148,7 +168,7 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 				// TODO: confirm we can read the file
 			}
 
-			// Can we stop yet?
+			// Do we have what we need?
 			// Feature request: abstract this to parse any client certificate items, not just kubelet.
 			if len(clientKeyPath) > 0 && len(clientCertPath) > 0 {
 				// Store the key!
@@ -158,6 +178,11 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 				thisClientCertKeyPair.ClientCertificatePath = clientCertPath
 				thisClientCertKeyPair.ClientKeyPath = clientKeyPath
 				thisClientCertKeyPair.Name = clientName
+
+				// Parse out the API Server
+				thisClientCertKeyPair.APIServer = APIServer
+				// Parse out the CA Cert into a string.
+				thisClientCertKeyPair.CACert = CACert
 
 				*clientCertificates = append(*clientCertificates, thisClientCertKeyPair)
 

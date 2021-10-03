@@ -32,7 +32,7 @@ import (
 	// kubernetes client
 )
 
-var UseAuthCanI bool = true
+var UseAuthCanI bool = false
 
 // AWS credentials currently in use.
 var awsCredentials AWSCredentials
@@ -565,7 +565,9 @@ ________________________________________
 		haveCa = true
 	}
 	fmt.Printf("[+] Certificate Authority Certificate: %t\n", haveCa)
-	fmt.Printf("[+] Kubernetes API Server: %s:%s\n", connectionString.RIPAddress, connectionString.RPort)
+	if len(connectionString.APIServer) > 0 {
+		fmt.Printf("[+] Kubernetes API Server: %s\n", connectionString.APIServer)
+	}
 	println("[+] Current hostname/pod name:", name)
 	println("[+] Current namespace:", connectionString.Namespace)
 	if len(assumedAWSRole.AccessKeyId) > 0 {
@@ -728,9 +730,14 @@ func Main() {
 	err := checkForNodeCredentials(&clientCertificates)
 	if err != nil {
 		println("Error found when testing for kubelet or other node credentials.")
+	} else {
+		// If there are no service accounts, but there are node credentials, switch the context to the node credentials
+		if len(serviceAccounts) == 0 {
+			if len(clientCertificates) > 0 {
+				assignAuthenticationCertificateAndKeyToConnection(clientCertificates[0], &connectionString)
+			}
+		}
 	}
-	println("Length of clientCertificates is ")
-	println(len(clientCertificates))
 	// Add the service account tokens for any pods found in /var/lib/kubelet/pods/.
 
 	// Check environment variables - see KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT

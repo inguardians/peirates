@@ -95,12 +95,9 @@ func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) er
 // NOTE: You should generally use runKubectlSimple() to call this.
 func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
 
-	// Confirm that we have a server IP address
-	if len(cfg.RIPAddress) == 0 {
-		return errors.New("API server IP address missing.")
-	}
-	if len(cfg.RPort) == 0 {
-		return errors.New("API server port missing.")
+	// Confirm that we have an API Server URL
+	if len(cfg.APIServer) == 0 {
+		return errors.New("API server not set.")
 	}
 
 	// Confirm that we have a certificate authority path entry.
@@ -111,7 +108,7 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 	connArgs := []string{
 		"-n", cfg.Namespace,
 		"--certificate-authority=" + cfg.CAPath,
-		"--server=https://" + cfg.RIPAddress + ":" + cfg.RPort,
+		"--server=" + cfg.APIServer,
 	}
 
 	// If we are using token-based authentication, append that.
