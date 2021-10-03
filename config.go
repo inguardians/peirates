@@ -208,7 +208,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 		println(input)
 		return
 	}
-
+	println("DEBUG: kubelet pods dir exists")
 	// Read the directory for a list of subdirs (pods)
 	// dir in * ; do  echo "-------"; echo $dir; ls $dir/volumes/kuber*secret/; done | less
 	dirs, err := ioutil.ReadDir(kubeletPodsDir)
@@ -219,6 +219,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 		println(input)
 		return
 	}
+	println("DEBUG: kubelet pods dir read")
 
 	const subDir = "/volumes/kubernetes.io~secret/"
 	for _, pod := range dirs {
@@ -228,6 +229,8 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 		// default-token-5sfvg  registry-htpasswd  registry-pki
 		//
 		secretPath := kubeletPodsDir + pod.Name() + subDir
+		println("Checking out " + secretPath)
+
 		if _, err := os.Stat(secretPath); os.IsNotExist(err) {
 			continue
 		}
