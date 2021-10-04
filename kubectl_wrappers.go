@@ -97,12 +97,12 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 
 	// Confirm that we have an API Server URL
 	if len(cfg.APIServer) == 0 {
-		return errors.New("API server not set.")
+		return errors.New("api server not set")
 	}
 
 	// Confirm that we have a certificate authority path entry.
 	if len(cfg.CAPath) == 0 {
-		return errors.New("Certificate Authority Path not defined - will not communicate with API server")
+		return errors.New("certificate authority path not defined - will not communicate with api server")
 	}
 
 	connArgs := []string{
@@ -190,7 +190,7 @@ func kubectlAuthCanI(cfg ServerInfo, verb, resource string) bool {
 		} `json:"status"`
 	}
 
-	if UseAuthCanI != true {
+	if !UseAuthCanI {
 		return true
 	}
 	// This doesn't work for certificate authentication yet.

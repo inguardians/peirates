@@ -504,9 +504,7 @@ spec:
 }
 
 func clearScreen() {
-	fmt.Print("Press Enter to Proceed .....")
-	var input string
-	fmt.Scanln(&input)
+	pauseToHitEnter()
 	c := exec.Command("clear")
 	c.Stdout = os.Stdout
 	c.Run()
@@ -809,9 +807,35 @@ Off-Menu         +
 		// Shell out to bash (not yet implemented)
 		// Build YAML Files (not yet implemented)
 
-		var input string
 		var userResponse string
-		fmt.Scanln(&input)
+		input, err := ReadLineStripWhitespace()
+		if err != nil {
+			continue
+		}
+
+		// Handle kubectl commands before the switch menu.
+		if strings.HasPrefix(input, "kubectl ") {
+
+			// remove the kubectl, then split the rest on whitespace
+			argumentsLine := strings.TrimPrefix(input, "kubectl ")
+			arguments := strings.Fields(argumentsLine)
+
+			kubectlOutput, _, err := runKubectlSimple(connectionString, arguments...)
+			if err != nil {
+				println("[-] Could not perform action: ", input)
+				continue
+			}
+			kubectlOutputLines := strings.Split(string(kubectlOutput), "\n")
+			for _, line := range kubectlOutputLines {
+				println(line)
+			}
+
+			// Make sure not to go into the switch-case
+			pauseToHitEnter()
+
+			continue
+		}
+
 		// Peirates MAIN MENU
 		switch input {
 

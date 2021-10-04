@@ -2,6 +2,7 @@ package peirates
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"strings"
 )
@@ -22,4 +23,13 @@ func ReadLine() (string, error) {
 		return "", err
 	}
 	return line[:len(line)-1], err
+}
+
+// pauseToHitEnter() just gives us a simple way to let the user see input before clearing the screen.
+func pauseToHitEnter() {
+
+	var input string
+
+	println("Press enter to continue")
+	fmt.Scanln(&input)
 }
