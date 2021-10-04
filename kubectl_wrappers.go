@@ -88,9 +88,9 @@ func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) er
 	return cmd.Wait()
 }
 
-// runKubectlWithConfig takes a server config, and a list of arguments. It executes kubectl internally,
-// setting the namespace, authn secrets, certificate authority, and server based on the provided config, and
-// appending the supplied arguments to the end of the command.
+// runKubectlWithConfig takes a server config and a list of arguments.
+// It executes kubectl internally, setting authn secrets, certificate authority, and server based
+// on the provided config, then appends the supplied arguments to the end of the command.
 //
 // NOTE: You should generally use runKubectlSimple() to call this.
 func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
@@ -106,9 +106,18 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 	}
 
 	connArgs := []string{
-		"-n", cfg.Namespace,
 		"--certificate-authority=" + cfg.CAPath,
 		"--server=" + cfg.APIServer,
+	}
+	// If cmdArgs contains "--all-namespaces" or ["-n","namespace"], make sure not to add a -n namespace to this.
+	appendNamespace := false
+	for _, arg := range cmdArgs {
+		if (arg == "--all-namespaces") || (arg == "-n") {
+			appendNamespace = true
+		}
+	}
+	if appendNamespace {
+		connArgs = append(connArgs, "-n", cfg.Namespace)
 	}
 
 	// If we are using token-based authentication, append that.
@@ -125,6 +134,7 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 //
 // NOTE: This function is what you want to use most of the time, rather than runKubectl() and runKubectlWithConfig().
 func runKubectlSimple(cfg ServerInfo, cmdArgs ...string) ([]byte, []byte, error) {
+
 	stdin := strings.NewReader("")
 	stdout := bytes.Buffer{}
 	stderr := bytes.Buffer{}
