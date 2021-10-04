@@ -11,7 +11,6 @@ This function allows you to run a kubectl command, with only a few restrictions.
 
 Your command must not:
 
-- use a different namespace
 - specify a different service account 
 - use a different API server
 - run for longer than a few seconds (as in kubectl exec)
