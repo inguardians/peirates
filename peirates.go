@@ -827,6 +827,7 @@ Off-Menu         +
 			kubectlOutput, _, err := runKubectlSimple(connectionString, arguments...)
 			if err != nil {
 				println("[-] Could not perform action: ", input)
+				pauseToHitEnter()
 				continue
 			}
 			kubectlOutputLines := strings.Split(string(kubectlOutput), "\n")
@@ -850,6 +851,7 @@ Off-Menu         +
 			kubectlOutput, _, err := attemptEveryAccount(&connectionString, &serviceAccounts, &clientCertificates, arguments...)
 			if err != nil {
 				println("[-] Could not perform action: ", input)
+				pauseToHitEnter()
 				continue
 			}
 			kubectlOutputLines := strings.Split(string(kubectlOutput), "\n")
