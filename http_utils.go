@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"strings"
 )
 
 // HeaderLine contains the left hand side (header name) and right hand side (header value) of an HTTP header.
@@ -44,7 +45,7 @@ func DoKubernetesAPIRequest(cfg ServerInfo, httpVerb, apiPath string, query inte
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json")
 
-	responseJSON, err := DoHTTPRequestAndGetBody(req, false, cfg.CAPath)
+	responseJSON, err := DoHTTPRequestAndGetBody(req, true, false, cfg.CAPath)
 	if err != nil {
 		fmt.Printf("[-] KubernetesAPIRequest failed to access the kubernetes API: %s\n", err.Error())
 		return err
@@ -64,31 +65,36 @@ func DoKubernetesAPIRequest(cfg ServerInfo, httpVerb, apiPath string, query inte
 // errors, such as invalid certificates, will be ignored. If caCertPath is
 // not an empty string, a TLS certificate will be read from the provided path
 // and added to the pool of valid certificates.
-func DoHTTPRequestAndGetBody(req *http.Request, ignoreTLSErrors bool, caCertPath string) ([]byte, error) {
+func DoHTTPRequestAndGetBody(req *http.Request, https bool, ignoreTLSErrors bool, caCertPath string) ([]byte, error) {
 
-	caCertPool, err := x509.SystemCertPool()
+	client := &http.Client{}
 
-	if err != nil {
-		fmt.Printf("[-] DoHTTPRequestAndGetBody failed to get system cert pool: %s\n", err.Error())
-		return []byte{}, err
-	}
+	if https {
 
-	if caCertPath != "" {
-		caCert, err := ioutil.ReadFile(caCertPath)
-		if err != nil {
-			fmt.Printf("[-] DoHTTPRequestAndGetBody failed reading CA cert from %s: %s\n", caCertPath, err.Error())
+		caCertPool, err := x509.SystemCertPool()
+
+		if err != nil && caCertPath == "" {
+			fmt.Printf("[-] DoHTTPRequestAndGetBody failed to get system cert pool: %s\n", err.Error())
 			return []byte{}, err
 		}
-		caCertPool.AppendCertsFromPEM(caCert)
-	}
 
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				RootCAs:            caCertPool,
-				InsecureSkipVerify: ignoreTLSErrors,
+		if caCertPath != "" {
+			caCert, err := ioutil.ReadFile(caCertPath)
+			if err != nil {
+				fmt.Printf("[-] DoHTTPRequestAndGetBody failed reading CA cert from %s: %s\n", caCertPath, err.Error())
+				return []byte{}, err
+			}
+			caCertPool.AppendCertsFromPEM(caCert)
+		}
+
+		client = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					RootCAs:            caCertPool,
+					InsecureSkipVerify: ignoreTLSErrors,
+				},
 			},
-		},
+		}
 	}
 
 	responseHTTP, err := client.Do(req)
@@ -127,7 +133,12 @@ func GetRequest(url string, headers []HeaderLine, ignoreTLSErrors bool) string {
 		req.Header.Add(header.LHS, header.RHS)
 	}
 
-	reponse, err := DoHTTPRequestAndGetBody(req, ignoreTLSErrors, "")
+	https := false
+	if strings.HasPrefix(url, "https:") {
+		https = true
+	}
+
+	reponse, err := DoHTTPRequestAndGetBody(req, https, ignoreTLSErrors, "")
 	if err != nil {
 		fmt.Printf("[-] GetRequest could not perform request to %s : %s\n", url, err.Error())
 		return ""
