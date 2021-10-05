@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"       // String formatting (Printf, Sprintf)
 	"io/ioutil" // Utils for dealing with IO streams
+	"log"
 
 	// Logging utils
 	"math/rand" // Module for creating random string building
@@ -547,7 +548,7 @@ func banner(connectionString ServerInfo, awsCredentials AWSCredentials, assumedA
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.1.0 by InGuardians
+	Peirates v1.1.1 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -786,10 +787,11 @@ Compromise |
 -----------------+
 Off-Menu         +
 -----------------+
-[90] Run a kubectl command in the current namespace and service account context [kubectl]
+[90] Run a kubectl command using the current authorization context [kubectl [arguments]]
 [91] Make an HTTP request (GET or POST) to a user-specified URL [curl]
 [92] Deactivate "auth can-i" checking before attempting actions [set-auth-can-i] 
 [93] Run a simple all-ports TCP port scan against an IP address [tcpscan]
+[94] Run a shell command [shell <command and arguments>]
 
 [exit] Exit Peirates 
 ----------------------------------------------------------------`)
@@ -814,10 +816,11 @@ Off-Menu         +
 		}
 
 		// Handle kubectl commands before the switch menu.
-		if strings.HasPrefix(input, "kubectl ") {
+		const kubectlSpace = "kubectl "
+		if strings.HasPrefix(input, kubectlSpace) {
 
 			// remove the kubectl, then split the rest on whitespace
-			argumentsLine := strings.TrimPrefix(input, "kubectl ")
+			argumentsLine := strings.TrimPrefix(input, kubectlSpace)
 			arguments := strings.Fields(argumentsLine)
 
 			kubectlOutput, _, err := runKubectlSimple(connectionString, arguments...)
@@ -832,7 +835,30 @@ Off-Menu         +
 
 			// Make sure not to go into the switch-case
 			pauseToHitEnter()
+			continue
+		}
 
+		// Handle shell commands before the switch menu
+		const shellSpace = "shell "
+		if strings.HasPrefix(input, shellSpace) {
+
+			// trim the newline, remove the shell, then split the rest on whitespace
+			input = strings.TrimSuffix(input, "\n")
+			argumentsLine := strings.TrimPrefix(input, shellSpace)
+			spaceDelimitedSet := strings.Fields(argumentsLine)
+
+			// pop the first item so we can pass it in separately
+			command, arguments := spaceDelimitedSet[0], spaceDelimitedSet[1:]
+
+			cmd := exec.Command(command, arguments...)
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				log.Fatalf("running command failed with %s\n", err)
+			}
+			fmt.Printf("\n%s\n", string(out))
+
+			// Make sure not to go into the switch-case
+			pauseToHitEnter()
 			continue
 		}
 
