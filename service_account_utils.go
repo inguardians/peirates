@@ -1,6 +1,7 @@
 package peirates
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -103,6 +104,40 @@ func assignAuthenticationCertificateAndKeyToConnection(keypair ClientCertificate
 	info.TokenName = ""
 	info.Token = ""
 
+}
+
+func listServiceAccounts(serviceAccounts []ServiceAccount, connectionString ServerInfo) {
+	println("\nAvailable Service Accounts:")
+	for i, account := range serviceAccounts {
+		if account.Name == connectionString.TokenName {
+			fmt.Printf("> [%d] %s\n", i, account.Name)
+		} else {
+			fmt.Printf("  [%d] %s\n", i, account.Name)
+		}
+	}
+}
+
+func switchServiceAccounts(serviceAccounts []ServiceAccount, connectionString *ServerInfo) {
+
+	listServiceAccounts(serviceAccounts, *connectionString)
+	println("\nEnter service account number or exit to abort: ")
+	var tokNum int
+	var input string
+	fmt.Scanln(&input)
+	if input == "exit" {
+		return
+	}
+
+	_, err := fmt.Sscan(input, &tokNum)
+	if err != nil {
+		fmt.Printf("Error parsing service account selection: %s\n", err.Error())
+	} else if tokNum < 0 || tokNum >= len(serviceAccounts) {
+		fmt.Printf("Service account %d does not exist!\n", tokNum)
+	} else {
+		assignServiceAccountToConnection(serviceAccounts[tokNum], connectionString)
+		fmt.Printf("Selected %s // %s\n", connectionString.TokenName, connectionString.Token)
+	}
+	return
 }
 
 func printJWT(tokenString string) {
