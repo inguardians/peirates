@@ -144,6 +144,45 @@ func runKubectlSimple(cfg ServerInfo, cmdArgs ...string) ([]byte, []byte, error)
 	return stdout.Bytes(), stderr.Bytes(), err
 }
 
+// Try this kubectl command as every single service account we have until we find one that works.
+func attemptEveryAccount(connectionStringPointer *ServerInfo, serviceAccounts *[]ServiceAccount, clientCertificates *[]ClientCertificateKeyPair, cmdArgs ...string) ([]byte, []byte, error) {
+
+	// Try all service accounts first.
+	// Store the current service account or client certificate auth method.
+	// func assignServiceAccountToConnection(account ServiceAccount, info *ServerInfo) {
+
+	backupAuthContext := *connectionStringPointer
+
+	println("Trying the command as every service account until we find one that works.")
+	for _, sa := range *serviceAccounts {
+		println("Trying " + sa.Name)
+		assignServiceAccountToConnection(sa, connectionStringPointer)
+		kubectlOutput, stderr, err := runKubectlSimple(*connectionStringPointer, cmdArgs...)
+		if err == nil {
+			*connectionStringPointer = backupAuthContext
+			return kubectlOutput, stderr, err
+		}
+
+	}
+
+	// Now try all client certificates.
+	println("Trying the command as every client cert until we find one that works.")
+	for _, cert := range *clientCertificates {
+		println("Trying " + cert.Name)
+		assignAuthenticationCertificateAndKeyToConnection(cert, connectionStringPointer)
+		kubectlOutput, stderr, err := runKubectlSimple(*connectionStringPointer, cmdArgs...)
+		if err == nil {
+			*connectionStringPointer = backupAuthContext
+			return kubectlOutput, stderr, err
+		}
+
+	}
+
+	// Restore the auth context
+	*connectionStringPointer = backupAuthContext
+	return nil, nil, errors.New("no principals worked")
+}
+
 // runKubectlWithByteSliceForStdin is runKubectlSimple but you can pass in some bytes for stdin. Conven
 // This function is unused and thus commented out for now.
 
