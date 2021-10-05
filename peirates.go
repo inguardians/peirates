@@ -548,7 +548,7 @@ func banner(connectionString ServerInfo, awsCredentials AWSCredentials, assumedA
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.1.1 by InGuardians
+	Peirates v1.1.2 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 
@@ -788,10 +788,11 @@ Compromise |
 Off-Menu         +
 -----------------+
 [90] Run a kubectl command using the current authorization context [kubectl [arguments]]
+[*]  Run a kubectl command using EVERY authorization context until one works [kubectl-try-all [arguments]]
 [91] Make an HTTP request (GET or POST) to a user-specified URL [curl]
 [92] Deactivate "auth can-i" checking before attempting actions [set-auth-can-i] 
 [93] Run a simple all-ports TCP port scan against an IP address [tcpscan]
-[94] Run a shell command [shell <command and arguments>]
+[*]  Run a shell command [shell <command and arguments>]
 
 [exit] Exit Peirates 
 ----------------------------------------------------------------`)
@@ -824,6 +825,29 @@ Off-Menu         +
 			arguments := strings.Fields(argumentsLine)
 
 			kubectlOutput, _, err := runKubectlSimple(connectionString, arguments...)
+			if err != nil {
+				println("[-] Could not perform action: ", input)
+				continue
+			}
+			kubectlOutputLines := strings.Split(string(kubectlOutput), "\n")
+			for _, line := range kubectlOutputLines {
+				println(line)
+			}
+
+			// Make sure not to go into the switch-case
+			pauseToHitEnter()
+			continue
+		}
+
+		// Handle kubectl-try-all requests
+		const kubectlTryAllSpace = "kubectl-try-all "
+		if strings.HasPrefix(input, kubectlTryAllSpace) {
+
+			// remove the canmyprincipals, then split the rest on whitespace
+			argumentsLine := strings.TrimPrefix(input, kubectlTryAllSpace)
+			arguments := strings.Fields(argumentsLine)
+
+			kubectlOutput, _, err := attemptEveryAccount(&connectionString, &serviceAccounts, &clientCertificates, arguments...)
 			if err != nil {
 				println("[-] Could not perform action: ", input)
 				continue
