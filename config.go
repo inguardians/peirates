@@ -5,9 +5,11 @@ package peirates
 import (
 	"bufio"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -275,9 +277,79 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 		pauseOnExit = true
 	}
 	if pauseOnExit {
-		var input string
-		fmt.Scanln(&input)
-		println(input)
+		pauseToHitEnter()
 	}
 
+}
+func listNamespaces(connectionString ServerInfo) {
+	Namespaces, _ := GetNamespaces(connectionString)
+	for _, namespace := range Namespaces {
+		fmt.Println(namespace)
+	}
+}
+
+// SwitchNamespace switches the current ServerInfo.Namespace to one entered by the user.
+func menuSwitchNamespaces(connectionString *ServerInfo) bool {
+	listNamespaces(*connectionString)
+
+	namespacesList, _ := GetNamespaces(*connectionString)
+
+	println("\nEnter namespace to switch to or hit enter to maintain current namespace: ")
+	input, _ := ReadLineStripWhitespace()
+
+	if input != "" {
+		// Warn user if namespace is not in the existing namespace list.
+		found := false
+		for _, ns := range namespacesList {
+			if input == ns {
+				found = true
+			}
+		}
+		// We might not find the user's input in the list if we weren't able to list namespaces.
+		// Let them switch anyway, but give a warning.
+		if !found && (len(namespacesList) > 0) {
+			println(input + " isn't a valid namespace.")
+			return false
+		}
+		connectionString.Namespace = input
+	}
+	return true
+}
+
+// GetNamespaces returns the list of active namespaces, using kubectl get namespaces
+func GetNamespaces(connectionString ServerInfo) ([]string, error) {
+
+	if !kubectlAuthCanI(connectionString, "get", "namespaces") {
+		errorString := "[-] Permission Denied: your service account isn't allowed to get namespaces"
+		println(errorString)
+		return []string{}, errors.New(errorString)
+	}
+
+	var namespaces []string
+
+	NamespacesRaw, _, err := runKubectlSimple(connectionString, "get", "namespaces")
+
+	if err != nil {
+		errorString := "[-] error while running kubectl get namespaces"
+		println(errorString)
+		return []string{}, errors.New(errorString)
+	}
+	// Iterate over kubectl get namespaces, stripping off the first line which matches NAME and then grabbing the first column
+
+	lines := strings.Split(string(NamespacesRaw), "\n")
+
+	emptyString := regexp.MustCompile(`^\s*$`)
+	for _, line := range lines {
+		if !emptyString.MatchString(line) {
+			// Get rid of blank lines
+			if strings.Fields(line)[1] == "Active" {
+				namespace := strings.Fields(line)[0]
+				if namespace != "NAME" {
+					namespaces = append(namespaces, namespace)
+				}
+			}
+		}
+	}
+
+	return namespaces, nil
 }

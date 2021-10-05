@@ -110,10 +110,10 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 		"--server=" + cfg.APIServer,
 	}
 	// If cmdArgs contains "--all-namespaces" or ["-n","namespace"], make sure not to add a -n namespace to this.
-	appendNamespace := false
+	appendNamespace := true
 	for _, arg := range cmdArgs {
 		if (arg == "--all-namespaces") || (arg == "-n") {
-			appendNamespace = true
+			appendNamespace = false
 		}
 	}
 	if appendNamespace {

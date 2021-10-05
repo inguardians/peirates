@@ -12,9 +12,8 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json" // Command line flag parsing
-	"errors"
-	"fmt"       // String formatting (Printf, Sprintf)
-	"io/ioutil" // Utils for dealing with IO streams
+	"fmt"           // String formatting (Printf, Sprintf)
+	"io/ioutil"     // Utils for dealing with IO streams
 	"log"
 
 	// Logging utils
@@ -123,31 +122,6 @@ func getSecretList(connectionString ServerInfo) ([]string, []string) {
 	return secrets, serviceAccountTokens
 }
 
-// SwitchNamespace switches the current ServerInfo.Namespace to one entered by the user.
-func SwitchNamespace(connectionString *ServerInfo, namespacesList []string) bool {
-
-	println("\nEnter namespace to switch to or hit enter to maintain current namespace: ")
-	input, _ := ReadLineStripWhitespace()
-
-	if input != "" {
-		// Make sure input is in the existing namespace list.
-		found := false
-		for _, ns := range namespacesList {
-			if input == ns {
-				found = true
-				connectionString.Namespace = input
-			}
-
-		}
-		if !found {
-			println(input + " is not a valid namespace.")
-			return false
-		}
-
-	}
-	return true
-}
-
 // inAPod() attempts to determine if we are running in a pod.
 // Long-term, this will likely go away
 // func inAPod(connectionString ServerInfo) bool {
@@ -162,44 +136,6 @@ func SwitchNamespace(connectionString *ServerInfo, namespacesList []string) bool
 // 		return false
 // 	}
 // }
-
-// GetNamespaces returns the list of active namespaces, using kubectl get namespaces
-func GetNamespaces(connectionString ServerInfo) ([]string, error) {
-
-	if !kubectlAuthCanI(connectionString, "get", "namespaces") {
-		errorString := "[-] Permission Denied: your service account isn't allowed to get namespaces"
-		println(errorString)
-		return []string{}, errors.New(errorString)
-	}
-
-	var namespaces []string
-
-	NamespacesRaw, _, err := runKubectlSimple(connectionString, "get", "namespaces")
-
-	if err != nil {
-		errorString := "[-] error while running kubectl get namespaces"
-		println(errorString)
-		return []string{}, errors.New(errorString)
-	}
-	// Iterate over kubectl get namespaces, stripping off the first line which matches NAME and then grabbing the first column
-
-	lines := strings.Split(string(NamespacesRaw), "\n")
-
-	emptyString := regexp.MustCompile(`^\s*$`)
-	for _, line := range lines {
-		if !emptyString.MatchString(line) {
-			// Get rid of blank lines
-			if strings.Fields(line)[1] == "Active" {
-				namespace := strings.Fields(line)[0]
-				if namespace != "NAME" {
-					namespaces = append(namespaces, namespace)
-				}
-			}
-		}
-	}
-
-	return namespaces, nil
-}
 
 func printListOfPods(connectionString ServerInfo) {
 	runningPods := getPodList(connectionString)
@@ -712,10 +648,6 @@ func Main() {
 	//var kubeRoles KubeRoles
 	var podInfo PodDetails
 
-	// Store all acquired namespaces for this cluster in a global variable, populated and refreshed by PrintNamespaces()
-	var Namespaces []string
-	// println(Namespaces)
-
 	// Run the option parser to initialize connectionStrings
 	parseOptions(&cmdOpts)
 
@@ -754,8 +686,8 @@ func Main() {
 		println(`----------------------------------------------------------------
 Namespaces, Service Accounts and Roles |
 ---------------------------------------+
-[1] List, maintain, or switch service account contexts [sa-menu]
-[2] List and/or change namespaces [ns-menu]
+[1] List, maintain, or switch service account contexts [sa-menu]  (try: listsa, switchsa)
+[2] List and/or change namespaces [ns-menu] (try: listns, switchns)
 [3] Get list of pods in current namespace [list-pods]
 [4] Get complete info on all pods (json) [dump-pod-info]
 [5] Check all pods for volume mounts [find-volume-mounts]
@@ -899,7 +831,11 @@ Off-Menu         +
 		case "0", "90", "kubectl":
 			_ = kubectl_interactive(connectionString)
 
-		// [1] List, maintain, or switch service account contexts [sa-menu]
+		//	[1] List, maintain, or switch service account contexts [sa-menu]  (try: listsa, switchsa)
+		case "switchsa", "saswitch", "switch-sa", "sa-switch":
+			switchServiceAccounts(serviceAccounts, &connectionString)
+		case "listsa", "list-sa", "salist", "sa-list":
+			listServiceAccounts(serviceAccounts, connectionString)
 		case "1", "sa-menu", "service-account-menu", "sa", "service-account":
 			println("Current primary service account: ", connectionString.TokenName)
 			println("\n")
@@ -989,7 +925,11 @@ Off-Menu         +
 
 			}
 
-		// [2] List namespaces or change namespace
+		// [2] List and/or change namespaces [ns-menu] (try: listns, switchns)
+		case "list-ns", "listns", "nslist", "ns-list":
+			listNamespaces(connectionString)
+		case "switch-ns", "switchns", "nsswitch", "ns-switch":
+			menuSwitchNamespaces(&connectionString)
 		case "2", "ns-menu", "namespace-menu", "ns", "namespace":
 			println(`
 			[1] List namespaces [list]
@@ -998,17 +938,10 @@ Off-Menu         +
 			fmt.Scanln(&input)
 			switch input {
 			case "1", "list":
-				Namespaces, _ = GetNamespaces(connectionString)
-				for _, namespace := range Namespaces {
-					fmt.Println(namespace)
-				}
+				listNamespaces(connectionString)
 
 			case "2", "switch":
-				Namespaces, _ = GetNamespaces(connectionString)
-				for _, namespace := range Namespaces {
-					fmt.Println(namespace)
-				}
-				SwitchNamespace(&connectionString, Namespaces)
+				menuSwitchNamespaces(&connectionString)
 
 			default:
 				break
