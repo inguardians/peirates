@@ -2,7 +2,8 @@ package peirates
 
 import (
 	"fmt"
-	"os"
+	"io/ioutil"
+	"log"
 	"time"
 
 	"github.com/trung/jwt-tools/display"
@@ -79,8 +80,14 @@ func assignServiceAccountToConnection(account ServiceAccount, info *ServerInfo) 
 func assignAuthenticationCertificateAndKeyToConnection(keypair ClientCertificateKeyPair, info *ServerInfo) {
 
 	// Write out the CACert to a path
-	const CAPath = "/tmp/ca.crt"
-	file, err := os.Create(CAPath)
+	const tmpFileFormat = "*-ca.crt"
+
+	file, err := ioutil.TempFile("", tmpFileFormat)
+	if err != nil {
+		log.Fatal(err)
+	}
+	CAPath := file.Name()
+
 	if err != nil {
 		println("ERROR: could not open for writing: " + CAPath)
 		return
