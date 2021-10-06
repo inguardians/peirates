@@ -45,10 +45,10 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, serviceAccounts *[]Servic
 					// Make a request for our service account(s)
 					var headers []HeaderLine
 
-					urlSvcAccount := "http://" + addr.Address + ":10255/pods"
-					runningPodsBody := GetRequest(urlSvcAccount, headers, false)
+					unauthKubeletPortURL := "http://" + addr.Address + ":10255/pods"
+					runningPodsBody := GetRequest(unauthKubeletPortURL, headers, false)
 					if (runningPodsBody == "") || (strings.HasPrefix(runningPodsBody, "ERROR:")) {
-						println("[-] Kubelet request for running pods failed - using this URL:", urlSvcAccount)
+						println("[-] Kubelet request for running pods failed - using this URL:", unauthKubeletPortURL)
 						continue nodeLoop
 					}
 
