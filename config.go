@@ -264,16 +264,18 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 				// FEATURE REQUEST: spell out which node this was found on in the last arg.
 				// FEATURE REQUEST: don't add a service account if we already have it.
 				*serviceAccounts = append(*serviceAccounts, MakeNewServiceAccount(fullSecretName, string(token), "pod secret harvested from node "))
+				fmt.Println("[+] Found a service account token in a pod on this node: " + fullSecretName)
 			} else {
 				pauseOnExit = true
-				fmt.Printf("[+] Found a secret on the node's filesystem called %s, provided to pod %s, -- explore it with this command:  ls %s\n\n", secretName, pod.Name(), secretPath+secretName)
+				// FEATURE REQUEST: store these paths and their contents, let the user view them any time.
+				fmt.Printf("[+] Found a secret on the node's filesystem called %s, provided to pod %s, -- explore it with this command:  ls %s\n", secretName, pod.Name(), secretPath+secretName)
 			}
 		}
 	}
 
 	newServiceAccountsCount := len(*serviceAccounts) - startingNumberServiceAccounts
 	if newServiceAccountsCount > 0 {
-		fmt.Printf("\n%d new service accounts pulled from this node's %s directory. Explore them from the sa-menu item on the main menu.\n\nPlease hit Enter to continue.\n", newServiceAccountsCount, kubeletPodsDir)
+		fmt.Printf("\n%d new service accounts pulled from this node's %s directory. Explore them from the sa-menu item on the main menu.\n\n", newServiceAccountsCount, kubeletPodsDir)
 		pauseOnExit = true
 	}
 	if pauseOnExit {

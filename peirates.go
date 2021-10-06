@@ -266,39 +266,7 @@ func banner(connectionString ServerInfo, awsCredentials AWSCredentials, assumedA
 		panic(err)
 	}
 
-	println(`________________________________________
-|  ___  ____ _ ____ ____ ___ ____ ____ |
-|  |__] |___ | |__/ |__|  |  |___ [__  |
-|  |    |___ | |  \ |  |  |  |___ ___] |
-|______________________________________|
-,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-,,,,,,,,,,,,,.............:,,,,,,,,,,,,,
-,,,,,,,,,,...,IIIIIIIIIII+...,,,,,,,,,,,
-,,,,,,,:..~IIIIIIIIIIIIIIIIII...,,,,,,,,
-,,,,,,..?IIIIIII.......IIIIIIII..,,,,,,,
-,,,,,..IIIIIIII...II?...?IIIIIII,..,,,,,
-,,,:..IIIIIIII..:IIIIII..?IIIIIIII..,,,,
-,,,..IIIIIIIII..IIIIIII...IIIIIIII7.:,,,
-,,..IIIIIIIII.............IIIIIIIII..,,,
-,,.=IIIIIIII...~~~~~~~~~...IIIIIIIII..,,
-,..IIIIIIII...+++++++++++,..+IIIIIII..,,
-,..IIIIIII...+++++++++++++:..~IIIIII..,,
-,..IIIIII...++++++:++++++++=..,IIIII..,,
-,..IIIII...+....,++.++++:+.++...IIII..,,
-,,.+IIII...+..,+++++....+,.+...IIIII..,,
-,,..IIIII...+++++++++++++++...IIIII..:,,
-,,,..IIIII...+++++++++++++...IIIII7..,,,
-,,,,.,IIIII...+++++++++++...?IIIII..,,,,
-,,,,:..IIIII...............IIIII?..,,,,,
-,,,,,,..IIIII.............IIIII..,,,,,,,
-,,,,,,,,..7IIIIIIIIIIIIIIIII?...,,,,,,,,
-,,,,,,,,,:...?IIIIIIIIIIII....,,,,,,,,,,
-,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-________________________________________
-	Peirates v1.1.3 by InGuardians
-  https://www.inguardians.com/peirates
-----------------------------------------------------------------`)
+	printBanner()
 
 	if connectionString.Token != "" {
 
@@ -370,6 +338,9 @@ func Main() {
 	// List of current client cert/key pairs
 	clientCertificates := []ClientCertificateKeyPair{}
 
+	// print the banner, so that any node credentials pulled are not out of place.
+	printBanner()
+
 	// Add the kubelet kubeconfig and authentication information if available.
 	_ = checkForNodeCredentials(&clientCertificates)
 	// If there are client certs, but no service accounts, switch to the first client cert
@@ -439,23 +410,17 @@ Off-Menu         +
 ----------------------------------------------------------------`)
 		fmt.Printf("Peirates:># ")
 
-		// Banner items to implement
-
-		// Run a command on a pod from the Kubelet
-		//
-		// Get a list of roles for this service account [not yet implemented]
-		// Get a list of roles available on the cluster [implemented but not connected to menu]
-		// Get a list of abilities for a role [not yet implemented]
-		// Request list of pods from a Kubelet [not yet implemented]
-		// Pull Kubernetes service account tokens from S3 [AWS only] [not yet implemented]
-		// Shell out to bash (not yet implemented)
-		// Build YAML Files (not yet implemented)
-
 		var userResponse string
 		input, err := ReadLineStripWhitespace()
 		if err != nil {
 			continue
 		}
+
+		////////////////////////////////////////////////////////////////////////////////
+		// REFACTOR ADVICE: Make these next three use a loop with items like this:
+		//
+		//                  items["kubectl "] = &handleKubectlSpace()
+		////////////////////////////////////////////////////////////////////////////////
 
 		// Handle kubectl commands before the switch menu.
 		const kubectlSpace = "kubectl "
@@ -567,7 +532,9 @@ Off-Menu         +
 				serviceAccount := acceptServiceAccountFromUser()
 				serviceAccounts = append(serviceAccounts, serviceAccount)
 
-				println("\n[1] Switch to this service account\n[2] Maintain current service account")
+				println("")
+				println("[1] Switch to this service account")
+				println("[2] Maintain current service account")
 				fmt.Scanln(&input)
 				switch input {
 				case "1":
@@ -700,7 +667,7 @@ Off-Menu         +
 			assumedAWSrole = roleAssumption
 
 		// [8] Deactivate assumed AWS role [aws-empty-assumed-role]
-		case "8", "aws-empty-assumed-role":
+		case "8", "aws-empty-assumed-role", "empty-aws-assumed-role":
 			assumedAWSrole.AccessKeyId = ""
 			assumedAWSrole.accountName = ""
 
@@ -1054,30 +1021,8 @@ Off-Menu         +
 			method := "--undefined--"
 			for (method != "GET") && (method != "POST") {
 				fmt.Println("[+] Enter method - only GET and POST are supported: ")
-				fmt.Scanln(&input)
+				input, _ = ReadLineStripWhitespace()
 				method = strings.TrimSpace(strings.ToUpper(input))
-			}
-
-			inputParameter := "--undefined--"
-
-			// Store the parameters in a map
-			params := map[string]string{}
-
-			for inputParameter != "" {
-				// Request a parameter name
-
-				fmt.Println("[+] Enter a parameter or a blank line to finish entering parameters: ")
-				inputParameter, _ = ReadLineStripWhitespace()
-
-				if inputParameter != "" {
-					// Request a parameter value
-					fmt.Println("[+] Enter a value for " + inputParameter + ":")
-					fmt.Scanln(&input)
-
-					// Add the parameter pair to the list
-					params[inputParameter] = url.QueryEscape(input)
-				}
-
 			}
 
 			// Store the headers in a list
@@ -1108,7 +1053,44 @@ Off-Menu         +
 
 			}
 
+			inputParameter := "--undefined--"
+
+			// Store the parameters in a map
+			params := map[string]string{}
+
+			fmt.Println("[+] Now enter parameters which will be placed into the query string or request body.\n")
+			fmt.Println("    If you set a Content-Type manually to something besides application/x-www-form-urlencoded, use the parameter name a line of text and leave the value blank.\n")
+
+			for inputParameter != "" {
+				// Request a parameter name
+
+				fmt.Println("[+] Enter a parameter or a blank line to finish entering parameters: ")
+				inputParameter, _ = ReadLineStripWhitespace()
+
+				if inputParameter != "" {
+					// Request a parameter value
+					fmt.Println("[+] Enter a value for " + inputParameter + ": ")
+					input, _ = ReadLineStripWhitespace()
+
+					// Add the parameter pair to the list
+					params[inputParameter] = url.QueryEscape(input)
+				}
+
+			}
+
+			var paramLocation string
+			for (paramLocation != "url") && (paramLocation != "body") {
+				fmt.Println("\nWould you like to place parameters in the URL (like in a GET query) or in the body (like in a POST)\nurl or body: ")
+				paramLocation, err = ReadLineStripWhitespace()
+				if err != nil {
+					continue
+				}
+				paramLocation = strings.ToLower(paramLocation)
+			}
+
 			////// START thing to be abstracted
+
+			// func createHTTPrequest(method string, fullURL string, headers []HeaderLine, params map[string] string )
 			// Store a URL starting point
 			urlWithData := fullURL
 
@@ -1118,48 +1100,81 @@ Off-Menu         +
 			var contentLength string
 
 			// Construct GET or POST request based on variables
-			if method == "GET" {
 
-				// If there are parameters, add them to the end of urlWithData
-				if len(params) > 0 {
-					queryString := "?"
+			// If there are parameters, add them to the end of urlWithData
+
+			const headerContentType = "Content-Type"
+			const headerValFormURLEncoded = "application/x-www-form-urlencoded"
+
+			if len(params) > 0 {
+
+				if paramLocation == "url" {
+					urlWithData = urlWithData + "?"
 
 					for key, value := range params {
-						queryString = queryString + key + "=" + value + "&"
+						urlWithData = urlWithData + key + "=" + value + "&"
 					}
 					// Strip the final & off the query string
-					urlWithData = fullURL + strings.TrimSuffix(queryString, "&")
+					urlWithData = strings.TrimSuffix(urlWithData, "&")
+
+				} else if paramLocation == "body" {
+
+					// Add a Content-Type by default that curl would use with -d
+					// Content-Type: application/x-www-form-urlencoded
+					contentTypeFormURLEncoded := true
+					foundContentType := false
+					for _, header := range headers {
+						if header.LHS == headerContentType {
+							foundContentType = true
+							if header.RHS != headerValFormURLEncoded {
+								contentTypeFormURLEncoded = false
+							}
+						}
+					}
+					// Add a Content-Type header.
+					if !foundContentType {
+						headers = append(headers, HeaderLine{LHS: headerContentType, RHS: headerValFormURLEncoded})
+					}
+
+					// Now place the values in the body, encoding if content type is x-www-form-urlencoded
+					if contentTypeFormURLEncoded {
+
+						data := url.Values{}
+						for key, value := range params {
+							fmt.Printf("key[%s] value[%s]\n", key, value)
+							data.Set(key, value)
+						}
+						encodedData := data.Encode()
+
+						dataSection = strings.NewReader(encodedData)
+						contentLength = strconv.Itoa(len(encodedData))
+					} else {
+						var bodySection string
+						for key, value := range params {
+							bodySection = bodySection + key + value + "\n"
+						}
+						dataSection = strings.NewReader(bodySection)
+						contentLength = strconv.Itoa(len(bodySection))
+
+					}
 				}
-
-			} else if method == "POST" {
-
-				data := url.Values{}
-				for key, value := range params {
-					fmt.Printf("key[%s] value[%s]\n", key, value)
-					data.Set(key, value)
-				}
-				encodedData := data.Encode()
-				dataSection = strings.NewReader(encodedData)
-				contentLength = strconv.Itoa(len(encodedData))
-
-			} else {
-				fmt.Println("ERROR: method " + method + " is not GET or POST - we shouldn't get here.")
-				break
 			}
 
 			fmt.Println("[+] Using method " + method + " for URL " + urlWithData)
 
 			// Build the request, adding in any headers found so far.
-			request, _ := http.NewRequest(method, fullURL, nil)
+			request, _ := http.NewRequest(method, urlWithData, nil)
 			for _, header := range headers {
 				request.Header.Add(header.LHS, header.RHS)
 			}
+			// Stub request to confirm function definition works
+			_, err := createHTTPrequest(method, urlWithData, headers, params)
 
 			// For posts, we replace the request -- can we combine the code
 			// just above with this code by getting the request variable scoped
 			// outside this if block?
 			if method != "GET" {
-				request, _ = http.NewRequest(method, fullURL, dataSection)
+				request, _ = http.NewRequest(method, urlWithData, dataSection)
 				for _, header := range headers {
 					request.Header.Add(header.LHS, header.RHS)
 				}
@@ -1172,7 +1187,7 @@ Off-Menu         +
 			////// END thing to be abstracted
 
 			if err != nil {
-				fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", fullURL, err.Error())
+				fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", urlWithData, err.Error())
 				response.Body.Close()
 				continue
 			}
@@ -1260,4 +1275,40 @@ Off-Menu         +
 
 		clearScreen()
 	}
+}
+
+func printBanner() {
+	println(`________________________________________
+|  ___  ____ _ ____ ____ ___ ____ ____ |
+|  |__] |___ | |__/ |__|  |  |___ [__  |
+|  |    |___ | |  \ |  |  |  |___ ___] |
+|______________________________________|
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,.............:,,,,,,,,,,,,,
+,,,,,,,,,,...,IIIIIIIIIII+...,,,,,,,,,,,
+,,,,,,,:..~IIIIIIIIIIIIIIIIII...,,,,,,,,
+,,,,,,..?IIIIIII.......IIIIIIII..,,,,,,,
+,,,,,..IIIIIIII...II?...?IIIIIII,..,,,,,
+,,,:..IIIIIIII..:IIIIII..?IIIIIIII..,,,,
+,,,..IIIIIIIII..IIIIIII...IIIIIIII7.:,,,
+,,..IIIIIIIII.............IIIIIIIII..,,,
+,,.=IIIIIIII...~~~~~~~~~...IIIIIIIII..,,
+,..IIIIIIII...+++++++++++,..+IIIIIII..,,
+,..IIIIIII...+++++++++++++:..~IIIIII..,,
+,..IIIIII...++++++:++++++++=..,IIIII..,,
+,..IIIII...+....,++.++++:+.++...IIII..,,
+,,.+IIII...+..,+++++....+,.+...IIIII..,,
+,,..IIIII...+++++++++++++++...IIIII..:,,
+,,,..IIIII...+++++++++++++...IIIII7..,,,
+,,,,.,IIIII...+++++++++++...?IIIII..,,,,
+,,,,:..IIIII...............IIIII?..,,,,,
+,,,,,,..IIIII.............IIIII..,,,,,,,
+,,,,,,,,..7IIIIIIIIIIIIIIIII?...,,,,,,,,
+,,,,,,,,,:...?IIIIIIIIIIII....,,,,,,,,,,
+,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+________________________________________
+	Peirates v1.1.3 by InGuardians
+  https://www.inguardians.com/peirates
+----------------------------------------------------------------`)
 }

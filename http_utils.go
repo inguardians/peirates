@@ -147,6 +147,13 @@ func GetRequest(url string, headers []HeaderLine, ignoreTLSErrors bool) string {
 	return string(reponse)
 }
 
+func createHTTPrequest(method string, url string, headers []HeaderLine, params map[string]string) (*http.Request, error) {
+
+	// construct request
+	req, err := http.NewRequest(method, url, nil)
+	return req, err
+}
+
 // GetMyIPAddressesNative gets a list of IP addresses available via Golang's Net library
 func GetMyIPAddressesNative() []string {
 
