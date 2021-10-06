@@ -11,6 +11,8 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -147,11 +149,94 @@ func GetRequest(url string, headers []HeaderLine, ignoreTLSErrors bool) string {
 	return string(reponse)
 }
 
-func createHTTPrequest(method string, url string, headers []HeaderLine, params map[string]string) (*http.Request, error) {
+func createHTTPrequest(method string, urlWithoutValues string, headers []HeaderLine, paramLocation string, params map[string]string) (*http.Request, error) {
 
-	// construct request
-	req, err := http.NewRequest(method, url, nil)
-	return req, err
+	// Store a URL starting point that we may put values on.
+	urlWithData := urlWithoutValues
+
+	// Create a data structure for values sent in the body of the request.
+
+	var dataSection *strings.Reader = nil
+	var contentLength string
+
+	// If there are parameters, add them to the end of urlWithData
+
+	const headerContentType = "Content-Type"
+	const headerValFormURLEncoded = "application/x-www-form-urlencoded"
+
+	if len(params) > 0 {
+
+		if paramLocation == "url" {
+			urlWithData = urlWithData + "?"
+
+			for key, value := range params {
+				urlWithData = urlWithData + key + "=" + value + "&"
+			}
+
+			// Strip the final & off the query string
+			urlWithData = strings.TrimSuffix(urlWithData, "&")
+
+		} else if paramLocation == "body" {
+
+			// Add a Content-Type by default that curl would use with -d
+			// Content-Type: application/x-www-form-urlencoded
+			contentTypeFormURLEncoded := true
+			foundContentType := false
+			for _, header := range headers {
+				if header.LHS == headerContentType {
+					foundContentType = true
+					if header.RHS != headerValFormURLEncoded {
+						contentTypeFormURLEncoded = false
+					}
+				}
+			}
+			// Add a Content-Type header.
+			if !foundContentType {
+				headers = append(headers, HeaderLine{LHS: headerContentType, RHS: headerValFormURLEncoded})
+			}
+
+			// Now place the values in the body, encoding if content type is x-www-form-urlencoded
+			if contentTypeFormURLEncoded {
+
+				data := url.Values{}
+				for key, value := range params {
+					fmt.Printf("key[%s] value[%s]\n", key, value)
+					data.Set(key, value)
+				}
+				encodedData := data.Encode()
+
+				dataSection = strings.NewReader(encodedData)
+				contentLength = strconv.Itoa(len(encodedData))
+			} else {
+				var bodySection string
+				for key, value := range params {
+					bodySection = bodySection + key + value + "\n"
+				}
+				dataSection = strings.NewReader(bodySection)
+				contentLength = strconv.Itoa(len(bodySection))
+
+			}
+		} else {
+			println("paramLocation was not url or body.")
+			return nil, nil
+		}
+	}
+
+	fmt.Println("[+] Using method " + method + " for URL " + urlWithData)
+
+	var request *http.Request
+	// Build the request, adding in any headers found so far.
+	if dataSection != nil {
+		request, _ = http.NewRequest(method, urlWithData, dataSection)
+		request.Header.Add("Content-Length", contentLength)
+	} else {
+		request, _ = http.NewRequest(method, urlWithData, nil)
+	}
+	for _, header := range headers {
+		request.Header.Add(header.LHS, header.RHS)
+	}
+
+	return request, nil
 }
 
 // GetMyIPAddressesNative gets a list of IP addresses available via Golang's Net library

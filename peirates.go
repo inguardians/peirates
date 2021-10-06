@@ -18,7 +18,8 @@ import (
 	// Logging utils
 	"math/rand" // Module for creating random string building
 	"os"        // Environment variables ...
-	"strconv"   // String parsing
+
+	// String parsing
 	"strings"
 
 	// HTTP client/server
@@ -1088,101 +1089,15 @@ Off-Menu         +
 				paramLocation = strings.ToLower(paramLocation)
 			}
 
-			////// START thing to be abstracted
-
-			// func createHTTPrequest(method string, fullURL string, headers []HeaderLine, params map[string] string )
-			// Store a URL starting point
-			urlWithData := fullURL
-
-			// Create a data structure for values sent in the body of the request.
-
-			var dataSection *strings.Reader = nil
-			var contentLength string
-
-			// Construct GET or POST request based on variables
-
-			// If there are parameters, add them to the end of urlWithData
-
-			const headerContentType = "Content-Type"
-			const headerValFormURLEncoded = "application/x-www-form-urlencoded"
-
-			if len(params) > 0 {
-
-				if paramLocation == "url" {
-					urlWithData = urlWithData + "?"
-
-					for key, value := range params {
-						urlWithData = urlWithData + key + "=" + value + "&"
-					}
-					// Strip the final & off the query string
-					urlWithData = strings.TrimSuffix(urlWithData, "&")
-
-				} else if paramLocation == "body" {
-
-					// Add a Content-Type by default that curl would use with -d
-					// Content-Type: application/x-www-form-urlencoded
-					contentTypeFormURLEncoded := true
-					foundContentType := false
-					for _, header := range headers {
-						if header.LHS == headerContentType {
-							foundContentType = true
-							if header.RHS != headerValFormURLEncoded {
-								contentTypeFormURLEncoded = false
-							}
-						}
-					}
-					// Add a Content-Type header.
-					if !foundContentType {
-						headers = append(headers, HeaderLine{LHS: headerContentType, RHS: headerValFormURLEncoded})
-					}
-
-					// Now place the values in the body, encoding if content type is x-www-form-urlencoded
-					if contentTypeFormURLEncoded {
-
-						data := url.Values{}
-						for key, value := range params {
-							fmt.Printf("key[%s] value[%s]\n", key, value)
-							data.Set(key, value)
-						}
-						encodedData := data.Encode()
-
-						dataSection = strings.NewReader(encodedData)
-						contentLength = strconv.Itoa(len(encodedData))
-					} else {
-						var bodySection string
-						for key, value := range params {
-							bodySection = bodySection + key + value + "\n"
-						}
-						dataSection = strings.NewReader(bodySection)
-						contentLength = strconv.Itoa(len(bodySection))
-
-					}
-				}
-			}
-
-			fmt.Println("[+] Using method " + method + " for URL " + urlWithData)
-
-			var request *http.Request
-			// Build the request, adding in any headers found so far.
-			if dataSection != nil {
-				request, _ = http.NewRequest(method, urlWithData, dataSection)
-				request.Header.Add("Content-Length", contentLength)
-			} else {
-				request, _ = http.NewRequest(method, urlWithData, nil)
-			}
-			for _, header := range headers {
-				request.Header.Add(header.LHS, header.RHS)
-			}
-
-			// Stub request to confirm function definition works
-			_, err := createHTTPrequest(method, urlWithData, headers, params)
+			// Make the request and get the response.
+			request, err := createHTTPrequest(method, fullURL, headers, paramLocation, params)
 
 			response, err := httpClient.Do(request)
 
 			////// END thing to be abstracted
 
 			if err != nil {
-				fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", urlWithData, err.Error())
+				fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", fullURL, err.Error())
 				response.Body.Close()
 				continue
 			}
