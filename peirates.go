@@ -1162,25 +1162,20 @@ Off-Menu         +
 
 			fmt.Println("[+] Using method " + method + " for URL " + urlWithData)
 
+			var request *http.Request
 			// Build the request, adding in any headers found so far.
-			request, _ := http.NewRequest(method, urlWithData, nil)
+			if dataSection != nil {
+				request, _ = http.NewRequest(method, urlWithData, dataSection)
+				request.Header.Add("Content-Length", contentLength)
+			} else {
+				request, _ = http.NewRequest(method, urlWithData, nil)
+			}
 			for _, header := range headers {
 				request.Header.Add(header.LHS, header.RHS)
 			}
+
 			// Stub request to confirm function definition works
 			_, err := createHTTPrequest(method, urlWithData, headers, params)
-
-			// For posts, we replace the request -- can we combine the code
-			// just above with this code by getting the request variable scoped
-			// outside this if block?
-			if method != "GET" {
-				request, _ = http.NewRequest(method, urlWithData, dataSection)
-				for _, header := range headers {
-					request.Header.Add(header.LHS, header.RHS)
-				}
-
-				request.Header.Add("Content-Length", contentLength)
-			}
 
 			response, err := httpClient.Do(request)
 
