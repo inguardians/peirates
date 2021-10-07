@@ -239,8 +239,6 @@ func createHTTPrequest(method string, urlWithoutValues string, headers []HeaderL
 	return request, nil
 }
 
-<<<<<<< Updated upstream
-=======
 // func curlNonWizard(arguments ...string) {
 
 // 	// Make the request and get the response.
@@ -248,7 +246,6 @@ func createHTTPrequest(method string, urlWithoutValues string, headers []HeaderL
 
 // }
 
->>>>>>> Stashed changes
 // GetMyIPAddressesNative gets a list of IP addresses available via Golang's Net library
 func GetMyIPAddressesNative() []string {
 
