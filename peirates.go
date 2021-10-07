@@ -419,7 +419,7 @@ Off-Menu         +
 		}
 
 		////////////////////////////////////////////////////////////////////////////////
-		// REFACTOR ADVICE: Make these next three use a loop with items like this:
+		// REFACTOR ADVICE: Make these next few use a loop with items like this:
 		//
 		//                  items["kubectl "] = &handleKubectlSpace()
 		////////////////////////////////////////////////////////////////////////////////
@@ -432,16 +432,12 @@ Off-Menu         +
 			argumentsLine := strings.TrimPrefix(input, kubectlSpace)
 			arguments := strings.Fields(argumentsLine)
 
-			kubectlOutput, kubectlStdErr, err := runKubectlSimple(connectionString, arguments...)
+			kubectlOutput, _, err := runKubectlSimple(connectionString, arguments...)
+			println(string(kubectlOutput))
+
+			// Note that we got an error code, in case it's the only output.
 			if err != nil {
-				println(string(kubectlStdErr))
-				println("[-] Could not perform action: ", input)
-				pauseToHitEnter()
-				continue
-			}
-			kubectlOutputLines := strings.Split(string(kubectlOutput), "\n")
-			for _, line := range kubectlOutputLines {
-				println(line)
+				println("[-] error returned running: ", input)
 			}
 
 			// Make sure not to go into the switch-case
@@ -458,14 +454,11 @@ Off-Menu         +
 			arguments := strings.Fields(argumentsLine)
 
 			kubectlOutput, _, err := attemptEveryAccount(&connectionString, &serviceAccounts, &clientCertificates, arguments...)
+			println(string(kubectlOutput))
+
+			// Note that we got an error code, in case it's the only output.
 			if err != nil {
-				println("[-] Could not perform action: ", input)
-				pauseToHitEnter()
-				continue
-			}
-			kubectlOutputLines := strings.Split(string(kubectlOutput), "\n")
-			for _, line := range kubectlOutputLines {
-				println(line)
+				println("[-] Could not perform action or received an error on: ", input)
 			}
 
 			// Make sure not to go into the switch-case

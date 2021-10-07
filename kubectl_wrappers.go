@@ -30,12 +30,14 @@ import (
 //
 // NOTE: You should generally use runKubectlSimple(), which calls runKubectlWithConfig, which calls this.
 func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
+
+	// Note - we set stderr here to stdout, to ensure that the commands outputs and errors are displayed in order.
 	cmd := exec.Cmd{
 		Path:   "/proc/self/exe",
 		Args:   append([]string{"kubectl"}, cmdArgs...),
 		Stdin:  stdin,
 		Stdout: stdout,
-		Stderr: stderr,
+		Stderr: stdout,
 	}
 	cmd.Start()
 
