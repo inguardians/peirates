@@ -453,7 +453,7 @@ Off-Menu         +
 		const kubectlTryAllSpace = "kubectl-try-all "
 		if strings.HasPrefix(input, kubectlTryAllSpace) {
 
-			// remove the canmyprincipals, then split the rest on whitespace
+			// remove the kubectl-try-all, then split the rest on whitespace
 			argumentsLine := strings.TrimPrefix(input, kubectlTryAllSpace)
 			arguments := strings.Fields(argumentsLine)
 
