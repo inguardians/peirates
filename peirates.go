@@ -473,28 +473,6 @@ Off-Menu         +
 			continue
 		}
 
-		// Handle curl on the menu line
-		const curlSpace = "curl "
-		if strings.HasPrefix(input, curlSpace) {
-			// remove the curl, then split the rest on whitespace
-			argumentsLine := strings.TrimPrefix(input, curlSpace)
-			arguments := strings.Fields(argumentsLine)
-			// Pass the arguments to the curlNonWizard to construct a request object.
-			request, err := curlNonWizard(arguments...)
-			if err != nil {
-				println("Could not create request.")
-				break
-			}
-			responseBody, err := DoHTTPRequestAndGetBody(request, https, ignoreTLSErrors, caCertPath)
-			if err != nil {
-				println("Request failed.")
-				break
-			}
-			responseBodyString := string(responseBody)
-			println(responseBodyString + "\n")
-			pauseToHitEnter()
-		}
-
 		// Handle shell commands before the switch menu
 		const shellSpace = "shell "
 		if strings.HasPrefix(input, shellSpace) {
@@ -526,20 +504,21 @@ Off-Menu         +
 			arguments := strings.Fields(argumentsLine)
 
 			// Pass the arguments to the curlNonWizard to construct a request object.
-			request, err := curlNonWizard(arguments...)
+			request, https, ignoreTLSErrors, caCertPath, err := curlNonWizard(arguments...)
 			if err != nil {
 				println("Could not create request.")
 				break
 			}
 			responseBody, err := DoHTTPRequestAndGetBody(request, https, ignoreTLSErrors, caCertPath)
-			if err != nil {
-				println("Request failed.")
-				break
-			}
 			responseBodyString := string(responseBody)
 			println(responseBodyString + "\n")
-			pauseToHitEnter()
 
+			if err != nil {
+				println("Request produced an error.")
+				break
+			}
+			pauseToHitEnter()
+			continue
 		}
 
 		// Peirates MAIN MENU

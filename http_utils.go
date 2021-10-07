@@ -239,28 +239,39 @@ func createHTTPrequest(method string, urlWithoutValues string, headers []HeaderL
 	return request, nil
 }
 
-func curlNonWizard(arguments ...string) {
+func curlNonWizard(arguments ...string) (request *http.Request, https bool, ignoreTLSErrors bool, caCertPath string, err error) {
 
 	// Scan through the arguments for a method
 	method := "GET"
-	for i, argument := range(arguments) {
+	var fullURL string
+	for i, argument := range arguments {
 		if argument == "-X" {
 			// Method is being set
 			method = arguments[i+1]
 			println("DEBUG: found argument -X " + method)
-		} else if strings.HasPrefix(argument,"http://") {
+		} else if argument == "-k" {
+			ignoreTLSErrors = true
+		} else if argument == "-d" {
+			// TODO: parse out next argument as POST data
+		} else if strings.HasPrefix(argument, "http://") {
 			fullURL = argument
 		} else if strings.HasPrefix(argument, "https://") {
 			fullURL = argument
+			https = true
+			// TODO: Allow user to enter a caCertPath?
+			caCertPath = ""
 		}
+		// TODO: Implement headers
+
 	}
-	
-	headers = []HeaderLine
+
+	var headers []HeaderLine
 	paramLocation := "url"
-	params := []string
+	var params map[string]string
 
 	// Make the request and get the response.
-	request, err := createHTTPrequest(method, fullURL, headers, paramLocation, params)
+	request, err = createHTTPrequest(method, fullURL, headers, paramLocation, params)
+	return request, https, ignoreTLSErrors, caCertPath, err
 
 }
 
