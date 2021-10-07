@@ -409,6 +409,7 @@ Off-Menu         +
 
 [exit] Exit Peirates 
 ----------------------------------------------------------------`)
+
 		fmt.Printf("Peirates:># ")
 
 		var userResponse string
@@ -431,8 +432,9 @@ Off-Menu         +
 			argumentsLine := strings.TrimPrefix(input, kubectlSpace)
 			arguments := strings.Fields(argumentsLine)
 
-			kubectlOutput, _, err := runKubectlSimple(connectionString, arguments...)
+			kubectlOutput, kubectlStdErr, err := runKubectlSimple(connectionString, arguments...)
 			if err != nil {
+				println(string(kubectlStdErr))
 				println("[-] Could not perform action: ", input)
 				pauseToHitEnter()
 				continue

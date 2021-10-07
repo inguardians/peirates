@@ -102,6 +102,7 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 
 	// Confirm that we have a certificate authority path entry.
 	if len(cfg.CAPath) == 0 {
+		println("DEBUG: certificate authority path not defined - will not communicate with api server")
 		return errors.New("certificate authority path not defined - will not communicate with api server")
 	}
 
@@ -124,6 +125,11 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 	if len(cfg.Token) > 0 {
 		// Append the token to connArgs
 		connArgs = append(connArgs, "--token="+cfg.Token)
+	}
+	// If we are using cert-based authentication, use that:
+	if len(cfg.ClientCertPath) > 0 {
+		connArgs = append(connArgs, "--client-key="+cfg.ClientKeyPath)
+		connArgs = append(connArgs, "--client-certificate="+cfg.ClientCertPath)
 	}
 
 	return runKubectl(stdin, stdout, stderr, append(connArgs, cmdArgs...)...)
