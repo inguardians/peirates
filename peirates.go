@@ -8,11 +8,11 @@ package peirates
 //
 
 import (
-	"crypto/tls"
 	"encoding/base64"
 	"encoding/json" // Command line flag parsing
 	"fmt"           // String formatting (Printf, Sprintf)
-	"io/ioutil"     // Utils for dealing with IO streams
+
+	// Utils for dealing with IO streams
 	"log"
 
 	// Logging utils
@@ -23,9 +23,9 @@ import (
 	"strings"
 
 	// HTTP client/server
-	"net/http" // HTTP requests
-	"net/url"  // URL encoding
-	"os/exec"  // for exec
+	// HTTP requests
+	"net/url" // URL encoding
+	"os/exec" // for exec
 	"regexp"
 	// Time modules
 	// kubernetes client
@@ -486,6 +486,30 @@ Off-Menu         +
 			fmt.Printf("\n%s\n", string(out))
 
 			// Make sure not to go into the switch-case
+			pauseToHitEnter()
+			continue
+		}
+
+		const curlSpace = "curl "
+		if strings.HasPrefix(input, curlSpace) {
+			// remove the curl, then split the rest on whitespace
+			argumentsLine := strings.TrimPrefix(input, curlSpace)
+			arguments := strings.Fields(argumentsLine)
+
+			// Pass the arguments to the curlNonWizard to construct a request object.
+			request, https, ignoreTLSErrors, caCertPath, err := curlNonWizard(arguments...)
+			if err != nil {
+				println("Could not create request.")
+				break
+			}
+			responseBody, err := DoHTTPRequestAndGetBody(request, https, ignoreTLSErrors, caCertPath)
+			responseBodyString := string(responseBody)
+			println(responseBodyString + "\n")
+
+			if err != nil {
+				println("Request produced an error.")
+				break
+			}
 			pauseToHitEnter()
 			continue
 		}
@@ -982,35 +1006,36 @@ Off-Menu         +
 			injectIntoAPodViaAPIServer(connectionString, podName)
 
 		// [91] Make an HTTP request (GET or POST) to a URL of your choice [curl]
+		// This is available both on the main menu line and interactively.
+		// Here's the interactive.
 		case "91", "curl":
 			println("[+] Enter a URL, including http:// or https:// - if parameters are required, you must provide them as part of the URL: ")
-			fmt.Scanln(&input)
+			fullURL, _ := ReadLineStripWhitespace()
+			fullURL = strings.ToLower(fullURL)
 
-			// Trim whitespace
-			fullURL := strings.TrimSpace(strings.ToLower(input))
-
-			// Determine whether the URL is https or not:
-			httpsPresent := false
-			if strings.HasPrefix(fullURL, "https://") {
-				httpsPresent = true
-			} else {
-				// Make sure the URL begins with http://, if it didn't begin with https://
-				if !strings.HasPrefix(fullURL, "http://") {
-					fmt.Println("This URL does not start with http:// or https://")
-					break
-				}
+			// Make sure the URL begins with http:// or https://.
+			if !strings.HasPrefix(fullURL, "http://") && !strings.HasPrefix(fullURL, "https://") {
+				fmt.Println("This URL does not start with http:// or https://")
+				break
 			}
 
-			// TODO: Can we abstract the HTTP portion of this into http_utils.go
-			//       the way we did with GetRequest()?
+			// If the URL is https, ask more questions.
+			https := false
+			ignoreTLSErrors := false
+			caCertPath := ""
 
-			// Set up an http client
-			httpClient := &http.Client{}
-			if httpsPresent {
-				tr := &http.Transport{
-					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			if strings.HasPrefix(fullURL, "https://") {
+				https = true
+				// Ask the user if they want to ignore certificate validation
+				println("Would you like to ignore whether the server certificate is valid (y/n)? This corresponds to curl's -k flag.")
+				answer, _ := ReadLineStripWhitespace()
+				answer = strings.ToLower(answer)
+				if strings.HasPrefix(answer, "y") {
+					ignoreTLSErrors = true
 				}
-				httpClient = &http.Client{Transport: tr}
+
+				println("If you would like to set a custom certificate authority cert path, enter it here.  Otherwise, hit enter.")
+				caCertPath, _ = ReadLineStripWhitespace()
 			}
 
 			// Get the HTTP method
@@ -1036,6 +1061,9 @@ Off-Menu         +
 				inputHeader = strings.TrimSpace(input)
 
 				if inputHeader != "" {
+					// Remove trailing : if present
+					inputHeader = strings.TrimSuffix(inputHeader, ":")
+
 					// Request a header rhs (value)
 					fmt.Println("[+] Enter a value for " + inputHeader + ":")
 					input, _ = ReadLineStripWhitespace()
@@ -1054,8 +1082,8 @@ Off-Menu         +
 			// Store the parameters in a map
 			params := map[string]string{}
 
-			fmt.Println("[+] Now enter parameters which will be placed into the query string or request body.\n")
-			fmt.Println("    If you set a Content-Type manually to something besides application/x-www-form-urlencoded, use the parameter name a line of text and leave the value blank.\n")
+			fmt.Printf("[+] Now enter parameters which will be placed into the query string or request body.\n\n")
+			fmt.Printf("    If you set a Content-Type manually to something besides application/x-www-form-urlencoded, use the parameter name a line of text and leave the value blank.\n\n")
 
 			for inputParameter != "" {
 				// Request a parameter name
@@ -1086,25 +1114,19 @@ Off-Menu         +
 
 			// Make the request and get the response.
 			request, err := createHTTPrequest(method, fullURL, headers, paramLocation, params)
-
-			response, err := httpClient.Do(request)
-
-			////// END thing to be abstracted
-
 			if err != nil {
-				fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", fullURL, err.Error())
-				response.Body.Close()
-				continue
+				println("Could not create request.")
+				break
 			}
-			if response.Status != "200 OK" {
-				fmt.Printf("[-] Error - response code: %s\n", response.Status)
-				continue
+			responseBody, err := DoHTTPRequestAndGetBody(request, https, ignoreTLSErrors, caCertPath)
+			if err != nil {
+				println("Request failed.")
+				break
 			}
-			defer response.Body.Close()
-			responseBody, _ := ioutil.ReadAll(response.Body)
 			responseBodyString := string(responseBody)
-			println(responseBodyString)
-			println("")
+			println(responseBodyString + "\n")
+			pauseToHitEnter()
+
 		// [92] Deactivate "auth can-i" checking before attempting actions [set-auth-can-i]
 		case "92", "set-auth-can-i":
 			// Toggle UseAuthCanI between true and false
