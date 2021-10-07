@@ -241,6 +241,24 @@ func createHTTPrequest(method string, urlWithoutValues string, headers []HeaderL
 
 // func curlNonWizard(arguments ...string) {
 
+// 	// Scan through the arguments for a method
+// 	method := "GET"
+// 	for i, argument := range(arguments) {
+// 		if argument == "-X" {
+// 			// Method is being set
+// 			method = arguments[i+1]
+// 			println("DEBUG: found argument -X " + method)
+// 		} else if strings.HasPrefix(argument,"http://") {
+// 			fullURL = argument
+// 		} else if strings.HasPrefix(argument, "https://") {
+// 			fullURL = argument
+// 		}
+// 	}
+
+// 	headers = []HeaderLine
+// 	paramLocation := "url"
+// 	params := []string
+
 // 	// Make the request and get the response.
 // 	request, err := createHTTPrequest(method, fullURL, headers, paramLocation, params)
 
