@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/trung/jwt-tools/display"
@@ -29,9 +30,25 @@ type ClientCertificateKeyPair struct {
 	CACert                string // Content of a CA cert
 }
 
+// AddNewServiceAccount adds a new service account to the existing slice, but only if the the new one is unique
+// Return whether one was added - if it wasn't, it's a duplicate.
+func AddNewServiceAccount(name, token, discoveryMethod string, serviceAccountList *[]ServiceAccount) bool {
+
+	for _, sa := range *serviceAccountList {
+		if strings.TrimSpace(sa.Name) == strings.TrimSpace(name) {
+			return false
+		}
+	}
+
+	*serviceAccountList = append(*serviceAccountList, MakeNewServiceAccount(name, token, "pod secret harvested from node "))
+	return true
+}
+
 // MakeNewServiceAccount creates a new service account with the provided name,
 // token, and discovery method, while setting the DiscoveryTime to time.Now()
 func MakeNewServiceAccount(name, token, discoveryMethod string) ServiceAccount {
+
+	// FEATURE REQUEST: make sure anything using this function transitions to use AddNewServiceAccount().
 	return ServiceAccount{
 		Name:            name,
 		Token:           token,

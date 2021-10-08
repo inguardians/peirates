@@ -221,8 +221,49 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 		return
 	}
 
+	// Also, we want to gather the non-token secrets
+	type SecretFromPodViaNode struct {
+		secretName string
+		secretPath string
+		podName    string
+	}
+
+	var nonTokenSecrets []SecretFromPodViaNode
+
 	const subDir = "/volumes/kubernetes.io~secret/"
+
 	for _, pod := range dirs {
+
+		// Get the name of the pod
+		etcHostPath := kubeletPodsDir + pod.Name() + "/etc-hosts"
+		var podName string
+		if _, err := os.Stat(etcHostPath); !os.IsNotExist(err) {
+			// if the etc-hosts file is there, parse it to find this pod's name
+			file, err := os.Open(etcHostPath)
+			if err != nil {
+				continue
+			}
+			scanner := bufio.NewScanner(file)
+			scanner.Split(bufio.ScanLines)
+			for scanner.Scan() {
+				line := strings.TrimSpace(scanner.Text())
+				if strings.Contains(line, "localhost") {
+					continue
+				} else if strings.HasPrefix(line, "::1") {
+					continue
+				} else if strings.HasPrefix(line, "fe00::") {
+					continue
+				} else if strings.HasPrefix(line, "#") {
+					continue
+				} else {
+					// The first line that doesn't match the above patterns is the pod name
+					podName = strings.Fields(line)[1]
+					break
+				}
+
+			}
+		}
+
 		// In each dir, we are seeking to find its secret volume mounts.
 		// Example:
 		// ls volumes/kubernetes.io~secret/
@@ -262,20 +303,27 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 				namespace := string(namespaceBytes)
 				fullSecretName := namespace + "/" + secretName
 				// FEATURE REQUEST: spell out which node this was found on in the last arg.
-				// FEATURE REQUEST: don't add a service account if we already have it.
-				*serviceAccounts = append(*serviceAccounts, MakeNewServiceAccount(fullSecretName, string(token), "pod secret harvested from node "))
-				fmt.Println("[+] Found a service account token in a pod on this node: " + fullSecretName)
+				if AddNewServiceAccount(fullSecretName, string(token), "pod secret harvested from node ", serviceAccounts) {
+					fmt.Println("[+] Found a service account token in pod " + podName + " on this node: " + fullSecretName)
+				}
 			} else {
-				pauseOnExit = true
-				// FEATURE REQUEST: store these paths and their contents, let the user view them any time.
-				fmt.Printf("[+] Found a secret on the node's filesystem called %s, provided to pod %s, -- explore it with this command:  ls %s\n", secretName, pod.Name(), secretPath+secretName)
+				// FEATURE REQUEST: store these paths and their contents, let the user view them any time - please do so similar to AddNewServiceAccount().
+				// fmt.Printf("[+] Found a secret on the node's filesystem called %s, provided to pod %s, -- explore it with this command:  ls %s\n", secretName, podName, secretPath+secretName)
+				nonTokenSecrets = append(nonTokenSecrets, SecretFromPodViaNode{secretName: secretName, secretPath: secretPath + secretName, podName: podName})
 			}
 		}
+
 	}
 
 	newServiceAccountsCount := len(*serviceAccounts) - startingNumberServiceAccounts
 	if newServiceAccountsCount > 0 {
 		fmt.Printf("\n%d new service accounts pulled from this node's %s directory. Explore them from the sa-menu item on the main menu.\n\n", newServiceAccountsCount, kubeletPodsDir)
+		pauseOnExit = true
+	}
+	if len(nonTokenSecrets) > 0 {
+		for _, thisSecret := range nonTokenSecrets {
+			println("Secret *** " + thisSecret.secretName + " *** found on pod with etc hosts entry " + thisSecret.podName + " can be viewed via ls " + thisSecret.secretPath)
+		}
 		pauseOnExit = true
 	}
 	if pauseOnExit {
