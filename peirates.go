@@ -13,7 +13,6 @@ import (
 	"fmt"           // String formatting (Printf, Sprintf)
 
 	// Utils for dealing with IO streams
-	"log"
 
 	// Logging utils
 	"math/rand" // Module for creating random string building
@@ -468,25 +467,47 @@ Off-Menu         +
 
 		// Handle shell commands before the switch menu
 		const shellSpace = "shell "
+		const shell = "shell"
+		// Handle when the user doesn't know to put a command after "shell"
+		if input == shell {
+			println("Enter a command or type 'exit'")
+			input, err = ReadLineStripWhitespace()
+			if err != nil {
+				println("error in reading input" + err.Error())
+				continue
+			}
+			input = shellSpace + input
+		}
+
 		if strings.HasPrefix(input, shellSpace) {
 
+			println("DEBUG: we are in the shell handling")
 			// trim the newline, remove the shell, then split the rest on whitespace
 			input = strings.TrimSuffix(input, "\n")
-			argumentsLine := strings.TrimPrefix(input, shellSpace)
-			spaceDelimitedSet := strings.Fields(argumentsLine)
 
-			// pop the first item so we can pass it in separately
-			command, arguments := spaceDelimitedSet[0], spaceDelimitedSet[1:]
+			println("DEBUG: command was ---" + input + "---")
+			for input != "" && input != "exit" {
+				argumentsLine := strings.TrimPrefix(input, shellSpace)
+				spaceDelimitedSet := strings.Fields(argumentsLine)
 
-			cmd := exec.Command(command, arguments...)
-			out, err := cmd.CombinedOutput()
-			if err != nil {
-				log.Fatalf("running command failed with %s\n", err)
+				// pop the first item so we can pass it in separately
+				command, arguments := spaceDelimitedSet[0], spaceDelimitedSet[1:]
+
+				cmd := exec.Command(command, arguments...)
+				out, err := cmd.CombinedOutput()
+				fmt.Printf("\n%s\n", string(out))
+				if err != nil {
+					println("running command failed with " + err.Error())
+				}
+				println("Enter another command or type 'exit'")
+				input, err = ReadLineStripWhitespace()
+				if err != nil {
+					println("error in reading input")
+					input = "exit"
+				}
 			}
-			fmt.Printf("\n%s\n", string(out))
 
 			// Make sure not to go into the switch-case
-			pauseToHitEnter()
 			continue
 		}
 
