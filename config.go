@@ -234,35 +234,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 
 	for _, pod := range dirs {
 
-		// Get the name of the pod
-		etcHostPath := kubeletPodsDir + pod.Name() + "/etc-hosts"
-		var podName string
-		if _, err := os.Stat(etcHostPath); !os.IsNotExist(err) {
-			// if the etc-hosts file is there, parse it to find this pod's name
-			file, err := os.Open(etcHostPath)
-			if err != nil {
-				continue
-			}
-			scanner := bufio.NewScanner(file)
-			scanner.Split(bufio.ScanLines)
-			for scanner.Scan() {
-				line := strings.TrimSpace(scanner.Text())
-				if strings.Contains(line, "localhost") {
-					continue
-				} else if strings.HasPrefix(line, "::1") {
-					continue
-				} else if strings.HasPrefix(line, "fe00::") {
-					continue
-				} else if strings.HasPrefix(line, "#") {
-					continue
-				} else {
-					// The first line that doesn't match the above patterns is the pod name
-					podName = strings.Fields(line)[1]
-					break
-				}
-
-			}
-		}
+		podName := getPodName(kubeletPodsDir, pod.Name())
 
 		// In each dir, we are seeking to find its secret volume mounts.
 		// Example:
@@ -331,6 +303,48 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 	}
 
 }
+
+func getPodName(kubeletPodsDir, podDirName string) string {
+
+	commentedPattern := regexp.MustCompile(`^\s*#`)
+	ipv6Pattern := regexp.MustCompile(`^\s*\w*::`)
+	ipHostPattern := regexp.MustCompile(`^s*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\s+`)
+
+	// Get the name of the pod from the etc-hosts file the kubelet provides.
+	etcHostPath := kubeletPodsDir + podDirName + "/etc-hosts"
+	var podName string
+	if _, err := os.Stat(etcHostPath); !os.IsNotExist(err) {
+		// if the etc-hosts file is there, parse it to find this pod's name
+		file, err := os.Open(etcHostPath)
+		if err != nil {
+			return ""
+		}
+		scanner := bufio.NewScanner(file)
+		scanner.Split(bufio.ScanLines)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if strings.Contains(line, "localhost") {
+				continue
+			} else if line == "" {
+				continue
+			} else if commentedPattern.MatchString(line) {
+				continue
+			} else if ipv6Pattern.MatchString(line) {
+				continue
+			} else if ipHostPattern.MatchString(line) {
+				// The first line that doesn't match the above patterns is the pod name
+				podName = strings.Fields(line)[1]
+				break
+			} else {
+				println("DEBUG: unexpected line type: " + line)
+			}
+
+		}
+	}
+	return podName
+
+}
+
 func listNamespaces(connectionString ServerInfo) {
 	Namespaces, _ := GetNamespaces(connectionString)
 	for _, namespace := range Namespaces {
