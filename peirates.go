@@ -481,11 +481,9 @@ Off-Menu         +
 
 		if strings.HasPrefix(input, shellSpace) {
 
-			println("DEBUG: we are in the shell handling")
 			// trim the newline, remove the shell, then split the rest on whitespace
 			input = strings.TrimSuffix(input, "\n")
 
-			println("DEBUG: command was ---" + input + "---")
 			for input != "" && input != "exit" {
 				argumentsLine := strings.TrimPrefix(input, shellSpace)
 				spaceDelimitedSet := strings.Fields(argumentsLine)
