@@ -222,14 +222,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 		return
 	}
 
-	// Also, we want to gather the non-token secrets
-	type SecretFromPodViaNode struct {
-		secretName string
-		secretPath string
-		podName    string
-	}
-
-	var nonTokenSecrets []SecretFromPodViaNode
+	var nonTokenSecrets []SecretFromPodViaNodeFS
 	var certsFound []string
 
 	const podVolumeSecretDir = "/volumes/kubernetes.io~secret/"
@@ -340,9 +333,10 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 				}
 
 				if !certFound {
-					// FEATURE REQUEST: store these paths and their contents, let the user view them any time - please do so similar to AddNewServiceAccount().
+					// FEATURE REQUEST: store these paths and their contents, let the user view them any time - please do so similar to
+					// AddNewServiceAccount().
 					// fmt.Printf("[+] Found a secret on the node's filesystem called %s, provided to pod %s, -- explore it with this command:  ls %s\n", secretName, podName, secretPath+secretName)
-					nonTokenSecrets = append(nonTokenSecrets, SecretFromPodViaNode{secretName: secretName, secretPath: secretPath + secretName, podName: podName})
+					nonTokenSecrets = append(nonTokenSecrets, SecretFromPodViaNodeFS{secretName: secretName, secretPath: secretPath + secretName, podName: podName})
 				}
 			}
 		}

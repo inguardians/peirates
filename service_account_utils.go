@@ -34,27 +34,22 @@ type ClientCertificateKeyPair struct {
 // Return whether one was added - if it wasn't, it's a duplicate.
 func AddNewServiceAccount(name, token, discoveryMethod string, serviceAccountList *[]ServiceAccount) bool {
 
+	// Confirm we don't have this service account already.
 	for _, sa := range *serviceAccountList {
 		if strings.TrimSpace(sa.Name) == strings.TrimSpace(name) {
 			return false
 		}
 	}
 
-	*serviceAccountList = append(*serviceAccountList, MakeNewServiceAccount(name, token, "pod secret harvested from node "))
+	*serviceAccountList = append(*serviceAccountList,
+		ServiceAccount{
+			Name:            name,
+			Token:           token,
+			DiscoveryTime:   time.Now(),
+			DiscoveryMethod: discoveryMethod,
+		})
+
 	return true
-}
-
-// MakeNewServiceAccount creates a new service account with the provided name,
-// token, and discovery method, while setting the DiscoveryTime to time.Now()
-func MakeNewServiceAccount(name, token, discoveryMethod string) ServiceAccount {
-
-	// FEATURE REQUEST: make sure anything using this function transitions to use AddNewServiceAccount().
-	return ServiceAccount{
-		Name:            name,
-		Token:           token,
-		DiscoveryTime:   time.Now(),
-		DiscoveryMethod: discoveryMethod,
-	}
 }
 
 func MakeClientCertificateKeyPair(name, clientCertificatePath, clientKeyPath, APIServer, CACert string) ClientCertificateKeyPair {

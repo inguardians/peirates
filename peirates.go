@@ -332,7 +332,7 @@ func Main() {
 
 	// List of current service accounts
 	if len(connectionString.TokenName) > 0 {
-		serviceAccounts = append(serviceAccounts, MakeNewServiceAccount(connectionString.TokenName, connectionString.Token, "Loaded at startup"))
+		AddNewServiceAccount(connectionString.TokenName, connectionString.Token, "Loaded at startup", &serviceAccounts)
 	}
 
 	// List of current client cert/key pairs
@@ -796,7 +796,8 @@ Off-Menu         +
 				println("[-] ERROR: couldn't decode")
 			} else {
 				fmt.Printf("[+] Saved %s // %s\n", secretName, token)
-				serviceAccounts = append(serviceAccounts, MakeNewServiceAccount(secretName, string(token), "Cluster Secret"))
+				AddNewServiceAccount(secretName, string(token), "Cluster Secret", &serviceAccounts)
+
 			}
 
 		// [5] Check all pods for volume mounts
@@ -906,23 +907,19 @@ Off-Menu         +
 
 		// [15] Pull Kubernetes service account tokens from Kop's bucket in GCS [GCP only]
 		case "15", "attack-kops-gcs-1":
-			serviceAccountsReturned, err := KopsAttackGCP()
+			err := KopsAttackGCP(&serviceAccounts)
 			if err != nil {
-				//Append serice accounts to the existing store
-				for _, svcacct := range serviceAccountsReturned {
-					serviceAccounts = append(serviceAccounts, svcacct)
-				}
+				println("Kops attack failed on GCP.")
 			}
+			pauseToHitEnter()
 
 		// [16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [attack-kops-aws-1]
 		case "16":
-			serviceAccountsReturned, err := KopsAttackAWS()
+			err := KopsAttackAWS(&serviceAccounts)
 			if err != nil {
-				//Append serice accounts to the existing store
-				for _, svcacct := range serviceAccountsReturned {
-					serviceAccounts = append(serviceAccounts, svcacct)
-				}
+				println("Attack failed on AWS.")
 			}
+			pauseToHitEnter()
 
 		case "17", "aws-s3-ls", "aws-ls-s3", "ls-s3", "s3-ls":
 			// [17] List AWS S3 Buckets accessible (Auto-Refreshing Metadata API credentials) [AWS]

