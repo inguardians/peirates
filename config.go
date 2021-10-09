@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"regexp"
 	"strings"
 )
@@ -229,8 +230,9 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 	}
 
 	var nonTokenSecrets []SecretFromPodViaNode
+	var certsFound []string
 
-	const subDir = "/volumes/kubernetes.io~secret/"
+	const podVolumeSecretDir = "/volumes/kubernetes.io~secret/"
 
 	for _, pod := range dirs {
 
@@ -241,7 +243,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 		// ls volumes/kubernetes.io~secret/
 		// default-token-5sfvg  registry-htpasswd  registry-pki
 		//
-		secretPath := kubeletPodsDir + pod.Name() + subDir
+		secretPath := kubeletPodsDir + pod.Name() + podVolumeSecretDir
 
 		if _, err := os.Stat(secretPath); os.IsNotExist(err) {
 			continue
@@ -279,9 +281,69 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 					fmt.Println("[+] Found a service account token in pod " + podName + " on this node: " + fullSecretName)
 				}
 			} else {
-				// FEATURE REQUEST: store these paths and their contents, let the user view them any time - please do so similar to AddNewServiceAccount().
-				// fmt.Printf("[+] Found a secret on the node's filesystem called %s, provided to pod %s, -- explore it with this command:  ls %s\n", secretName, podName, secretPath+secretName)
-				nonTokenSecrets = append(nonTokenSecrets, SecretFromPodViaNode{secretName: secretName, secretPath: secretPath + secretName, podName: podName})
+
+				// For all other secrets, we're going to just give the user the directory to look in, unless we see that it's a certificate.
+
+				// If the secret's directory contains a file ending in .crt, which isn't a ca.crt file, parse it out if an openssl binary is available.
+				certFound := false
+
+				thisSecretDirectory := kubeletPodsDir + pod.Name() + podVolumeSecretDir + secretName
+				secretDirFiles, _ := ioutil.ReadDir(thisSecretDirectory)
+
+				for _, file := range secretDirFiles {
+					fileName := file.Name()
+					certNameFound := ""
+					// println("DEBUG: Examining file " + thisSecretDirectory + "/" + fileName)
+					if strings.HasSuffix(fileName, ".crt") || strings.HasSuffix(fileName, ".cert") {
+						if fileName != "ca.crt" {
+
+							// FEATURE REQUEST: Should we confirm that there's a matching secret key?
+
+							command := "openssl"
+							argumentsLine := "x509 -in " + thisSecretDirectory + "/" + fileName + " -noout -text"
+							arguments := strings.Fields(argumentsLine)
+
+							cmd := exec.Command(command, arguments...)
+							out, err := cmd.CombinedOutput()
+
+							if err != nil {
+								println("DEBUG: running command failed with " + err.Error())
+								continue
+							}
+
+							// fmt.Printf("DEBUG: Certificate is \n%s\n", string(out))
+
+							// Now find a Subject line:
+
+							for _, line := range strings.Split(string(out), "\n") {
+								if !strings.Contains(line, "Subject:") {
+									continue
+								}
+								line := strings.TrimSpace(line)
+								subjectValue := strings.TrimPrefix(line, "Subject: ")
+								certNameFound = strings.TrimSpace(subjectValue)
+								// println("DEBUG: subject value was : " + subjectValue)
+								break
+
+							}
+
+						}
+
+					}
+
+					if certNameFound != "" {
+						certsFound = append(certsFound, fmt.Sprintf("Found a certificate with subject %s via a secret on the node's filesystem called %s, provided to pod %s, -- explore it with this command:  ls %s", certNameFound, secretName, podName, secretPath+secretName))
+						certFound = true
+						break
+					}
+
+				}
+
+				if !certFound {
+					// FEATURE REQUEST: store these paths and their contents, let the user view them any time - please do so similar to AddNewServiceAccount().
+					// fmt.Printf("[+] Found a secret on the node's filesystem called %s, provided to pod %s, -- explore it with this command:  ls %s\n", secretName, podName, secretPath+secretName)
+					nonTokenSecrets = append(nonTokenSecrets, SecretFromPodViaNode{secretName: secretName, secretPath: secretPath + secretName, podName: podName})
+				}
 			}
 		}
 
@@ -289,13 +351,22 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 
 	newServiceAccountsCount := len(*serviceAccounts) - startingNumberServiceAccounts
 	if newServiceAccountsCount > 0 {
-		fmt.Printf("\n%d new service accounts pulled from this node's %s directory. Explore them from the sa-menu item on the main menu.\n\n", newServiceAccountsCount, kubeletPodsDir)
+		fmt.Printf("\nSUMMARY: %d new service accounts pulled from this node's %s directory. Explore them from the sa-menu item on the main menu.\n\n", newServiceAccountsCount, kubeletPodsDir)
+		pauseOnExit = true
+	}
+	if len(certsFound) > 0 {
+		for _, certFoundMessage := range certsFound {
+			println(certFoundMessage)
+		}
+		fmt.Printf("\nSUMMARY: %d certificates found in secrets in this node's %s directory.\n\n", len(certsFound), kubeletPodsDir)
 		pauseOnExit = true
 	}
 	if len(nonTokenSecrets) > 0 {
 		for _, thisSecret := range nonTokenSecrets {
 			println("Secret *** " + thisSecret.secretName + " *** found on pod with etc hosts entry " + thisSecret.podName + " can be viewed via ls " + thisSecret.secretPath)
 		}
+		fmt.Printf("\nSUMMARY: %d other secrets found in this node's %s directory.\n\n", len(nonTokenSecrets), kubeletPodsDir)
+
 		pauseOnExit = true
 	}
 	if pauseOnExit {
