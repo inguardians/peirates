@@ -397,6 +397,11 @@ Compromise |
 [20] Gain a reverse rootshell on a node by launching a hostPath-mounting pod [attack-pod-hostpath-mount]
 [21] Run command in one or all pods in this namespace via the API Server [exec-via-api]
 [22] Run a token-dumping command in all pods via Kubelets (authorization permitting) [exec-via-kubelet]
+-------------+
+Node Attacks |
+-------------+
+[30] Steal secrets from the node filesystem [nodefs-steal-secrets] (unimplemented)
+[31] List all secrets stolen from the node filesystem [nodefs-secrets-list]  (unimplemented)
 -----------------+
 Off-Menu         +
 -----------------+
@@ -1009,8 +1014,14 @@ Off-Menu         +
 		case "22", "exec-via-kubelet", "exec-via-kubelets":
 			ExecuteCodeOnKubelet(connectionString, &serviceAccounts)
 
-		// [30] Inject peirates into another pod via API Server [inject-and-exec]
-		case "30", "inject-and-exec":
+		// [30] Steal secrets from the node filesystem [nodefs-steal-secrets] (unimplemented)
+		case "30", "nodefs-steal-secrets", "steal-nodefs-secrets":
+			println("Item not yet implemented")
+		// [31] List all secrets stolen from the node filesystem [nodefs-secrets-list]  (unimplemented)
+		case "31", "nodefs-secrets-list", "list-nodefs-secrets":
+			println("Item not yet implemented")
+		// [89] Inject peirates into another pod via API Server [inject-and-exec]
+		case "89", "inject-and-exec":
 
 			println("\nThis item has been removed from the menu and is currently not supported.\n")
 			println("\nChoose a pod to inject peirates into:\n")
