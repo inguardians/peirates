@@ -13,7 +13,7 @@ type CommandLineOptions struct {
 	connectionConfig      *ServerInfo
 	commandToRunInPods    string
 	podsToRunTheCommandIn []string
-	moduleToRun				string	
+	moduleToRun           string
 }
 
 // parseOptions parses command-line options. We call it in main().

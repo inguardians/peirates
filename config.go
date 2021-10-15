@@ -204,7 +204,7 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 }
 
 // Add the service account tokens for any pods found in /var/lib/kubelet/pods/. Also, harvest secrets.
-func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
+func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool) {
 
 	// Exit if /var/lib/kubelet/pods does not exist
 	const kubeletPodsDir = "/var/lib/kubelet/pods/"
@@ -384,7 +384,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 		pauseOnExit = true
 	}
 	if pauseOnExit {
-		pauseToHitEnter()
+		pauseToHitEnter(interactive)
 	}
 
 }
