@@ -10,6 +10,7 @@ package peirates
 import (
 	"encoding/base64"
 	"encoding/json" // Command line flag parsing
+        "errors"
 	"fmt"           // String formatting (Printf, Sprintf)
 
 	// Utils for dealing with IO streams
@@ -413,13 +414,14 @@ Off-Menu         +
 
 		var userResponse string
 		var input string
-		
-		if opts.moduleToRun != "" {
-			input = opts.moduleToRun
+		err := errors.New("empty")
+		if cmdOpts.moduleToRun != "" {
+			input = cmdOpts.moduleToRun
 		} else {
-			input, err := ReadLineStripWhitespace()
+			input, err = ReadLineStripWhitespace()
 			if err != nil {
 				continue
+ 			}
 		}
 
 		////////////////////////////////////////////////////////////////////////////////
