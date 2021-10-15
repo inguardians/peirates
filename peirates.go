@@ -10,8 +10,8 @@ package peirates
 import (
 	"encoding/base64"
 	"encoding/json" // Command line flag parsing
-        "errors"
-	"fmt"           // String formatting (Printf, Sprintf)
+	"errors"
+	"fmt" // String formatting (Printf, Sprintf)
 
 	// Utils for dealing with IO streams
 
@@ -253,8 +253,8 @@ func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
 	}
 }
 
-func clearScreen() {
-	pauseToHitEnter()
+func clearScreen(interactive bool) {
+	pauseToHitEnter(interactive)
 	c := exec.Command("clear")
 	c.Stdout = os.Stdout
 	c.Run()
@@ -323,11 +323,24 @@ func Main() {
 	// Create a global variable named "connectionString" initialized to default values
 	connectionString := ParseLocalServerInfo()
 	cmdOpts := CommandLineOptions{connectionConfig: &connectionString}
+
+	// the interactive boolean tracks whether the user is running peirates in menu mode (true)
+	// or in command-line mode (false)
+
+	interactive := true
 	//var kubeRoles KubeRoles
 	var podInfo PodDetails
 
 	// Run the option parser to initialize connectionStrings
 	parseOptions(&cmdOpts)
+
+	// Check whether the -m / --module flag has been used to run just a specific module instead
+	// of the menu.
+	if cmdOpts.moduleToRun != "" {
+		interactive = false
+	}
+
+	// If the user has chosen a
 
 	var serviceAccounts []ServiceAccount
 
@@ -350,7 +363,7 @@ func Main() {
 	}
 
 	// Add the service account tokens for any pods found in /var/lib/kubelet/pods/.
-	gatherPodCredentials(&serviceAccounts)
+	gatherPodCredentials(&serviceAccounts, interactive)
 
 	// for dir in /var/lib/kubelet/pods ; do  echo "-------"; echo $dir; ls $dir/volumes/kuber*secret/; done | less
 
@@ -364,64 +377,22 @@ func Main() {
 	var input int
 	for ok := true; ok; ok = (input != 2) {
 		banner(connectionString, awsCredentials, assumedAWSrole)
-		println(`----------------------------------------------------------------
-Namespaces, Service Accounts and Roles |
----------------------------------------+
-[1] List, maintain, or switch service account contexts [sa-menu]  (try: listsa, switchsa)
-[2] List and/or change namespaces [ns-menu] (try: listns, switchns)
-[3] Get list of pods in current namespace [list-pods]
-[4] Get complete info on all pods (json) [dump-pod-info]
-[5] Check all pods for volume mounts [find-volume-mounts]
-[6] Enter AWS IAM credentials manually [enter-aws-credentials]
-[7] Attempt to Assume a Different AWS Role [aws-assume-role]
-[8] Deactivate assumed AWS role [aws-empty-assumed-role]
-[9] Switch authentication contexts: certificate-based authentication (kubelet, kubeproxy, manually-entered) [cert-menu]
--------------------------+
-Steal Service Accounts   |
--------------------------+
-[10] List secrets in this namespace from API server [list-secrets]
-[11] Get a service account token from a secret [secret-to-sa]
-[12] Request IAM credentials from AWS Metadata API [get-aws-token]
-[13] Request IAM credentials from GCP Metadata API [get-gcp-token]
-[14] Request kube-env from GCP Metadata API [attack-kube-env-gcp]
-[15] Pull Kubernetes service account tokens from kops' GCS bucket (Google Cloud only) [attack-kops-gcs-1] 
-[16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [attack-kops-aws-1] 
---------------------------------+
-Interrogate/Abuse Cloud API's   |
---------------------------------+
-[17] List AWS S3 Buckets accessible (Make sure to get credentials via get-aws-token or enter manually) [aws-s3-ls]
-[18] List contents of an AWS S3 Bucket (Make sure to get credentials via get-aws-token or enter manually) [aws-s3-ls-objects]
------------+
-Compromise |
------------+
-[20] Gain a reverse rootshell on a node by launching a hostPath-mounting pod [attack-pod-hostpath-mount]
-[21] Run command in one or all pods in this namespace via the API Server [exec-via-api]
-[22] Run a token-dumping command in all pods via Kubelets (authorization permitting) [exec-via-kubelet]
------------------+
-Off-Menu         +
------------------+
-[90] Run a kubectl command using the current authorization context [kubectl [arguments]]
-[*]  Run a kubectl command using EVERY authorization context until one works [kubectl-try-all [arguments]]
-[91] Make an HTTP request (GET or POST) to a user-specified URL [curl]
-[92] Deactivate "auth can-i" checking before attempting actions [set-auth-can-i] 
-[93] Run a simple all-ports TCP port scan against an IP address [tcpscan]
-[*]  Run a shell command [shell <command and arguments>]
 
-[exit] Exit Peirates 
-----------------------------------------------------------------`)
-
-		fmt.Printf("Peirates:># ")
-
-		var userResponse string
 		var input string
+		var userResponse string
 		err := errors.New("empty")
-		if cmdOpts.moduleToRun != "" {
-			input = cmdOpts.moduleToRun
-		} else {
+
+		if interactive {
+			printMenu()
+
 			input, err = ReadLineStripWhitespace()
 			if err != nil {
 				continue
- 			}
+			}
+		} else {
+			fmt.Println("----------------------------------------------------------------")
+			input = cmdOpts.moduleToRun
+			fmt.Printf("\nAttempting menu option %s\n\n", input)
 		}
 
 		////////////////////////////////////////////////////////////////////////////////
@@ -447,7 +418,7 @@ Off-Menu         +
 			}
 
 			// Make sure not to go into the switch-case
-			pauseToHitEnter()
+			pauseToHitEnter(interactive)
 			continue
 		}
 
@@ -468,7 +439,7 @@ Off-Menu         +
 			}
 
 			// Make sure not to go into the switch-case
-			pauseToHitEnter()
+			pauseToHitEnter(interactive)
 			continue
 		}
 
@@ -536,7 +507,7 @@ Off-Menu         +
 				println("Request produced an error.")
 				break
 			}
-			pauseToHitEnter()
+			pauseToHitEnter(interactive)
 			continue
 		}
 
@@ -918,7 +889,7 @@ Off-Menu         +
 			if err != nil {
 				println("Kops attack failed on GCP.")
 			}
-			pauseToHitEnter()
+			pauseToHitEnter(interactive)
 
 		// [16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [attack-kops-aws-1]
 		case "16":
@@ -926,7 +897,7 @@ Off-Menu         +
 			if err != nil {
 				println("Attack failed on AWS.")
 			}
-			pauseToHitEnter()
+			pauseToHitEnter(interactive)
 
 		case "17", "aws-s3-ls", "aws-ls-s3", "ls-s3", "s3-ls":
 			// [17] List AWS S3 Buckets accessible (Auto-Refreshing Metadata API credentials) [AWS]
@@ -1009,8 +980,14 @@ Off-Menu         +
 		case "22", "exec-via-kubelet", "exec-via-kubelets":
 			ExecuteCodeOnKubelet(connectionString, &serviceAccounts)
 
-		// [30] Inject peirates into another pod via API Server [inject-and-exec]
-		case "30", "inject-and-exec":
+		// [30] Steal secrets from the node filesystem [nodefs-steal-secrets] (unimplemented)
+		case "30", "nodefs-steal-secrets", "steal-nodefs-secrets":
+			println("Item not yet implemented")
+		// [31] List all secrets stolen from the node filesystem [nodefs-secrets-list]  (unimplemented)
+		case "31", "nodefs-secrets-list", "list-nodefs-secrets":
+			println("Item not yet implemented")
+		// [89] Inject peirates into another pod via API Server [inject-and-exec]
+		case "89", "inject-and-exec":
 
 			println("\nThis item has been removed from the menu and is currently not supported.\n")
 			println("\nChoose a pod to inject peirates into:\n")
@@ -1148,7 +1125,7 @@ Off-Menu         +
 			}
 			responseBodyString := string(responseBody)
 			println(responseBodyString + "\n")
-			pauseToHitEnter()
+			pauseToHitEnter(interactive)
 
 		// [92] Deactivate "auth can-i" checking before attempting actions [set-auth-can-i]
 		case "92", "set-auth-can-i":
@@ -1223,7 +1200,10 @@ Off-Menu         +
 			fmt.Println("Command unrecognized.")
 		}
 
-		clearScreen()
+		if !interactive {
+			os.Exit(0)
+		}
+		clearScreen(interactive)
 	}
 }
 
@@ -1258,7 +1238,62 @@ func printBanner() {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ________________________________________
-	Peirates v1.1.5 by InGuardians
+	Peirates v1.6a by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
+}
+
+func printMenu() {
+	println(`----------------------------------------------------------------
+	Namespaces, Service Accounts and Roles |
+	---------------------------------------+
+	[1] List, maintain, or switch service account contexts [sa-menu]  (try: listsa, switchsa)
+	[2] List and/or change namespaces [ns-menu] (try: listns, switchns)
+	[3] Get list of pods in current namespace [list-pods]
+	[4] Get complete info on all pods (json) [dump-pod-info]
+	[5] Check all pods for volume mounts [find-volume-mounts]
+	[6] Enter AWS IAM credentials manually [enter-aws-credentials]
+	[7] Attempt to Assume a Different AWS Role [aws-assume-role]
+	[8] Deactivate assumed AWS role [aws-empty-assumed-role]
+	[9] Switch authentication contexts: certificate-based authentication (kubelet, kubeproxy, manually-entered) [cert-menu]
+	-------------------------+
+	Steal Service Accounts   |
+	-------------------------+
+	[10] List secrets in this namespace from API server [list-secrets]
+	[11] Get a service account token from a secret [secret-to-sa]
+	[12] Request IAM credentials from AWS Metadata API [get-aws-token]
+	[13] Request IAM credentials from GCP Metadata API [get-gcp-token]
+	[14] Request kube-env from GCP Metadata API [attack-kube-env-gcp]
+	[15] Pull Kubernetes service account tokens from kops' GCS bucket (Google Cloud only) [attack-kops-gcs-1] 
+	[16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [attack-kops-aws-1] 
+	--------------------------------+
+	Interrogate/Abuse Cloud API's   |
+	--------------------------------+
+	[17] List AWS S3 Buckets accessible (Make sure to get credentials via get-aws-token or enter manually) [aws-s3-ls]
+	[18] List contents of an AWS S3 Bucket (Make sure to get credentials via get-aws-token or enter manually) [aws-s3-ls-objects]
+	-----------+
+	Compromise |
+	-----------+
+	[20] Gain a reverse rootshell on a node by launching a hostPath-mounting pod [attack-pod-hostpath-mount]
+	[21] Run command in one or all pods in this namespace via the API Server [exec-via-api]
+	[22] Run a token-dumping command in all pods via Kubelets (authorization permitting) [exec-via-kubelet]
+	-------------+
+	Node Attacks |
+	-------------+
+	[30] Steal secrets from the node filesystem [nodefs-steal-secrets] (unimplemented)
+	[31] List all secrets stolen from the node filesystem [nodefs-secrets-list]  (unimplemented)
+	-----------------+
+	Off-Menu         +
+	-----------------+
+	[90] Run a kubectl command using the current authorization context [kubectl [arguments]]
+	[*]  Run a kubectl command using EVERY authorization context until one works [kubectl-try-all [arguments]]
+	[91] Make an HTTP request (GET or POST) to a user-specified URL [curl]
+	[92] Deactivate "auth can-i" checking before attempting actions [set-auth-can-i] 
+	[93] Run a simple all-ports TCP port scan against an IP address [tcpscan]
+	[*]  Run a shell command [shell <command and arguments>]
+	
+	[exit] Exit Peirates 
+	----------------------------------------------------------------
+	
+	Peirates:># `)
 }

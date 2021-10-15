@@ -74,7 +74,7 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 	// Paths to explore:
 	// /etc/kubernetes/kubelet.conf
 	// /var/lib/kubelet/kubeconfig
-	// /
+	//
 
 	// Determine if one of the paths above exists and use it to get kubelet keypairs
 	kubeletKubeconfigFilePaths := make([]string, 0)
@@ -172,6 +172,9 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 
 			// Do we have what we need?
 			// Feature request: abstract this to parse any client certificate items, not just kubelet.
+			//                  We should then support the kube-proxy config, as well as the config
+			//					in the KUBECONFIG environment variable and ~/.kube/config if they exist.
+
 			if len(clientKeyPath) > 0 && len(clientCertPath) > 0 {
 				// Store the key!
 				println("\n[+] Found Kubelet certificate and secret key: " + clientName + "\n")
@@ -200,8 +203,8 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 	return (nil)
 }
 
-// Add the service account tokens for any pods found in /var/lib/kubelet/pods/.
-func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
+// Add the service account tokens for any pods found in /var/lib/kubelet/pods/. Also, harvest secrets.
+func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool) {
 
 	// Exit if /var/lib/kubelet/pods does not exist
 	const kubeletPodsDir = "/var/lib/kubelet/pods/"
@@ -247,6 +250,8 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 		}
 		for _, secret := range secrets {
 			secretName := secret.Name()
+
+			// First, see if this secret is a service account token.
 			if strings.Contains(secretName, "-token-") {
 				tokenFilePath := secretPath + secretName + "/token"
 				if _, err := os.Stat(tokenFilePath); os.IsNotExist(err) {
@@ -273,11 +278,14 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 				if AddNewServiceAccount(fullSecretName, string(token), "pod secret harvested from node ", serviceAccounts) {
 					fmt.Println("[+] Found a service account token in pod " + podName + " on this node: " + fullSecretName)
 				}
+
+				// For all other secrets, if they are certificates, we'll parse them for a name.
+				// We'll then display the file/dir path to the user so they know what to go get.
 			} else {
 
-				// For all other secrets, we're going to just give the user the directory to look in, unless we see that it's a certificate.
+				// If the secret's directory contains a file ending in .crt, which isn't a ca.crt file, parse
+				// it out if an openssl binary is available.
 
-				// If the secret's directory contains a file ending in .crt, which isn't a ca.crt file, parse it out if an openssl binary is available.
 				certFound := false
 
 				thisSecretDirectory := kubeletPodsDir + pod.Name() + podVolumeSecretDir + secretName
@@ -286,7 +294,6 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 				for _, file := range secretDirFiles {
 					fileName := file.Name()
 					certNameFound := ""
-					// println("DEBUG: Examining file " + thisSecretDirectory + "/" + fileName)
 					if strings.HasSuffix(fileName, ".crt") || strings.HasSuffix(fileName, ".cert") {
 						if fileName != "ca.crt" {
 
@@ -324,8 +331,17 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 
 					}
 
+					// FEATURE REQUEST: refactor these so we can manage cert secrets and non-token-non-cert secrets globallly.
 					if certNameFound != "" {
+						// certificate := CertificateSecret{
+						// 	certName : certNameFound,
+						// 	secretName: secretName
+						// 	podAssociated: podName,
+						// 	fileFoundIn : secretPath+secretName
+						// }
 						certsFound = append(certsFound, fmt.Sprintf("Found a certificate with subject %s via a secret on the node's filesystem called %s, provided to pod %s, -- explore it with this command:  ls %s", certNameFound, secretName, podName, secretPath+secretName))
+
+						// appendCertificateSecret(certNameFound, secretName, podName, secretPath+secretName, "found via /var/lib/kubelet/ volume.")
 						certFound = true
 						break
 					}
@@ -336,7 +352,11 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 					// FEATURE REQUEST: store these paths and their contents, let the user view them any time - please do so similar to
 					// AddNewServiceAccount().
 					// fmt.Printf("[+] Found a secret on the node's filesystem called %s, provided to pod %s, -- explore it with this command:  ls %s\n", secretName, podName, secretPath+secretName)
-					nonTokenSecrets = append(nonTokenSecrets, SecretFromPodViaNodeFS{secretName: secretName, secretPath: secretPath + secretName, podName: podName})
+					nonTokenOrCertSecret := SecretFromPodViaNodeFS{secretName: secretName, secretPath: secretPath + secretName, podName: podName}
+
+					nonTokenSecrets = append(nonTokenSecrets, nonTokenOrCertSecret)
+					// appendMiscSecret(nonTokenOrCertSecret,"found via /var/lib/kubelet/ volume.")
+
 				}
 			}
 		}
@@ -364,7 +384,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount) {
 		pauseOnExit = true
 	}
 	if pauseOnExit {
-		pauseToHitEnter()
+		pauseToHitEnter(interactive)
 	}
 
 }
