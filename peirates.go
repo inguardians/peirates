@@ -412,9 +412,14 @@ Off-Menu         +
 		fmt.Printf("Peirates:># ")
 
 		var userResponse string
-		input, err := ReadLineStripWhitespace()
-		if err != nil {
-			continue
+		var input string
+		
+		if opts.moduleToRun != "" {
+			input = opts.moduleToRun
+		} else {
+			input, err := ReadLineStripWhitespace()
+			if err != nil {
+				continue
 		}
 
 		////////////////////////////////////////////////////////////////////////////////
