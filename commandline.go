@@ -34,7 +34,7 @@ func parseOptions(opts *CommandLineOptions) {
 	flagset.StringVar(&opts.connectionConfig.Token, "t", opts.connectionConfig.Token, "Token (JWT)")
 	flagset.StringVar(&podListRaw, "L", "", "List of comma-seperated Pods: ex pod1,pod2,pod3")
 	flagset.StringVar(&opts.commandToRunInPods, "c", "hostname", "Command to run in pods")
-	flagset.StringVar(&opts.moduleToRun, "m", "module", "module to run from menu - items on main menu with an * support this.")
+	flagset.StringVar(&opts.moduleToRun, "m", "", "module to run from menu - items on main menu with an * support this.")
 
 	// This is the function that actually runs the parser
 	// once you've defined all your options.
