@@ -32,8 +32,9 @@ func parseOptions(opts *CommandLineOptions) {
 
 	flagset.StringVar(&opts.connectionConfig.APIServer, "u", opts.connectionConfig.APIServer, "API Server URL: ex. https://10.96.0.1:6443")
 	flagset.StringVar(&opts.connectionConfig.Token, "t", opts.connectionConfig.Token, "Token (JWT)")
-	flagset.StringVar(&podListRaw, "L", "", "List of comma-seperated Pods: ex pod1,pod2,pod3")
-	flagset.StringVar(&opts.commandToRunInPods, "c", "hostname", "Command to run in pods")
+	flagset.StringVar(&opts.commandToRunInPods, "c", "hostname", "Command to run in pods via kubelet")
+	flagset.StringVar(&podListRaw, "L", "", "List of comma-seperated Pods (for use with -c: ex pod1,pod2,pod3")
+
 	flagset.StringVar(&opts.moduleToRun, "m", "", "module to run from menu - items on main menu with an * support this.")
 
 	// This is the function that actually runs the parser
