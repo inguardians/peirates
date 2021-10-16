@@ -1,7 +1,7 @@
 #!/bin/sh
 
 echo "Building for Linux on AMD64..."
-GOOS=linux GOARCH=amd64 go build -v ./cmd/peirates/peirates.go
+GOOS=linux GOARCH=amd64 go build -v -ldflags="-s -w" ./cmd/peirates
 exit_code=$?
 
 if [ $exit_code -eq 0 ] ; then
