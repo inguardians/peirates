@@ -1242,7 +1242,7 @@ func printBanner(interactive bool) {
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,`)
 	}
 	println(`________________________________________
-	Peirates v1.6alpha by InGuardians
+	Peirates v1.1.6alpha by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 }
