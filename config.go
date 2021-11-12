@@ -204,13 +204,16 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 }
 
 // Add the service account tokens for any pods found in /var/lib/kubelet/pods/. Also, harvest secrets.
-func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool) {
+func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, runFromMenu bool) {
 
-// func gatherPodCredentials(serviceAccounts *[]ServiceAccount, certificateSecrets *[]CertSecret, nonTokenNonCertSecrets *[]nonTokenNonCertSecrets,interactive bool) {
+	// func gatherPodCredentials(serviceAccounts *[]ServiceAccount, certificateSecrets *[]CertSecret, nonTokenNonCertSecrets *[]nonTokenNonCertSecrets,interactive bool) {
 
 	// Exit if /var/lib/kubelet/pods does not exist
 	const kubeletPodsDir = "/var/lib/kubelet/pods/"
 	if _, err := os.Stat(kubeletPodsDir); os.IsNotExist(err) {
+		if runFromMenu {
+			println("Attack fails - path does not exist: ", kubeletPodsDir)
+		}
 		return
 	}
 
@@ -224,6 +227,9 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool) {
 	// Read the directory for a list of subdirs (pods)
 	dirs, err := ioutil.ReadDir(kubeletPodsDir)
 	if err != nil {
+		if runFromMenu {
+			println("Attack fails - cannot read ", kubeletPodsDir)
+		}
 		return
 	}
 
@@ -386,7 +392,9 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool) {
 		pauseOnExit = true
 	}
 	if pauseOnExit {
-		pauseToHitEnter(interactive)
+		if !runFromMenu {
+			pauseToHitEnter(interactive)
+		}
 	}
 
 }

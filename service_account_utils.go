@@ -37,6 +37,7 @@ func AddNewServiceAccount(name, token, discoveryMethod string, serviceAccountLis
 	// Confirm we don't have this service account already.
 	for _, sa := range *serviceAccountList {
 		if strings.TrimSpace(sa.Name) == strings.TrimSpace(name) {
+			// println("DEBUG: found a service account token we already had: " + sa.Name)
 			return false
 		}
 	}

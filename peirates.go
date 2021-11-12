@@ -350,9 +350,7 @@ func Main() {
 	}
 
 	// Add the service account tokens for any pods found in /var/lib/kubelet/pods/.
-	gatherPodCredentials(&serviceAccounts, interactive)
-
-	// for dir in /var/lib/kubelet/pods ; do  echo "-------"; echo $dir; ls $dir/volumes/kuber*secret/; done | less
+	gatherPodCredentials(&serviceAccounts, interactive, false)
 
 	// Check environment variables - see KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT
 	// Watch the documentation on these variables for changes:
@@ -976,9 +974,11 @@ func Main() {
 		case "22", "exec-via-kubelet", "exec-via-kubelets":
 			ExecuteCodeOnKubelet(connectionString, &serviceAccounts)
 
-		// [30] Steal secrets from the node filesystem [nodefs-steal-secrets] (unimplemented)
+		// [30] Steal secrets from the node filesystem [nodefs-steal-secrets]
 		case "30", "nodefs-steal-secrets", "steal-nodefs-secrets":
-			println("Item not yet implemented")
+			println("\nAttempting to steal secrets from the node filesystem - this will return no output if run in a container or if /var/lib/kubelet is inaccessible.\n")
+			gatherPodCredentials(&serviceAccounts, true, true)
+
 		// [31] List all secrets stolen from the node filesystem [nodefs-secrets-list]  (unimplemented)
 		case "31", "nodefs-secrets-list", "list-nodefs-secrets":
 			println("Item not yet implemented")
@@ -1240,7 +1240,7 @@ func printBanner(interactive bool) {
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,`)
 	}
 	println(`________________________________________
-	Peirates v1.1.7-alpha by InGuardians
+	Peirates v1.1.8-beta by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 }
@@ -1282,8 +1282,7 @@ Compromise |
 -------------+
 Node Attacks |
 -------------+
-[30] Steal secrets from the node filesystem [nodefs-steal-secrets] (unimplemented)
-[31] List all secrets stolen from the node filesystem [nodefs-secrets-list]  (unimplemented)
+[30] Steal secrets from the node filesystem [nodefs-steal-secrets]
 -----------------+
 Off-Menu         +
 -----------------+
