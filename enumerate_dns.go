@@ -1,8 +1,12 @@
 package peirates
 
 import (
+	"fmt"
 	"net"
+	"strconv"
 )
+
+// This is a workalike for @raesene's Ruby code: https://github.com/raesene/alpine-containertools/blob/master/scripts/k8s-dns-enum.rb
 
 type serviceHostIPPort struct {
 	hostName string
@@ -10,7 +14,7 @@ type serviceHostIPPort struct {
 	port     uint16
 }
 
-// This routine pulls a list of all services via Core DNS --
+// This routine pulls a list of all services via Core DNS
 func getAllServicesViaDNS() (*[]serviceHostIPPort, error) {
 
 	wildcardRecord := "any.any.svc.cluster.local"
@@ -38,4 +42,41 @@ func getAllServicesViaDNS() (*[]serviceHostIPPort, error) {
 	}
 
 	return &serviceHostIPPorts, nil
+}
+
+func enumerateDNS() {
+
+	println("\nRequesting SRV record any.any.svc.cluster.local - thank @raesene:\n")
+	servicesSlicePointer, err := getAllServicesViaDNS()
+
+	if err != nil {
+		println("no services returned or some kind of error")
+	}
+	// Print the services' DNS names, IP addresses and ports, but also create a unique set of IPs and ports to portscan:
+	names := make(map[string]bool)
+	nameList := ""
+	ports := make(map[uint16]bool)
+	portList := ""
+
+	for _, svc := range *servicesSlicePointer {
+		fmt.Printf("Service: %s(%s):%d\n", svc.hostName, svc.IP, svc.port)
+		if _, present := names[svc.hostName]; !present {
+			names[svc.hostName] = true
+			nameList = nameList + " " + svc.hostName
+		}
+		if _, present := ports[svc.port]; !present {
+			ports[svc.port] = true
+			// Append the port to the portList, prepending with a , unless this is the first port.
+			if portList != "" {
+				portList = portList + ","
+			}
+			portList = portList + strconv.Itoa(int(svc.port))
+			// portList = portList + strconv.FormatUint(uint16(svc.port), 10)
+
+		}
+	}
+
+	// Now print a list of names and ports
+	println("\nPortscan these services via:")
+	println("nmap -sTVC -v -n -p " + portList + nameList)
 }
