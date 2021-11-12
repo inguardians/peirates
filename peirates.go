@@ -9,26 +9,16 @@ package peirates
 
 import (
 	"encoding/base64"
-	"encoding/json" // Command line flag parsing
+	"encoding/json"
 	"errors"
-	"fmt" // String formatting (Printf, Sprintf)
-
-	// Utils for dealing with IO streams
-
-	// Logging utils
-	"math/rand" // Module for creating random string building
-	"os"        // Environment variables ...
-
-	// String parsing
-	"strings"
-
-	// HTTP client/server
-	// HTTP requests
-	"net/url" // URL encoding
-	"os/exec" // for exec
+	"fmt"
+	"math/rand"
+	"net/url"
+	"os"
+	"os/exec"
 	"regexp"
-	// Time modules
-	// kubernetes client
+	"strconv"
+	"strings"
 )
 
 var UseAuthCanI bool = true
@@ -1194,7 +1184,41 @@ func Main() {
 				}
 			}
 
-			// Check input
+		case "94", "enumerate-dns":
+
+			println("Requesting SRV record any.any.svc.cluster.local - thank @raesene:")
+			servicesSlicePointer, err := getAllServicesViaDNS()
+
+			if err != nil {
+				println("no services returned or some kind of error")
+			}
+			// Print the services' DNS names, IP addresses and ports, but also create a unique set of IPs and ports to portscan:
+			names := make(map[string]bool)
+			nameList := ""
+			ports := make(map[uint16]bool)
+			portList := ""
+
+			for _, svc := range *servicesSlicePointer {
+				fmt.Printf("Service: %s(%s):%d\n", svc.hostName, svc.IP, svc.port)
+				if _, present := names[svc.hostName]; !present {
+					names[svc.hostName] = true
+					nameList = nameList + " " + svc.hostName
+				}
+				if _, present := ports[svc.port]; !present {
+					ports[svc.port] = true
+					// Append the port to the portList, prepending with a , unless this is the first port.
+					if portList != "" {
+						portList = portList + ","
+					}
+					portList = portList + strconv.Itoa(int(svc.port))
+					// portList = portList + strconv.FormatUint(uint16(svc.port), 10)
+
+				}
+			}
+
+			// Now print a list of names and ports
+			println("\nPortscan these services via:")
+			println("nmap -sTVC -v -n -p " + portList + nameList)
 
 		default:
 			fmt.Println("Command unrecognized.")
@@ -1294,6 +1318,7 @@ Off-Menu         +
 [91] Make an HTTP request (GET or POST) to a user-specified URL [curl]
 [92] Deactivate "auth can-i" checking before attempting actions [set-auth-can-i] 
 [93] Run a simple all-ports TCP port scan against an IP address [tcpscan]
+[94] Enumerate services via DNS [enumerate-dns]
 []  Run a shell command [shell <command and arguments>]
 
 [exit] Exit Peirates 
