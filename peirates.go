@@ -305,7 +305,7 @@ type PodNamespaceContainerTuple struct {
 func Main() {
 
 	// Create a global variable named "connectionString" initialized to default values
-	connectionString := ParseLocalServerInfo()
+	connectionString := ImportPodServiceAccountToken()
 	cmdOpts := CommandLineOptions{connectionConfig: &connectionString}
 
 	// the interactive boolean tracks whether the user is running peirates in menu mode (true)

@@ -28,7 +28,7 @@ type ServerInfo struct {
 	UseAuthCanI    bool
 }
 
-func ParseLocalServerInfo() ServerInfo {
+func ImportPodServiceAccountToken() ServerInfo {
 
 	// Creating an object of ServerInfo type, which we'll poppulate in this function.
 	var configInfoVars ServerInfo
