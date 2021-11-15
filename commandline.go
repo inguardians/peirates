@@ -10,31 +10,20 @@ import (
 )
 
 type CommandLineOptions struct {
-	connectionConfig      *ServerInfo
-	commandToRunInPods    string
-	podsToRunTheCommandIn []string
-	moduleToRun           string
+	connectionConfig *ServerInfo
+	moduleToRun      string
 }
 
 // parseOptions parses command-line options. We call it in main().
 // func parseOptions(connectionString *ServerInfo, kubeData *Kube_Data) {
 func parseOptions(opts *CommandLineOptions) {
-	// This is like the parser.add_option stuff except
-	// it works implicitly on a global parser instance.
-	// Notice the use of pointers (&connectionString.APIServer for
-	// example) to bind flags to variables
-
-	// After parsing flags, this string will be split on commas and stored
-	// as a list in opts.podsToRunTheCommandIn
-	var podListRaw string
+	// This is like the parser.add_option stuff except it works implicitly on a global parser instance.
+	// Notice the use of pointers (&connectionString.APIServer for example) to bind flags to variables
 
 	flagset := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
 	flagset.StringVar(&opts.connectionConfig.APIServer, "u", opts.connectionConfig.APIServer, "API Server URL: ex. https://10.96.0.1:6443")
 	flagset.StringVar(&opts.connectionConfig.Token, "t", opts.connectionConfig.Token, "Token (JWT)")
-	flagset.StringVar(&opts.commandToRunInPods, "c", "hostname", "Command to run in pods via kubelet")
-	flagset.StringVar(&podListRaw, "L", "", "List of comma-seperated Pods (for use with -c: ex pod1,pod2,pod3")
-
 	flagset.StringVar(&opts.moduleToRun, "m", "", "module to run from menu - items on main menu with an * support this.")
 
 	// This is the function that actually runs the parser
@@ -60,9 +49,5 @@ func parseOptions(opts *CommandLineOptions) {
 	}
 	if opts.connectionConfig.Token != "" {
 		log.Println("JWT provided on the command line.")
-	}
-
-	if podListRaw != "" {
-		opts.podsToRunTheCommandIn = strings.Split(podListRaw, ",")
 	}
 }

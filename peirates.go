@@ -942,25 +942,25 @@ func Main() {
 			fmt.Scanln(&input)
 			println("[+] Please provide the command to run in the pods: ")
 
-			cmdOpts.commandToRunInPods, _ = ReadLineStripWhitespace()
+			commandToRunInPods, _ := ReadLineStripWhitespace()
 
 			switch input {
 			case "1":
-				println("[+] Please provide the specified pod to run the command: ")
-				fmt.Scanln(&cmdOpts.podsToRunTheCommandIn)
+				println("[+] Enter the pod name in which to run the command: ")
+
 				var podToRunIn string
 				fmt.Scanln(&podToRunIn)
-				cmdOpts.podsToRunTheCommandIn = []string{podToRunIn}
+				podsToRunTheCommandIn := []string{podToRunIn}
 
-				if cmdOpts.commandToRunInPods != "" {
-					if len(cmdOpts.podsToRunTheCommandIn) > 0 {
-						execInListPods(connectionString, cmdOpts.podsToRunTheCommandIn, cmdOpts.commandToRunInPods)
+				if commandToRunInPods != "" {
+					if len(podsToRunTheCommandIn) > 0 {
+						execInListPods(connectionString, podsToRunTheCommandIn, commandToRunInPods)
 					}
 				}
 			case "2":
 				var input string
-				if cmdOpts.commandToRunInPods != "" {
-					execInAllPods(connectionString, cmdOpts.commandToRunInPods)
+				if commandToRunInPods != "" {
+					execInAllPods(connectionString, commandToRunInPods)
 				} else {
 					fmt.Print("[-] ERROR - command string was empty.")
 					fmt.Scanln(&input)
