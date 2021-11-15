@@ -13,6 +13,7 @@ import (
 
 // ExecuteCodeOnKubelet runs a command on every pod on every node via their Kubelets.
 func ExecuteCodeOnKubelet(connectionString ServerInfo, serviceAccounts *[]ServiceAccount) {
+
 	println("[+] Getting IP addresses for the nodes in the cluster...")
 	// BUG : This auth check isn't catching when we're not allowed to get nodes at the cluster scope
 	if !kubectlAuthCanI(connectionString, "get", "nodes") {
@@ -39,13 +40,16 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, serviceAccounts *[]Servic
 				// println("[+] Found IP for node " + item.Metadata.Name + " - " + addr.Address)
 				if addr.Type == "Hostname" {
 				} else {
-					println("[+] Kubelet Pod Listing URL: " + item.Metadata.Name + " - http://" + addr.Address + ":10255/pods")
-					println("[+] Grabbing Pods from node: " + item.Metadata.Name)
 
 					// Make a request for our service account(s)
 					var headers []HeaderLine
 
 					unauthKubeletPortURL := "http://" + addr.Address + ":10255/pods"
+					nodeName := item.Metadata.Name
+
+					println("[+] Kubelet Pod Listing URL: " + nodeName + " - " + unauthKubeletPortURL)
+					println("[+] Grabbing Pods from node: " + nodeName)
+
 					runningPodsBody := GetRequest(unauthKubeletPortURL, headers, false)
 					if (runningPodsBody == "") || (strings.HasPrefix(runningPodsBody, "ERROR:")) {
 						println("[-] Kubelet request for running pods failed - using this URL:", unauthKubeletPortURL)
@@ -54,7 +58,9 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, serviceAccounts *[]Servic
 
 					var output []PodNamespaceContainerTuple
 					var podDetails PodDetails
+
 					json.Unmarshal([]byte(runningPodsBody), &podDetails)
+
 					for _, item := range podDetails.Items {
 						podName := item.Metadata.Name
 						podNamespace := item.Metadata.Namespace
