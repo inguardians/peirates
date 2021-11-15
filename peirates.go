@@ -1,9 +1,6 @@
 package peirates
 
 // Peirates - an Attack tool for Kubernetes clusters
-//
-// BTW always run `go fmt` before you check in code. go fmt is law.
-//
 
 import (
 	"encoding/base64"
