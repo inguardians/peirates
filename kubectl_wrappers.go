@@ -8,15 +8,16 @@ package peirates
 import (
 	"bytes"
 	"context"
-	"flag"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
-	kubectl "k8s.io/kubernetes/pkg/kubectl/cmd"
+	kubectl "k8s.io/kubectl/pkg/cmd"
 )
 
 // runKubectl executes the kubectl library internally, allowing us to use the
@@ -29,21 +30,30 @@ import (
 //
 // NOTE: You should generally use runKubectlSimple(), which calls runKubectlWithConfig, which calls this.
 func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
-	// Based on code from https://github.com/kubernetes/kubernetes/blob/2e0e1681a6ca7fe795f3bd5ec8696fb14687b9aa/cmd/kubectl/kubectl.go#L44
+
+	// Note - we set stderr here to stdout, to ensure that the commands outputs and errors are displayed in order.
+	cmd := exec.Cmd{
+		Path:   "/proc/self/exe",
+		Args:   append([]string{"kubectl"}, cmdArgs...),
+		Stdin:  stdin,
+		Stdout: stdout,
+		Stderr: stdout,
+	}
+	cmd.Start()
 
 	// runKubectl has a timeout to deal with kubectl commands running forever.
-	// In the future, it would be good to return an error when this happens, but
-	// for now the only method we have to deal with the command hanging is to
-	// crash the program. However, `kubectl exec` commands may take an arbitrary
+	// However, `kubectl exec` commands may take an arbitrary
 	// amount of time, so we disable the timeout when `exec` is found in the args.
-	isExec := false
+
+	// We also do the same for `kubectl delete` commands, as they can wait quite a long time.
+	longRunning := false
 	for _, arg := range cmdArgs {
-		if arg == "exec" {
-			isExec = true
+		if arg == "exec" || arg == "delete" {
+			longRunning = true
 			break
 		}
 	}
-	if !isExec {
+	if !longRunning {
 		// Set up a function to handle the case where we've been running for over 10 seconds
 		// 10 seconds is an entirely arbitrary timeframe, adjust it if needed.
 		ctx, cancel := context.WithCancel(context.Background())
@@ -59,7 +69,7 @@ func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) er
 			case <-ctx.Done():
 				return
 			default:
-				log.Fatalf(
+				log.Printf(
 					"\nKubectl took too long! This usually happens because the remote IP is wrong.\n"+
 						"Check that you've passed the right IP address with -i. If that doesn't help,\n"+
 						"and you're running in a test environment, try restarting the entire cluster.\n"+
@@ -71,33 +81,59 @@ func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) er
 						"\t%s\n",
 					os.Args,
 					append([]string{"kubectl"}, cmdArgs...))
+				cmd.Process.Kill()
 				return
 			}
 		}()
 	}
 
-	// NewKubectlCommand adds the global flagset for some reason, so we have to
-	// copy it, temporarily replace it, and then restore it.
-	oldFlagSet := flag.CommandLine
-	flag.CommandLine = flag.NewFlagSet("kubectl", flag.ContinueOnError)
-	cmd := kubectl.NewKubectlCommand(stdin, stdout, stderr)
-	flag.CommandLine = oldFlagSet
-	cmd.SetArgs(cmdArgs)
-	return cmd.Execute()
+	return cmd.Wait()
 }
 
-// runKubectlWithConfig takes a server config, and a list of arguments. It executes kubectl internally,
-// setting the namespace, token, certificate authority, and server based on the provided config, and
-// appending the supplied arguments to the end of the command.
+// runKubectlWithConfig takes a server config and a list of arguments.
+// It executes kubectl internally, setting authn secrets, certificate authority, and server based
+// on the provided config, then appends the supplied arguments to the end of the command.
 //
 // NOTE: You should generally use runKubectlSimple() to call this.
 func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
-	connArgs := []string{
-		"-n", cfg.Namespace,
-		"--token=" + cfg.Token,
-		"--certificate-authority=" + cfg.CAPath,
-		"--server=https://" + cfg.RIPAddress + ":" + cfg.RPort,
+
+	// Confirm that we have an API Server URL
+	if len(cfg.APIServer) == 0 {
+		return errors.New("api server not set")
 	}
+
+	// Confirm that we have a certificate authority path entry.
+	if len(cfg.CAPath) == 0 {
+		println("DEBUG: certificate authority path not defined - will not communicate with api server")
+		return errors.New("certificate authority path not defined - will not communicate with api server")
+	}
+
+	connArgs := []string{
+		"--certificate-authority=" + cfg.CAPath,
+		"--server=" + cfg.APIServer,
+	}
+	// If cmdArgs contains "--all-namespaces" or ["-n","namespace"], make sure not to add a -n namespace to this.
+	appendNamespace := true
+	for _, arg := range cmdArgs {
+		if (arg == "--all-namespaces") || (arg == "-n") {
+			appendNamespace = false
+		}
+	}
+	if appendNamespace {
+		connArgs = append(connArgs, "-n", cfg.Namespace)
+	}
+
+	// If we are using token-based authentication, append that.
+	if len(cfg.Token) > 0 {
+		// Append the token to connArgs
+		connArgs = append(connArgs, "--token="+cfg.Token)
+	}
+	// If we are using cert-based authentication, use that:
+	if len(cfg.ClientCertPath) > 0 {
+		connArgs = append(connArgs, "--client-key="+cfg.ClientKeyPath)
+		connArgs = append(connArgs, "--client-certificate="+cfg.ClientCertPath)
+	}
+
 	return runKubectl(stdin, stdout, stderr, append(connArgs, cmdArgs...)...)
 }
 
@@ -106,6 +142,7 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 //
 // NOTE: This function is what you want to use most of the time, rather than runKubectl() and runKubectlWithConfig().
 func runKubectlSimple(cfg ServerInfo, cmdArgs ...string) ([]byte, []byte, error) {
+
 	stdin := strings.NewReader("")
 	stdout := bytes.Buffer{}
 	stderr := bytes.Buffer{}
@@ -115,16 +152,57 @@ func runKubectlSimple(cfg ServerInfo, cmdArgs ...string) ([]byte, []byte, error)
 	return stdout.Bytes(), stderr.Bytes(), err
 }
 
-// runKubectlWithByteSliceForStdin is runKubectlSimple but you can pass in some bytes for stdin. Conven
-func runKubectlWithByteSliceForStdin(cfg ServerInfo, stdinBytes []byte, cmdArgs ...string) ([]byte, []byte, error) {
-	stdin := bytes.NewReader(append(stdinBytes, '\n'))
-	stdout := bytes.Buffer{}
-	stderr := bytes.Buffer{}
+// Try this kubectl command as every single service account we have until we find one that works.
+func attemptEveryAccount(connectionStringPointer *ServerInfo, serviceAccounts *[]ServiceAccount, clientCertificates *[]ClientCertificateKeyPair, cmdArgs ...string) ([]byte, []byte, error) {
 
-	err := runKubectlWithConfig(cfg, stdin, &stdout, &stderr, cmdArgs...)
+	// Try all service accounts first.
+	// Store the current service account or client certificate auth method.
+	// func assignServiceAccountToConnection(account ServiceAccount, info *ServerInfo) {
 
-	return stdout.Bytes(), stderr.Bytes(), err
+	backupAuthContext := *connectionStringPointer
+
+	println("Trying the command as every service account until we find one that works.")
+	for _, sa := range *serviceAccounts {
+		println("Trying " + sa.Name)
+		assignServiceAccountToConnection(sa, connectionStringPointer)
+		kubectlOutput, stderr, err := runKubectlSimple(*connectionStringPointer, cmdArgs...)
+		if err == nil {
+			*connectionStringPointer = backupAuthContext
+			return kubectlOutput, stderr, err
+		}
+
+	}
+
+	// Now try all client certificates.
+	println("Trying the command as every client cert until we find one that works.")
+	for _, cert := range *clientCertificates {
+		println("Trying " + cert.Name)
+		assignAuthenticationCertificateAndKeyToConnection(cert, connectionStringPointer)
+		kubectlOutput, stderr, err := runKubectlSimple(*connectionStringPointer, cmdArgs...)
+		if err == nil {
+			*connectionStringPointer = backupAuthContext
+			return kubectlOutput, stderr, err
+		}
+
+	}
+
+	// Restore the auth context
+	*connectionStringPointer = backupAuthContext
+	return nil, nil, errors.New("no principals worked")
 }
+
+// runKubectlWithByteSliceForStdin is runKubectlSimple but you can pass in some bytes for stdin. Conven
+// This function is unused and thus commented out for now.
+
+// func runKubectlWithByteSliceForStdin(cfg ServerInfo, stdinBytes []byte, cmdArgs ...string) ([]byte, []byte, error) {
+// 	stdin := bytes.NewReader(append(stdinBytes, '\n'))
+// 	stdout := bytes.Buffer{}
+// 	stderr := bytes.Buffer{}
+
+// 	err := runKubectlWithConfig(cfg, stdin, &stdout, &stderr, cmdArgs...)
+
+// 	return stdout.Bytes(), stderr.Bytes(), err
+// }
 
 // kubectlAuthCanI now has a history... We can't use the built in
 // `kubectl auth can-i <args...>`, because when the response to the auth check
@@ -159,6 +237,14 @@ func kubectlAuthCanI(cfg ServerInfo, verb, resource string) bool {
 		} `json:"status"`
 	}
 
+	if !UseAuthCanI {
+		return true
+	}
+	// This doesn't work for certificate authentication yet.
+	if len(cfg.ClientCertPath) > 0 {
+		return true
+	}
+
 	query := SelfSubjectAccessReviewQuery{
 		APIVersion: "authorization.k8s.io/v1",
 		Kind:       "SelfSubjectAccessReview",
@@ -181,4 +267,15 @@ func kubectlAuthCanI(cfg ServerInfo, verb, resource string) bool {
 	}
 
 	return response.Status.Allowed
+}
+
+// ExecKubectlAndExit runs the internally compiled `kubectl` code as if this was the `kubectl` binary. stdin/stdout/stderr are process streams. args are process args.
+func ExecKubectlAndExit() {
+	// Based on code from https://github.com/kubernetes/kubernetes/blob/2e0e1681a6ca7fe795f3bd5ec8696fb14687b9aa/cmd/kubectl/kubectl.go#L44
+	cmd := kubectl.NewKubectlCommand(os.Stdin, os.Stdout, os.Stderr)
+	if err := cmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
+	}
+	os.Exit(0)
 }

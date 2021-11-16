@@ -10,7 +10,8 @@ build() {
     echo "$1"
     arch=$1
 
-    GOOS=linux GOARCH="$arch" go build -i ../cmd/peirates
+    #GOOS=linux GOARCH="$arch" go build -i ../cmd/peirates
+    GOOS=linux GOARCH="$1" go build -ldflags="-s -w" ../cmd/peirates
     mkdir peirates-linux-"$1"
     mv peirates peirates-linux-"$1"
 
@@ -32,4 +33,3 @@ if [ -z $1 ] ; then
 else
     build $1
 fi
-
