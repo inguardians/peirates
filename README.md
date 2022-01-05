@@ -2,11 +2,11 @@
 ![Logo](https://github.com/inguardians/peirates/blob/master/peirates_logo.png)
 ## What is Peirates?
 
-Peirates, a Kubernetes penetration tool, enables an attacker to escalate privilege and pivot through a Kubernetes cluster. It automates known techniques to steal and collect service accounts, obtain further code execution, and gain control of the cluster.
+Peirates, a Kubernetes penetration tool, enables an attacker to escalate privilege and pivot through a Kubernetes cluster. It automates known techniques to steal and collect service account tokens, secrets, obtain further code execution, and gain control of the cluster.
 
 ## Where do I run Peirates?
 
-You run Peirates from a container running on Kubernetes.
+You run Peirates from a container running on Kubernetes or from a Kubernetes node, outside the container.
 
 ## Does Peirates attack a Kubernetes cluster?
 
