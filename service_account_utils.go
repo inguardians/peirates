@@ -9,6 +9,7 @@ import (
 
 	"github.com/trung/jwt-tools/display"
 	"gopkg.in/square/go-jose.v2/jwt"
+
 )
 
 // SERVICE ACCOUNT MANAGEMENT functions
@@ -168,4 +169,22 @@ func printJWT(tokenString string) {
 	_ = token.UnsafeClaimsWithoutVerification(&claims)
 
 	display.PrintJSON(claims)
+}
+
+// parseServiceAccountJWT() takes in a service account JWT and returns its expiration date and name.
+func parseServiceAccountJWT(tokenString string) ( int64 , string) {
+
+	var claims map[string]interface{}
+
+	token, _ := jwt.ParseSigned(tokenString)
+	_ = token.UnsafeClaimsWithoutVerification(&claims)
+
+	expiration := int64( claims["exp"].(float64) )
+
+	// Parse out the name of the service account
+	level1 := claims["kubernetes.io"].(map[string]interface{})
+	level2 := level1["serviceaccount"].(map[string]interface{})
+	name := level2["name"].(string)
+
+	return expiration, name
 }
