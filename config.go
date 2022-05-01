@@ -394,7 +394,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 
 	
 		serviceAccountPath := kubeletPodsDir + pod.Name() + podVolumeSADir
-		println("DEBUG: checking out directory " + serviceAccountPath)
+		
 		if _, err := os.Stat(serviceAccountPath); os.IsNotExist(err) {
 			continue
 		}
