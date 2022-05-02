@@ -7,5 +7,6 @@ require (
 	github.com/tidwall/pretty v1.0.0 // indirect
 	github.com/trung/jwt-tools v0.0.0-20191029184913-432ee57a2445
 	gopkg.in/square/go-jose.v2 v2.6.0
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 	k8s.io/kubectl v0.22.3
 )

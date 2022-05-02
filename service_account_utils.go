@@ -25,8 +25,10 @@ type ServiceAccount struct {
 // ClientCertificateKeyPair stores certificate and key information for one principal.
 type ClientCertificateKeyPair struct {
 	Name                  string // Client cert-key pair name
-	ClientKeyPath         string // Client key file path
-	ClientCertificatePath string // Client cert file path
+	// ClientKeyPath         string // Client key file path
+	// ClientCertificatePath string // Client cert file path
+	ClientKeyData         string // Client key data
+	ClientCertificateData string // Client cert data
 	APIServer             string // URL like https://10.96.0.1:443
 	CACert                string // Content of a CA cert
 }
@@ -54,11 +56,11 @@ func AddNewServiceAccount(name, token, discoveryMethod string, serviceAccountLis
 	return true
 }
 
-func MakeClientCertificateKeyPair(name, clientCertificatePath, clientKeyPath, APIServer, CACert string) ClientCertificateKeyPair {
+func MakeClientCertificateKeyPair(name, clientCertificateData, clientKeyData, APIServer, CACert string) ClientCertificateKeyPair {
 	return ClientCertificateKeyPair{
 		Name:                  name,
-		ClientKeyPath:         clientKeyPath,
-		ClientCertificatePath: clientCertificatePath,
+		ClientKeyData:         clientKeyData,
+		ClientCertificateData: clientCertificateData,
 		APIServer:             APIServer,
 		CACert:                CACert,
 	}
@@ -85,8 +87,8 @@ func assignServiceAccountToConnection(account ServiceAccount, info *ServerInfo) 
 	info.Token = account.Token
 
 	// Zero out any client certificate + key, so it's clear what to authenticate with.
-	info.ClientCertPath = ""
-	info.ClientKeyPath = ""
+	info.ClientCertData = ""
+	info.ClientKeyData = ""
 	info.ClientCertName = ""
 
 }
@@ -115,8 +117,8 @@ func assignAuthenticationCertificateAndKeyToConnection(keypair ClientCertificate
 	}
 
 	info.CAPath = CAPath
-	info.ClientCertPath = keypair.ClientCertificatePath
-	info.ClientKeyPath = keypair.ClientKeyPath
+	info.ClientCertData = keypair.ClientCertificateData
+	info.ClientKeyData = keypair.ClientKeyData
 	info.ClientCertName = keypair.Name
 	info.APIServer = keypair.APIServer
 	info.Namespace = "default"

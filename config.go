@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -20,8 +21,8 @@ type ServerInfo struct {
 	APIServer      string // URL for the API server - this replaces RIPAddress and RPort
 	Token          string // service account token ASCII text, if present
 	TokenName      string // name of the service account token, if present
-	ClientCertPath string // path to the client certificate, if present
-	ClientKeyPath  string // path to the client key, if present
+	ClientCertData string // client certificate, if present
+	ClientKeyData  string // client key, if present
 	ClientCertName string // name of the client cert, if present
 	CAPath         string // path to Certificate Authority's certificate (public key)
 	Namespace      string // namespace that this pod's service account is tied to
@@ -82,122 +83,160 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/etc/kubernetes/kubelet.conf")
 	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/var/lib/kubelet/kubeconfig")
 
-	// Feature request / technical debt: we should use golang's YAML parsing for this.
 	for _, path := range kubeletKubeconfigFilePaths {
 		// On each path, check for existence of the file.
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			continue
 		}
 
-		file, err := os.Open(path)
+		kubeconfigFile , err := ioutil.ReadFile(path)
 		if err != nil {
+			println("ERROR: could not open file " + path)
 			continue
 		}
 
-		scanner := bufio.NewScanner(file)
-		scanner.Split(bufio.ScanLines)
+		println("Reading kubelet's kubeconfig from " + path)
 
-		// We're parsing this part of the file, looking for these lines:
-		// users:
-		// - name: system:node:nodename
-		// user:
-		//   client-certificate: /var/lib/kubelet/pki/kubelet-client-current.pem
-		//   client-key: /var/lib/kubelet/pki/kubelet-client-current.pem
+		config := make(map[interface{}]interface{})
+		err = yaml.Unmarshal(kubeconfigFile, &config)
+		if err != nil {
+			println("ERROR: could not unmarshall YAML in file " + path)
+			continue
+		}
 
-		const certificateAuthorityDataLHS = "certificate-authority-data: "
-		const serverLHS = "server: "
-		const clientCertConst = "client-certificate: "
-		const clientKeyConst = "client-key: "
-		const usersBlockStart = "users:"
-		const userStart = "user:"
-		const nameLineStart = "- name: "
 
-		foundFirstUsersBlock := false
-		foundFirstUser := false
+		// Get the CA cert from
+		// clusters[0].cluster.certificate-authority-data
 
-		// Create empty strings for the client cert-key pair object
-		clientName := "kubelet"
-		clientCertPath := ""
-		clientKeyPath := ""
-		CACert := ""
-		APIServer := ""
 
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
 
-			if !foundFirstUsersBlock {
+		// Get the server IP from:
+		// clusters[0].cluster.server
 
-				if strings.HasPrefix(line, certificateAuthorityDataLHS) {
-					CACertBase64Encoded := strings.TrimPrefix(line, certificateAuthorityDataLHS)
+		// Get the client-key-data from:
+		// users[0].user.client-key-data
+		// Bonus: get the user name from:
+		// users[0].user.name
+		// Bonus: get client-certificate-data from :
+		// users[0].user.client-certificate-data
 
-					CACertBytes, err := base64.StdEncoding.DecodeString(CACertBase64Encoded)
-					if err != nil {
-						println("[-] ERROR: couldn't decode")
-					}
-					CACert = string(CACertBytes)
-				}
+	
+		// First, parse the API server URL and CA Cert from the "clusters" top-level data structure.
+		
+		clustersSection := config["clusters"].([]interface{})
+		firstCluster := clustersSection[0].(map[string]interface{})
+		clusterSection := firstCluster["cluster"].(map[string]interface{})
+		APIServer := clusterSection["server"].(string)
+		CACertBase64Encoded := clusterSection["certificate-authority-data"].(string)
+	
+		// Decode the CA cert
+		CACertBytes, err := base64.StdEncoding.DecodeString(CACertBase64Encoded)
+		if err != nil {
+			println("[-] ERROR: couldn't decode the CA cert found in the kubelet's kubeconfig file")
+			continue
+		}
+		CACert := string(CACertBytes)
+		
+		// Next, parse the "users" top-level data structure to get the kubelet's credentials
+		// This could either be data encoded straight into this file or can be a file path to find the data in.
+		// In the former case, data is in "client-key-data". In the latter case, the filepath is in "client-key".
 
-				if strings.HasPrefix(line, serverLHS) {
-					APIServer = strings.TrimPrefix(line, serverLHS)
-				}
+		usersSection := config["users"].([]interface{})
+		firstUser := usersSection[0].(map[string]interface{})
+		username := firstUser["name"].(string)
+	
+		credentials := firstUser["user"].(map[string]interface{})
+		var keyData string
+		var certData string
+		var ok bool
 
-				if strings.HasPrefix(line, usersBlockStart) {
-					foundFirstUsersBlock = true
-				}
-				// until we have found the Users: block, we're not looking for the other patterns.
+		//
+		// Handle the case where the client key and cert are contained directly in this data structure
+		//
+
+		if _, ok = credentials["client-key-data"]; ok {
+			keyDataBase64Encoded := credentials["client-key-data"].(string)
+			keyDataBytes, err := base64.StdEncoding.DecodeString(keyDataBase64Encoded)
+			if err != nil {
+				println("[-] ERROR: couldn't decode the user private key found in the kubelet's kubeconfig file")
 				continue
 			}
 
-			// We've found the users block, now looking for a name or a user statement.
-			if !foundFirstUser {
-				if strings.HasPrefix(line, userStart) {
-					foundFirstUser = true
-				} else if strings.HasPrefix(line, nameLineStart) {
-					clientName = strings.TrimPrefix(line, nameLineStart)
-				}
-
-				// until we have found the User: block, we're not looking for user's key and cert.
+			keyData = string(keyDataBytes)
+		
+		}
+		if _, ok = credentials["client-certificate-data"]; ok {
+			certDataBase64Encoded := credentials["client-certificate-data"].(string)
+			certDataBytes, err := base64.StdEncoding.DecodeString(certDataBase64Encoded)
+			if err != nil {
+				println("[-] ERROR: couldn't decode the user certificate found in the kubelet's kubeconfig file")
 				continue
 			}
 
-			if strings.Contains(line, clientCertConst) {
-
-				clientCertPath = strings.TrimPrefix(line, clientCertConst)
-
-				// TODO: confirm we can read the file
-			} else if strings.Contains(line, clientKeyConst) {
-				clientKeyPath = strings.TrimPrefix(line, clientKeyConst)
-				// TODO: confirm we can read the file
-			}
-
-			// Do we have what we need?
-			// Feature request: abstract this to parse any client certificate items, not just kubelet.
-			//                  We should then support the kube-proxy config, as well as the config
-			//					in the KUBECONFIG environment variable and ~/.kube/config if they exist.
-
-			if len(clientKeyPath) > 0 && len(clientCertPath) > 0 {
-				// Store the key!
-				println("\n[+] Found Kubelet certificate and secret key: " + clientName + "\n")
-
-				var thisClientCertKeyPair ClientCertificateKeyPair
-				thisClientCertKeyPair.ClientCertificatePath = clientCertPath
-				thisClientCertKeyPair.ClientKeyPath = clientKeyPath
-				thisClientCertKeyPair.Name = clientName
-
-				// Parse out the API Server
-				thisClientCertKeyPair.APIServer = APIServer
-				// Parse out the CA Cert into a string.
-				thisClientCertKeyPair.CACert = CACert
-
-				*clientCertificates = append(*clientCertificates, thisClientCertKeyPair)
-
-				break
-
-			}
+			certData = string(certDataBytes)
+		
 
 		}
-		file.Close()
 
+		//
+		// Handle the case where the client key and cert are contained in files named by this data structure
+		//
+
+
+		// First, do the client-key
+		if _, ok = credentials["client-key"]; ok {
+			path := credentials["client-key"].(string)
+
+			if _, err := os.Stat(path); os.IsNotExist(err) {
+				println("ERROR: kubelet kubeconfig file names " + path + " as holding its key, but this file does not exist.")
+				continue
+			}
+			contents, err := ioutil.ReadFile(path)
+			if err != nil {
+				println("ERROR: kubelet kubeconfig file names " + path + " as holding its key, but cannot read this file.")
+				continue
+			}
+			keyData = string(contents)
+		}
+
+		if _, ok = credentials["client-certificate"]; ok {
+			path := credentials["client-certificate"].(string)
+
+			if _, err := os.Stat(path); os.IsNotExist(err) {
+				println("ERROR: kubelet kubeconfig file names " + path + " as holding its cert, but this file does not exist.")
+				continue
+			}
+			contents, err := ioutil.ReadFile(path)
+			if err != nil {
+				println("ERROR: kubelet kubeconfig file names " + path + " as holding its cert, but cannot read this file.")
+				continue
+			}
+			certData = string(contents)
+		}
+
+		// Feature request: abstract this to parse any client certificate items, not just kubelet.
+		//                  We should then support the kube-proxy config, as well as the config
+		//					in the KUBECONFIG environment variable and ~/.kube/config if they exist.
+
+		// If we got a kubelet credential, store it.
+		if len(keyData) > 0 && len(certData) > 0 {
+			println("\n[+] Found Kubelet certificate and secret key: " + username + "\n")
+
+			var thisClientCertKeyPair ClientCertificateKeyPair
+			thisClientCertKeyPair.ClientCertificateData = certData
+			thisClientCertKeyPair.ClientKeyData = keyData
+			thisClientCertKeyPair.Name = username
+
+			// Parse out the API Server
+			thisClientCertKeyPair.APIServer = APIServer
+			// Parse out the CA Cert into a string.
+			thisClientCertKeyPair.CACert = CACert
+
+			*clientCertificates = append(*clientCertificates, thisClientCertKeyPair)
+
+			break
+		}		
+	
 	}
 
 	return (nil)

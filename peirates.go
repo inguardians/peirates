@@ -257,7 +257,7 @@ func banner(connectionString ServerInfo, awsCredentials AWSCredentials, assumedA
 
 		fmt.Printf("[+] Service Account Loaded: %s\n", connectionString.TokenName)
 	}
-	if connectionString.ClientCertPath != "" {
+	if connectionString.ClientCertData != "" {
 		fmt.Printf("[+] Client Certificate/Key Pair Loaded: %s\n", connectionString.ClientCertName)
 	}
 	var haveCa bool = false
@@ -1237,7 +1237,7 @@ func printBanner(interactive bool) {
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,`)
 	}
 	println(`________________________________________
-	Peirates v1.1.9 by InGuardians
+	Peirates v1.1.10 by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 }

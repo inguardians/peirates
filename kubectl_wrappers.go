@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -30,8 +31,7 @@ import (
 //
 // NOTE: You should generally use runKubectlSimple(), which calls runKubectlWithConfig, which calls this.
 func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
-
-	// Note - we set stderr here to stdout, to ensure that the commands outputs and errors are displayed in order.
+	
 	cmd := exec.Cmd{
 		Path:   "/proc/self/exe",
 		Args:   append([]string{"kubectl"}, cmdArgs...),
@@ -129,9 +129,41 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 		connArgs = append(connArgs, "--token="+cfg.Token)
 	}
 	// If we are using cert-based authentication, use that:
-	if len(cfg.ClientCertPath) > 0 {
-		connArgs = append(connArgs, "--client-key="+cfg.ClientKeyPath)
-		connArgs = append(connArgs, "--client-certificate="+cfg.ClientCertPath)
+	if len(cfg.ClientCertData) > 0 {
+		// TODO: How do we avoid writing temp files on every single kubectl command?
+		//       Even better, can we use whatever library kubectl uses to parse kubeconfig files or just pass the file we found this cert in?
+		//       One challenge - we might not always have access to the same filesystem where we found the cert?
+
+		// Create a temp file for the client cert
+		certTmpFile, err := ioutil.TempFile("/tmp", "peirates-")
+		if err != nil {
+			println("DEBUG: Could not create a temp file for the client cert requested")
+    		return errors.New("Could not create a temp file for the client cert requested")
+		}
+		
+		_, err = io.WriteString(certTmpFile,cfg.ClientCertData)
+		if err != nil {
+			println("DEBUG: Could not write to temp file for the client cert requested")
+    		return errors.New("Could not write to temp file for the client cert requested")
+		}
+		certTmpFile.Sync()
+		
+		// Create a temp file for the client key
+		keyTmpFile, err := ioutil.TempFile("/tmp", "peirates-")
+		if err != nil {
+			println("DEBUG: Could not create a temp file for the client key requested")
+    		return errors.New("Could not create a temp file for the client key requested")
+		}
+		
+		_, err = io.WriteString(keyTmpFile,cfg.ClientKeyData)
+		if err != nil {
+			println("DEBUG: Could not write to temp file for the client key requested")
+    		return errors.New("Could not write to temp file for the client key requested")
+		}
+		keyTmpFile.Sync()
+		
+		connArgs = append(connArgs, "--client-certificate="+certTmpFile.Name())
+		connArgs = append(connArgs, "--client-key="+keyTmpFile.Name())
 	}
 
 	return runKubectl(stdin, stdout, stderr, append(connArgs, cmdArgs...)...)
@@ -241,7 +273,7 @@ func kubectlAuthCanI(cfg ServerInfo, verb, resource string) bool {
 		return true
 	}
 	// This doesn't work for certificate authentication yet.
-	if len(cfg.ClientCertPath) > 0 {
+	if len(cfg.ClientCertData) > 0 {
 		return true
 	}
 
