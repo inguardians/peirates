@@ -12,6 +12,7 @@ function build_from_source() {
 function docker() {
   docker-compose build peirates
   echo "Tagging image:  $(docker images -q | head -1)"
+  # echo "Tagging image:" (docker images -q | head -1) # for fish shell
 }
 
 function main() {
