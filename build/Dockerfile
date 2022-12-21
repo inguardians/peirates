@@ -2,13 +2,13 @@
 
 FROM golang:1.17.3-alpine3.13
 
-LABEL maintainer="Franklin <franklin@xxx>"
+LABEL maintainer="Franklin <devsecfranklin@duck.com>"
 LABEL org.opencontainers.image.source=https://github.com/inguardians/peirates
 LABEL org.opencontainers.image.description="Peirates, a Kubernetes penetration tool"
 LABEL org.opencontainers.image.licenses=GPLv2
 
 ARG MY_HOME="/workspaces/peirates"
-ARG USER="franklin"
+ARG USER="periates"
 
 RUN mkdir -p ${MY_HOME} ;\
   apk add --no-cache \
@@ -31,11 +31,10 @@ RUN \
     --home "${MY_HOME}" \
     --ingroup "engr" \
     --uid "1000" \
-    "franklin"; \
+    "${USER}"; \
   chown -R ${USER}:engr ${MY_HOME}
 
 RUN echo "permit nopass :engr\n" >> /etc/doas.conf
-# RUN if [ -f "/home/franklin/.bash_history" ]; then chmod 666 home/franklin/.bash_history; fi
 USER ${USER}
 
 RUN go get -v "github.com/inguardians/peirates"
