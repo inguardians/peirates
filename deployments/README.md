@@ -21,7 +21,7 @@ make push
 Use this command to verify the image made it into GHCR storage.
 
 ```sh
-docker inspect ghcr.io/devsecfranklin/periates
+docker inspect ghcr.io/devsecfranklin/peirates
 ```
 
 ## Run the container

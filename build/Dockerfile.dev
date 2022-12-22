@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.17.3-alpine3.13 as build
+FROM golang:1.17.3-alpine3.13
 
 LABEL maintainer="Franklin <devsecfranklin@duck.com>"
 LABEL org.opencontainers.image.source=https://github.com/inguardians/peirates
@@ -36,15 +36,12 @@ RUN \
 
 RUN echo "permit nopass ${USER}:engr as root" >> /etc/doas.conf
 
+
+
+COPY go.mod go.sum ${MY_HOME}/
+RUN cd ${MY_HOME} && go mod download
 COPY . ${MY_HOME}/
-RUN \
-  cd ${MY_HOME} && \
-  go mod download && \
-  ${MY_HOME}/build.sh
+RUN chown -R ${USER}:engr ${MY_HOME}
 
-FROM alpine:3.13
+USER ${USER}
 
-ARG MY_HOME="/usr/local/go/src/peirates"
-
-COPY --from=build "${MY_HOME}/peirates" /peirates
-ENTRYPOINT ["/peirates"]
