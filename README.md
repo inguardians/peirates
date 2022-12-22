@@ -1,6 +1,6 @@
 # Peirates
 
-[![Release](https://img.shields.io/github/release/golang-standards/project-layout.svg?style=flat-square)](https://github.com/inguardians/peirates/releases/latest)
+[![Release](https://img.shields.io/github/release/inguardians/peirates.svg?style=flat-square)](https://github.com/inguardians/peirates/releases/latest)
 
 ![Logo](/peirates_logo.png?raw=true)
 
