@@ -7,8 +7,9 @@ LABEL org.opencontainers.image.source=https://github.com/inguardians/peirates
 LABEL org.opencontainers.image.description="Peirates, a Kubernetes penetration tool"
 LABEL org.opencontainers.image.licenses=GPLv2
 
-ARG MY_HOME="/usr/local/go/src/peirates"
 ARG USER="periates"
+ARG MY_HOME="/usr/local/go/src/peirates"
+WORKDIR /usr/local/go/src/peirates
 
 RUN mkdir -p ${MY_HOME} ;\
   apk add --no-cache \
@@ -34,14 +35,9 @@ RUN \
     "${USER}"; \
   chown -R ${USER}:engr ${MY_HOME}
 
-RUN echo "permit nopass ${USER}:engr as root" >> /etc/doas.conf
-
-
-
-COPY go.mod go.sum ${MY_HOME}/
-RUN cd ${MY_HOME} && go mod download
+RUN echo 'permit ${USER} as root' > /etc/doas.conf
+COPY go.mod go.sum ./
+RUN go mod download
 COPY . ${MY_HOME}/
 RUN chown -R ${USER}:engr ${MY_HOME}
-
 USER ${USER}
-

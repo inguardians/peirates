@@ -3,7 +3,7 @@
 FROM golang:1.17.3-alpine3.13 as build
 
 LABEL maintainer="Franklin <devsecfranklin@duck.com>"
-LABEL org.opencontainers.image.source=https://github.com/inguardians/peirates
+LABEL org.opencontainers.image.source = "https://github.com/devsecfranklin/peirates"
 LABEL org.opencontainers.image.description="Peirates, a Kubernetes penetration tool"
 LABEL org.opencontainers.image.licenses=GPLv2
 
@@ -44,7 +44,5 @@ RUN \
 
 FROM alpine:3.13
 
-ARG MY_HOME="/usr/local/go/src/peirates"
-
-COPY --from=build "${MY_HOME}/peirates" /peirates
+COPY --from=build "/usr/local/go/src/peirates/peirates" /peirates
 ENTRYPOINT ["/peirates"]
