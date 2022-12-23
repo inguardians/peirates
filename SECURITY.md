@@ -8,7 +8,7 @@ All versions of this project are currently being supported with security updates
 
 | Version | Supported          |
 | ------- | ------------------ |
-| [![Release](https://img.shields.io/github/release/inguardians/peirates.svg?style=flat-square)](https://github.com/inguardians/peirates/releases/latest) | :white_check_mark: |              |
+| [![Release](https://img.shields.io/github/release/inguardians/peirates.svg?style=flat-square)](https://github.com/inguardians/peirates/releases/latest) | :white_check_mark: |
 
 ## Reporting a Vulnerability
 
