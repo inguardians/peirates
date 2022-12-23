@@ -13,7 +13,6 @@ WORKDIR /usr/local/go/src/peirates
 
 RUN mkdir -p ${MY_HOME} ;\
   apk add --no-cache \
-    bash \
     tar \
     git \
     make \
@@ -37,7 +36,7 @@ RUN \
 
 RUN echo 'permit ${USER} as root' > /etc/doas.conf
 COPY go.mod go.sum ./
-RUN go mod download
+# RUN go mod download
 COPY . ${MY_HOME}/
 RUN chown -R ${USER}:engr ${MY_HOME}
 USER ${USER}

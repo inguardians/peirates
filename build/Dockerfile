@@ -7,12 +7,12 @@ LABEL org.opencontainers.image.source = "https://github.com/devsecfranklin/peira
 LABEL org.opencontainers.image.description="Peirates, a Kubernetes penetration tool"
 LABEL org.opencontainers.image.licenses=GPLv2
 
-ARG MY_HOME="/usr/local/go/src/peirates"
 ARG USER="peirates"
+ARG MY_HOME="/usr/local/go/src/peirates"
+WORKDIR /usr/local/go/src/peirates
 
 RUN mkdir -p ${MY_HOME} ;\
   apk add --no-cache \
-    bash \
     tar \
     git \
     make \
@@ -23,23 +23,8 @@ RUN mkdir -p ${MY_HOME} ;\
     libc-dev\
   && rm -rf /var/cache/apk/*
 
-RUN \
-  addgroup --gid 9001 engr && \
-  adduser \
-    --disabled-password \
-    --gecos "" \
-    --home "${MY_HOME}" \
-    --ingroup "engr" \
-    --uid "1000" \
-    "${USER}"; \
-  chown -R ${USER}:engr ${MY_HOME}
-
-RUN echo "permit nopass ${USER}:engr as root" >> /etc/doas.conf
-
 COPY . ${MY_HOME}/
 RUN \
-  cd ${MY_HOME} && \
-  go mod download && \
   ${MY_HOME}/build.sh
 
 FROM alpine:3.13
