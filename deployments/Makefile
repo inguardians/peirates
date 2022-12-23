@@ -4,7 +4,7 @@
 build:
 	docker-compose build peirates
 	@echo "Size of image: $(shell docker image ls | head -2 | grep ^peirates | rev | cut -d' ' -f1 | rev)"
-	@echo "Tagging image:  $(shell docker images -q | head -1)"
+	@echo "Tagging image: $(shell docker images -q | head -1)"
 	docker tag $(shell docker images -q | head -1) ghcr.io/devsecfranklin/peirates:latest
 
 dev:

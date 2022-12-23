@@ -29,7 +29,7 @@ docker inspect ghcr.io/devsecfranklin/peirates
 This is the command to pull the container from GHCR and run a BASH shell on it.
 
 ```sh
-docker run -it ghcr.io/devsecfranklin/periates:latest bash
+docker run -it ghcr.io/devsecfranklin/peirates:latest /peirates
 ```
 
 ## Dev Container

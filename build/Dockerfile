@@ -8,7 +8,7 @@ LABEL org.opencontainers.image.description="Peirates, a Kubernetes penetration t
 LABEL org.opencontainers.image.licenses=GPLv2
 
 ARG MY_HOME="/usr/local/go/src/peirates"
-ARG USER="periates"
+ARG USER="peirates"
 
 RUN mkdir -p ${MY_HOME} ;\
   apk add --no-cache \

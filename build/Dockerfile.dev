@@ -7,7 +7,7 @@ LABEL org.opencontainers.image.source=https://github.com/inguardians/peirates
 LABEL org.opencontainers.image.description="Peirates, a Kubernetes penetration tool"
 LABEL org.opencontainers.image.licenses=GPLv2
 
-ARG USER="periates"
+ARG USER="peirates"
 ARG MY_HOME="/usr/local/go/src/peirates"
 WORKDIR /usr/local/go/src/peirates
 
