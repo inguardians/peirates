@@ -11,8 +11,12 @@ jobs:
     steps:
       - name: Checkout code into the Go module directory
         uses: actions/checkout@v3
+      - name: Configure Dependencies
+        run: |
+          export PATH=$PATH:$(go env GOPATH)/bin
+          go get -d
       - name: Run Gosec Security Scanner
         uses: securego/gosec@master
         with:
-          args: '-track-suppressions ./...'
+          args: '-conf test/.gosec.config.json -track-suppressions ./...'
 
