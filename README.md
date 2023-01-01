@@ -1,6 +1,6 @@
 # Peirates
 
-[![Release](https://img.shields.io/github/release/inguardians/peirates.svg?style=flat-square)](https://github.com/inguardians/peirates/releases/latest)
+[![Release](https://img.shields.io/github/release/inguardians/peirates.svg?style=flat-square)](https://github.com/inguardians/peirates/releases/latest) [![gosec](https://github.com/inguardians/peirates/actions/workflows/gosec.yml/badge.svg)](https://github.com/inguardians/peirates/actions/workflows/gosec.yml)
 
 ![Logo](/peirates_logo.png?raw=true)
 
