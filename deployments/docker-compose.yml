@@ -1,0 +1,18 @@
+version: '3'
+services:
+  peirates-dev:
+    image: peirates-dev
+    build:
+      context: ..
+      dockerfile: build/Dockerfile.dev
+    container_name: peirates-dev
+    volumes:
+      - ./:/usr/local/go/src/peirates
+  peirates:
+    image: peirates
+    build:
+      context: ..
+      dockerfile: build/Dockerfile
+    container_name: peirates
+    volumes:
+      - ./:/usr/local/go/src/peirates

@@ -2,5 +2,5 @@
 /dist/peirates-*
 /dist/peirates
 .DS_Store
-.vscode
 go.sum
+peirates.gz
