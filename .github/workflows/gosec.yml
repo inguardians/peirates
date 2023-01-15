@@ -1,6 +1,6 @@
 name: gosec
 on:
-  commit:
+  push:
     branches:
       - main
   pull_request:
