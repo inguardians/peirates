@@ -237,10 +237,16 @@ func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
 }
 
 func clearScreen(interactive bool) {
+	var err error
+
 	pauseToHitEnter(interactive)
 	c := exec.Command("clear")
 	c.Stdout = os.Stdout
-	c.Run()
+	err = c.Run()
+	if err != nil {
+		println("[-] Error running command: ", err)
+	}
+
 }
 
 func banner(connectionString ServerInfo, awsCredentials AWSCredentials, assumedAWSRole AWSCredentials, interactive bool) {
@@ -302,6 +308,7 @@ type PodNamespaceContainerTuple struct {
 
 // Main starts Peirates
 func Main() {
+	var err error
 
 	// Create a global variable named "connectionString" initialized to default values
 	connectionString := ImportPodServiceAccountToken()
@@ -339,7 +346,7 @@ func Main() {
 	printBanner(interactive)
 
 	// Add the kubelet kubeconfig and authentication information if available.
-	_ = checkForNodeCredentials(&clientCertificates)
+	err = checkForNodeCredentials(&clientCertificates)
 	// If there are client certs, but no service accounts, switch to the first client cert
 	if (len(serviceAccounts) == 0) && (len(clientCertificates) > 0) {
 		assignAuthenticationCertificateAndKeyToConnection(clientCertificates[0], &connectionString)
@@ -510,7 +517,7 @@ func Main() {
 
 		//	[0] Run a kubectl command in the current namespace, API server and service account context
 		case "0", "90", "kubectl":
-			_ = kubectl_interactive(connectionString)
+			err = kubectl_interactive(connectionString)
 
 		//	[1] List, maintain, or switch service account contexts [sa-menu]  (try: listsa, switchsa)
 		case "switchsa", "saswitch", "switch-sa", "sa-switch":
@@ -529,7 +536,7 @@ func Main() {
 
 			println("\n")
 
-			fmt.Scanln(&input)
+			_, err = fmt.Scanln(&input)
 			switch strings.ToLower(input) {
 			case "1", "list":
 				listServiceAccounts(serviceAccounts, connectionString)
@@ -542,7 +549,7 @@ func Main() {
 				println("")
 				println("[1] Switch to this service account")
 				println("[2] Maintain current service account")
-				fmt.Scanln(&input)
+				_, err = fmt.Scanln(&input)
 				switch input {
 				case "1":
 					assignServiceAccountToConnection(serviceAccount, &connectionString)
@@ -574,12 +581,12 @@ func Main() {
 				println("\n1) Decode a JWT entered via a string.")
 				println("2) Decode a service account token stored here.")
 				println("Peirates:># ")
-				fmt.Scanln(&input)
+				_, err = fmt.Scanln(&input)
 
 				switch input {
 				case "1":
 					println("\nEnter a JWT: ")
-					fmt.Scanln(&token)
+					_, err = fmt.Scanln(&token)
 					printJWT(token)
 				case "2":
 					println("\nAvailable Service Accounts:")
@@ -592,7 +599,7 @@ func Main() {
 					}
 					println("\nEnter service account number or exit to abort: ")
 					var tokNum int
-					fmt.Scanln(&input)
+					_, err = fmt.Scanln(&input)
 					if input == "exit" {
 						break
 					}
@@ -618,7 +625,7 @@ func Main() {
 			[1] List namespaces [list]
 			[2] Switch namespace [switch]
 			`)
-			fmt.Scanln(&input)
+			_, err = fmt.Scanln(&input)
 			switch input {
 			case "1", "list":
 				listNamespaces(connectionString)
@@ -656,7 +663,7 @@ func Main() {
 			// Get role to assume
 			var input string
 			println("[+] Enter a role to assume, in the format arn:aws:iam::123456789012:role/roleName : ")
-			fmt.Scanln(&input)
+			_, err = fmt.Scanln(&input)
 
 			iamArnValidationPattern := regexp.MustCompile(`arn:aws:iam::\d{12,}:\w+\/\w+`)
 			if !iamArnValidationPattern.MatchString(input) {
@@ -691,7 +698,7 @@ func Main() {
 
 			println("\n")
 
-			fmt.Scanln(&input)
+			_, err = fmt.Scanln(&input)
 			switch strings.ToLower(input) {
 			case "1", "list":
 				println("\nAvailable Client Certificate/Key Pairs:")
@@ -705,7 +712,7 @@ func Main() {
 				}
 				println("\nEnter certificate/key pair number or exit to abort: ")
 				var tokNum int
-				fmt.Scanln(&input)
+				_, err = fmt.Scanln(&input)
 				if input == "exit" {
 					break
 				}
@@ -735,7 +742,7 @@ func Main() {
 		case "11", "get-secret", "secret-to-sa":
 			println("\nPlease enter the name of the secret for which you'd like the contents: ")
 			var secretName string
-			fmt.Scanln(&secretName)
+			_, err = fmt.Scanln(&secretName)
 
 			if !kubectlAuthCanI(connectionString, "get", "secret") {
 				println("[-] Permission Denied: your service account isn't allowed to get secrets")
@@ -749,7 +756,7 @@ func Main() {
 			}
 
 			var secretData map[string]interface{}
-			json.Unmarshal(secretJSON, &secretData)
+			err = json.Unmarshal(secretJSON, &secretData)
 
 			secretType := secretData["type"].(string)
 
@@ -773,7 +780,7 @@ func Main() {
 			println("[1] Get all host mount points [all]")
 			println("[2] Get volume mount points for a specific pod [single]")
 			println("\nPeirates:># ")
-			fmt.Scanln(&input)
+			err = fmt.Scanln(&input)
 
 			GetPodsInfo(connectionString, &podInfo)
 
@@ -786,7 +793,7 @@ func Main() {
 				//MountRootFS(allPods, connectionString)
 			case "2", "single":
 				println("[+] Please provide the pod name: ")
-				fmt.Scanln(&userResponse)
+				err = fmt.Scanln(&userResponse)
 				fmt.Printf("[+] Printing volume mount points for %s\n", userResponse)
 				PrintHostMountPointsForPod(podInfo, userResponse)
 			}
@@ -801,9 +808,9 @@ func Main() {
 			println("What IP and Port will your netcat listener be listening on?")
 			var ip, port string
 			println("IP:")
-			fmt.Scanln(&ip)
+			err = fmt.Scanln(&ip)
 			println("Port:")
-			fmt.Scanln(&port)
+			err = fmt.Scanln(&port)
 			MountRootFS(allPods, connectionString, ip, port)
 
 		// [12] Request IAM credentials from AWS Metadata API [AWS only]
@@ -924,31 +931,31 @@ func Main() {
 			var bucket string
 
 			println("Enter a bucket name to list: ")
-			fmt.Scanln(&bucket)
+			err = fmt.Scanln(&bucket)
 
 			// Altering this to allow self-entered credentials.
 			// var IAMCredentials = PullIamCredentialsFromAWS()
 			if len(assumedAWSrole.AccessKeyId) > 0 {
-				ListBucketObjects(assumedAWSrole, bucket)
+				err = ListBucketObjects(assumedAWSrole, bucket)
 			} else {
-				ListBucketObjects(awsCredentials, bucket)
+				err = ListBucketObjects(awsCredentials, bucket)
 			}
 
 		// [21] Run command in one or all pods in this namespace
 		case "21", "exec-via-api":
 
 			println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
-			fmt.Scanln(&input)
+			err = fmt.Scanln(&input)
 			println("[+] Please provide the command to run in the pods: ")
 
-			commandToRunInPods, _ := ReadLineStripWhitespace()
+			commandToRunInPods, err := ReadLineStripWhitespace()
 
 			switch input {
 			case "1":
 				println("[+] Enter the pod name in which to run the command: ")
 
 				var podToRunIn string
-				fmt.Scanln(&podToRunIn)
+				err = fmt.Scanln(&podToRunIn)
 				podsToRunTheCommandIn := []string{podToRunIn}
 
 				if commandToRunInPods != "" {
@@ -962,7 +969,7 @@ func Main() {
 					execInAllPods(connectionString, commandToRunInPods)
 				} else {
 					fmt.Print("[-] ERROR - command string was empty.")
-					fmt.Scanln(&input)
+					err = fmt.Scanln(&input)
 				}
 
 			}

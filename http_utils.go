@@ -150,6 +150,7 @@ func GetRequest(url string, headers []HeaderLine, ignoreTLSErrors bool) string {
 }
 
 func createHTTPrequest(method string, urlWithoutValues string, headers []HeaderLine, paramLocation string, params map[string]string) (*http.Request, error) {
+	var err error
 
 	// Store a URL starting point that we may put values on.
 	urlWithData := urlWithoutValues
@@ -227,10 +228,13 @@ func createHTTPrequest(method string, urlWithoutValues string, headers []HeaderL
 	var request *http.Request
 	// Build the request, adding in any headers found so far.
 	if dataSection != nil {
-		request, _ = http.NewRequest(method, urlWithData, dataSection)
+		request, err = http.NewRequest(method, urlWithData, dataSection)
 		request.Header.Add("Content-Length", contentLength)
 	} else {
-		request, _ = http.NewRequest(method, urlWithData, nil)
+		request, err = http.NewRequest(method, urlWithData, nil)
+	}
+	if err != nil {
+		println("[-] Error handling data: ", err)
 	}
 	for _, header := range headers {
 		request.Header.Add(header.LHS, header.RHS)

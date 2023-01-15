@@ -31,6 +31,7 @@ import (
 //
 // NOTE: You should generally use runKubectlSimple(), which calls runKubectlWithConfig, which calls this.
 func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
+	var err error
 
 	cmd := exec.Cmd{
 		Path:   "/proc/self/exe",
@@ -39,7 +40,10 @@ func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) er
 		Stdout: stdout,
 		Stderr: stdout,
 	}
-	cmd.Start()
+	err = cmd.Start()
+	if err != nil {
+		println("[-] Error with command: ", err)
+	}
 
 	// runKubectl has a timeout to deal with kubectl commands running forever.
 	// However, `kubectl exec` commands may take an arbitrary
@@ -81,7 +85,7 @@ func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) er
 						"\t%s\n",
 					os.Args,
 					append([]string{"kubectl"}, cmdArgs...))
-				cmd.Process.Kill()
+				err = cmd.Process.Kill()
 				return
 			}
 		}()
@@ -146,7 +150,10 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 			println("DEBUG: Could not write to temp file for the client cert requested")
 			return errors.New("Could not write to temp file for the client cert requested")
 		}
-		certTmpFile.Sync()
+		err = certTmpFile.Sync()
+		if err != nil {
+			println("[-] Error with cert temp file: ", err)
+		}
 
 		// Create a temp file for the client key
 		keyTmpFile, err := ioutil.TempFile("/tmp", "peirates-")
@@ -160,7 +167,10 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 			println("DEBUG: Could not write to temp file for the client key requested")
 			return errors.New("Could not write to temp file for the client key requested")
 		}
-		keyTmpFile.Sync()
+		err = keyTmpFile.Sync()
+		if err != nil {
+			println("[-] Error with key temp file: ", err)
+		}
 
 		connArgs = append(connArgs, "--client-certificate="+certTmpFile.Name())
 		connArgs = append(connArgs, "--client-key="+keyTmpFile.Name())

@@ -167,7 +167,7 @@ func printJWT(tokenString string) {
 	var claims map[string]interface{}
 
 	token, _ := jwt.ParseSigned(tokenString)
-	_ = token.UnsafeClaimsWithoutVerification(&claims)
+	err = token.UnsafeClaimsWithoutVerification(&claims)
 
 	display.PrintJSON(claims)
 }
