@@ -160,6 +160,8 @@ func execInListPods(connectionString ServerInfo, pods []string, command string) 
 func randSeq(length int) string {
 	letters := []rune("abcdefghijklmnopqrstuvwxyz")
 	b := make([]rune, length)
+
+	/* #nosec G404 - the name of the pod created does not need to be random, though we should make the YAML file with mktemp */
 	for i := range b {
 		b[i] = letters[rand.Intn(len(letters))]
 	}
