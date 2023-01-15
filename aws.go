@@ -55,12 +55,17 @@ func EnterIamCredentialsForAWS() (AWSCredentials, error) {
 	println("[+] Enter an AWS " + component + " or hit enter to exit: ")
 	fmt.Scanln(&input)
 
-	matched, _ := regexp.MatchString(`\w{18,}`, input)
-	if !matched {
+	matched, _, err := regexp.MatchString(`\w{18,}`, input)
 
+	if err != nil {
+		fmt.Printf("Error matching string: %s\n", input)
+	}
+
+	if !matched {
 		println("String entered isn't a " + component + "\n")
 		return credentials, errors.New("invalid " + component)
 	}
+	
 	credentials.AccessKeyId = strings.TrimSpace(strings.ToUpper(input))
 
 	component = "SecretAccessKey"

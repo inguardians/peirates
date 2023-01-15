@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: totally-not-peirates
+  name: peirates
+  namespace: totally-innocuous
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: totally-not-peirates
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: totally-not-peirates
+    spec:
+      containers:
+      - name: peirates
+        image: ghcr.io/devsecfranklin/peirates
+        imagePullPolicy: Always
