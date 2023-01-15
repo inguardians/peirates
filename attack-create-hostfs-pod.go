@@ -14,6 +14,7 @@ import (
 // MountRootFS creates a pod that mounts its node's root filesystem.
 func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP, callbackPort string) {
 	var MountInfoVars = MountInfo{}
+	var err error
 
 	// First, confirm we're allowed to create pods
 	if !kubectlAuthCanI(connectionString, "create", "pod") {
@@ -120,7 +121,11 @@ spec:
 `, randomString, connectionString.Namespace, MountInfoVars.image)
 
 	// Write yaml file out to current directory
-	ioutil.WriteFile("attack-pod.yaml", []byte(MountInfoVars.yamlBuild), 0700)
+	error := ioutil.WriteFile("attack-pod.yaml", []byte(MountInfoVars.yamlBuild), 0600)
+	if error != nil {
+		println("[-] Unable to write file: attack-pod.yaml")
+		return
+	}
 
 	_, _, err = runKubectlSimple(connectionString, "apply", "-f", "attack-pod.yaml")
 	if err != nil {

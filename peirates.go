@@ -46,8 +46,7 @@ func getPodList(connectionString ServerInfo) []string {
 	}
 
 	var response PodsResponse
-	json.Unmarshal(responseJSON, &response)
-
+	err = json.Unmarshal(responseJSON, &response)
 	if err != nil {
 		fmt.Printf("[-] Error while getting pods: %s\n", err.Error())
 		return []string{}
@@ -238,10 +237,16 @@ func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
 }
 
 func clearScreen(interactive bool) {
+	var err error
+
 	pauseToHitEnter(interactive)
 	c := exec.Command("clear")
 	c.Stdout = os.Stdout
-	c.Run()
+	err = c.Run()
+	if err != nil {
+		println("[-] Error running command: ", err)
+	}
+
 }
 
 func banner(connectionString ServerInfo, awsCredentials AWSCredentials, assumedAWSRole AWSCredentials, interactive bool) {
@@ -303,6 +308,7 @@ type PodNamespaceContainerTuple struct {
 
 // Main starts Peirates
 func Main() {
+	var err error
 
 	// Create a global variable named "connectionString" initialized to default values
 	connectionString := ImportPodServiceAccountToken()
@@ -340,7 +346,10 @@ func Main() {
 	printBanner(interactive)
 
 	// Add the kubelet kubeconfig and authentication information if available.
-	_ = checkForNodeCredentials(&clientCertificates)
+	err = checkForNodeCredentials(&clientCertificates)
+	if err != nil {
+		println("Problem with credentials: %v", err)
+	}
 	// If there are client certs, but no service accounts, switch to the first client cert
 	if (len(serviceAccounts) == 0) && (len(clientCertificates) > 0) {
 		assignAuthenticationCertificateAndKeyToConnection(clientCertificates[0], &connectionString)
@@ -511,7 +520,7 @@ func Main() {
 
 		//	[0] Run a kubectl command in the current namespace, API server and service account context
 		case "0", "90", "kubectl":
-			_ = kubectl_interactive(connectionString)
+			err = kubectl_interactive(connectionString)
 
 		//	[1] List, maintain, or switch service account contexts [sa-menu]  (try: listsa, switchsa)
 		case "switchsa", "saswitch", "switch-sa", "sa-switch":
@@ -530,7 +539,7 @@ func Main() {
 
 			println("\n")
 
-			fmt.Scanln(&input)
+			_, err = fmt.Scanln(&input)
 			switch strings.ToLower(input) {
 			case "1", "list":
 				listServiceAccounts(serviceAccounts, connectionString)
@@ -543,7 +552,7 @@ func Main() {
 				println("")
 				println("[1] Switch to this service account")
 				println("[2] Maintain current service account")
-				fmt.Scanln(&input)
+				_, err = fmt.Scanln(&input)
 				switch input {
 				case "1":
 					assignServiceAccountToConnection(serviceAccount, &connectionString)
@@ -575,12 +584,12 @@ func Main() {
 				println("\n1) Decode a JWT entered via a string.")
 				println("2) Decode a service account token stored here.")
 				println("Peirates:># ")
-				fmt.Scanln(&input)
+				_, err = fmt.Scanln(&input)
 
 				switch input {
 				case "1":
 					println("\nEnter a JWT: ")
-					fmt.Scanln(&token)
+					_, err = fmt.Scanln(&token)
 					printJWT(token)
 				case "2":
 					println("\nAvailable Service Accounts:")
@@ -593,7 +602,7 @@ func Main() {
 					}
 					println("\nEnter service account number or exit to abort: ")
 					var tokNum int
-					fmt.Scanln(&input)
+					_, err = fmt.Scanln(&input)
 					if input == "exit" {
 						break
 					}
@@ -619,7 +628,7 @@ func Main() {
 			[1] List namespaces [list]
 			[2] Switch namespace [switch]
 			`)
-			fmt.Scanln(&input)
+			_, err = fmt.Scanln(&input)
 			switch input {
 			case "1", "list":
 				listNamespaces(connectionString)
@@ -657,7 +666,7 @@ func Main() {
 			// Get role to assume
 			var input string
 			println("[+] Enter a role to assume, in the format arn:aws:iam::123456789012:role/roleName : ")
-			fmt.Scanln(&input)
+			_, err = fmt.Scanln(&input)
 
 			iamArnValidationPattern := regexp.MustCompile(`arn:aws:iam::\d{12,}:\w+\/\w+`)
 			if !iamArnValidationPattern.MatchString(input) {
@@ -692,7 +701,7 @@ func Main() {
 
 			println("\n")
 
-			fmt.Scanln(&input)
+			_, err = fmt.Scanln(&input)
 			switch strings.ToLower(input) {
 			case "1", "list":
 				println("\nAvailable Client Certificate/Key Pairs:")
@@ -706,7 +715,7 @@ func Main() {
 				}
 				println("\nEnter certificate/key pair number or exit to abort: ")
 				var tokNum int
-				fmt.Scanln(&input)
+				_, err = fmt.Scanln(&input)
 				if input == "exit" {
 					break
 				}
@@ -736,7 +745,7 @@ func Main() {
 		case "11", "get-secret", "secret-to-sa":
 			println("\nPlease enter the name of the secret for which you'd like the contents: ")
 			var secretName string
-			fmt.Scanln(&secretName)
+			_, err = fmt.Scanln(&secretName)
 
 			if !kubectlAuthCanI(connectionString, "get", "secret") {
 				println("[-] Permission Denied: your service account isn't allowed to get secrets")
@@ -750,7 +759,7 @@ func Main() {
 			}
 
 			var secretData map[string]interface{}
-			json.Unmarshal(secretJSON, &secretData)
+			err = json.Unmarshal(secretJSON, &secretData)
 
 			secretType := secretData["type"].(string)
 
@@ -774,7 +783,7 @@ func Main() {
 			println("[1] Get all host mount points [all]")
 			println("[2] Get volume mount points for a specific pod [single]")
 			println("\nPeirates:># ")
-			fmt.Scanln(&input)
+			_, err = fmt.Scanln(&input)
 
 			GetPodsInfo(connectionString, &podInfo)
 
@@ -787,7 +796,7 @@ func Main() {
 				//MountRootFS(allPods, connectionString)
 			case "2", "single":
 				println("[+] Please provide the pod name: ")
-				fmt.Scanln(&userResponse)
+				_, err = fmt.Scanln(&userResponse)
 				fmt.Printf("[+] Printing volume mount points for %s\n", userResponse)
 				PrintHostMountPointsForPod(podInfo, userResponse)
 			}
@@ -802,9 +811,9 @@ func Main() {
 			println("What IP and Port will your netcat listener be listening on?")
 			var ip, port string
 			println("IP:")
-			fmt.Scanln(&ip)
+			_, err = fmt.Scanln(&ip)
 			println("Port:")
-			fmt.Scanln(&port)
+			_, err = fmt.Scanln(&port)
 			MountRootFS(allPods, connectionString, ip, port)
 
 		// [12] Request IAM credentials from AWS Metadata API [AWS only]
@@ -925,31 +934,34 @@ func Main() {
 			var bucket string
 
 			println("Enter a bucket name to list: ")
-			fmt.Scanln(&bucket)
+			_, err = fmt.Scanln(&bucket)
 
 			// Altering this to allow self-entered credentials.
 			// var IAMCredentials = PullIamCredentialsFromAWS()
 			if len(assumedAWSrole.AccessKeyId) > 0 {
-				ListBucketObjects(assumedAWSrole, bucket)
+				err = ListBucketObjects(assumedAWSrole, bucket)
 			} else {
-				ListBucketObjects(awsCredentials, bucket)
+				err = ListBucketObjects(awsCredentials, bucket)
 			}
 
 		// [21] Run command in one or all pods in this namespace
 		case "21", "exec-via-api":
 
 			println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
-			fmt.Scanln(&input)
+			_, err = fmt.Scanln(&input)
 			println("[+] Please provide the command to run in the pods: ")
 
-			commandToRunInPods, _ := ReadLineStripWhitespace()
+			commandToRunInPods, err := ReadLineStripWhitespace()
+			if err != nil {
+				println("Problem with stripping white space: %v", err)
+			}
 
 			switch input {
 			case "1":
 				println("[+] Enter the pod name in which to run the command: ")
 
 				var podToRunIn string
-				fmt.Scanln(&podToRunIn)
+				_, err = fmt.Scanln(&podToRunIn)
 				podsToRunTheCommandIn := []string{podToRunIn}
 
 				if commandToRunInPods != "" {
@@ -963,7 +975,7 @@ func Main() {
 					execInAllPods(connectionString, commandToRunInPods)
 				} else {
 					fmt.Print("[-] ERROR - command string was empty.")
-					fmt.Scanln(&input)
+					_, err = fmt.Scanln(&input)
 				}
 
 			}
@@ -992,7 +1004,7 @@ func Main() {
 			println("Enter the number of a pod to inject peirates into: ")
 
 			var choice int
-			fmt.Scanln(&choice)
+			_, err = fmt.Scanln(&choice)
 
 			podName := runningPods[choice]
 
@@ -1003,7 +1015,7 @@ func Main() {
 		// Here's the interactive.
 		case "91", "curl":
 			println("[+] Enter a URL, including http:// or https:// - if parameters are required, you must provide them as part of the URL: ")
-			fullURL, _ := ReadLineStripWhitespace()
+			fullURL, err := ReadLineStripWhitespace()
 			fullURL = strings.ToLower(fullURL)
 
 			// Make sure the URL begins with http:// or https://.
@@ -1021,21 +1033,24 @@ func Main() {
 				https = true
 				// Ask the user if they want to ignore certificate validation
 				println("Would you like to ignore whether the server certificate is valid (y/n)? This corresponds to curl's -k flag.")
-				answer, _ := ReadLineStripWhitespace()
+				answer, err := ReadLineStripWhitespace()
+				if err != nil {
+					println("Problem with stripping whitespace: %v", err)
+				}
 				answer = strings.ToLower(answer)
 				if strings.HasPrefix(answer, "y") {
 					ignoreTLSErrors = true
 				}
 
 				println("If you would like to set a custom certificate authority cert path, enter it here.  Otherwise, hit enter.")
-				caCertPath, _ = ReadLineStripWhitespace()
+				caCertPath, err = ReadLineStripWhitespace()
 			}
 
 			// Get the HTTP method
 			method := "--undefined--"
 			for (method != "GET") && (method != "POST") {
 				fmt.Println("[+] Enter method - only GET and POST are supported: ")
-				input, _ = ReadLineStripWhitespace()
+				input, err = ReadLineStripWhitespace()
 				method = strings.TrimSpace(strings.ToUpper(input))
 			}
 
@@ -1049,7 +1064,7 @@ func Main() {
 				// Request a header name
 
 				fmt.Println("[+] Enter a header name or a blank line if done: ")
-				input, _ = ReadLineStripWhitespace()
+				input, err = ReadLineStripWhitespace()
 
 				inputHeader = strings.TrimSpace(input)
 
@@ -1059,7 +1074,7 @@ func Main() {
 
 					// Request a header rhs (value)
 					fmt.Println("[+] Enter a value for " + inputHeader + ":")
-					input, _ = ReadLineStripWhitespace()
+					input, err = ReadLineStripWhitespace()
 
 					// Add the header value to the list
 					var header HeaderLine
@@ -1082,12 +1097,12 @@ func Main() {
 				// Request a parameter name
 
 				fmt.Println("[+] Enter a parameter or a blank line to finish entering parameters: ")
-				inputParameter, _ = ReadLineStripWhitespace()
+				inputParameter, err = ReadLineStripWhitespace()
 
 				if inputParameter != "" {
 					// Request a parameter value
 					fmt.Println("[+] Enter a value for " + inputParameter + ": ")
-					input, _ = ReadLineStripWhitespace()
+					input, err = ReadLineStripWhitespace()
 
 					// Add the parameter pair to the list
 					params[inputParameter] = url.QueryEscape(input)
@@ -1133,7 +1148,7 @@ func Main() {
 
 			println("\nChoice: ")
 
-			fmt.Scanln(&input)
+			_, err = fmt.Scanln(&input)
 
 			switch strings.ToLower(input) {
 			case "exit":
@@ -1151,7 +1166,7 @@ func Main() {
 
 			for !matched {
 				println("Enter an IP address to scan or hit enter to exit the portscan function: ")
-				fmt.Scan(&input)
+				_, err = fmt.Scan(&input)
 				if input == "" {
 					break
 				}

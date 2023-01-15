@@ -69,7 +69,10 @@ func KopsAttackGCP(serviceAccounts *[]ServiceAccount) (err error) {
 
 	println("[1] Store all tokens found in Peirates data store")
 	println("[2] Retrieve all tokens - I will copy and paste")
-	fmt.Scanln(&storeTokens)
+	_, err = fmt.Scanln(&storeTokens)
+	if err != nil {
+		println("Problem with scanln: %v", err)
+	}
 	storeTokens = strings.TrimSpace(storeTokens)
 
 	if storeTokens == "1" {

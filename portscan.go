@@ -15,10 +15,14 @@ func scan_worker(ip string, ports, results chan int) {
 		//		fmt.Printf("DEBUG: checking %s:%d\n", ip, p)
 		conn, err := net.DialTimeout("tcp", ip_port, 50*time.Millisecond)
 		if err != nil {
+			println("Diial timeout: %v", err)
 			results <- 0
 			continue
 		}
-		conn.Close()
+		err = conn.Close()
+		if err != nil {
+			println("Problem closing connection: %v", err)
+		}
 		results <- p
 	}
 }

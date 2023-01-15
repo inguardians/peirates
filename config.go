@@ -89,7 +89,7 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 			continue
 		}
 
-		kubeconfigFile , err := ioutil.ReadFile(path)
+		kubeconfigFile, err := ioutil.ReadFile(path)
 		if err != nil {
 			println("ERROR: could not open file " + path)
 			continue
@@ -104,11 +104,8 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 			continue
 		}
 
-
 		// Get the CA cert from
 		// clusters[0].cluster.certificate-authority-data
-
-
 
 		// Get the server IP from:
 		// clusters[0].cluster.server
@@ -120,15 +117,14 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 		// Bonus: get client-certificate-data from :
 		// users[0].user.client-certificate-data
 
-	
 		// First, parse the API server URL and CA Cert from the "clusters" top-level data structure.
-		
+
 		clustersSection := config["clusters"].([]interface{})
 		firstCluster := clustersSection[0].(map[string]interface{})
 		clusterSection := firstCluster["cluster"].(map[string]interface{})
 		APIServer := clusterSection["server"].(string)
 		CACertBase64Encoded := clusterSection["certificate-authority-data"].(string)
-	
+
 		// Decode the CA cert
 		CACertBytes, err := base64.StdEncoding.DecodeString(CACertBase64Encoded)
 		if err != nil {
@@ -136,7 +132,7 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 			continue
 		}
 		CACert := string(CACertBytes)
-		
+
 		// Next, parse the "users" top-level data structure to get the kubelet's credentials
 		// This could either be data encoded straight into this file or can be a file path to find the data in.
 		// In the former case, data is in "client-key-data". In the latter case, the filepath is in "client-key".
@@ -144,7 +140,7 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 		usersSection := config["users"].([]interface{})
 		firstUser := usersSection[0].(map[string]interface{})
 		username := firstUser["name"].(string)
-	
+
 		credentials := firstUser["user"].(map[string]interface{})
 		var keyData string
 		var certData string
@@ -163,7 +159,7 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 			}
 
 			keyData = string(keyDataBytes)
-		
+
 		}
 		if _, ok = credentials["client-certificate-data"]; ok {
 			certDataBase64Encoded := credentials["client-certificate-data"].(string)
@@ -174,14 +170,12 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 			}
 
 			certData = string(certDataBytes)
-		
 
 		}
 
 		//
 		// Handle the case where the client key and cert are contained in files named by this data structure
 		//
-
 
 		// First, do the client-key
 		if _, ok = credentials["client-key"]; ok {
@@ -235,8 +229,8 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 			*clientCertificates = append(*clientCertificates, thisClientCertKeyPair)
 
 			break
-		}		
-	
+		}
+
 	}
 
 	return (nil)
@@ -276,12 +270,11 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 	var certsFound []string
 
 	const podVolumeSecretDir = "/volumes/kubernetes.io~secret/"
-	
+
 	for _, pod := range dirs {
 
 		podName := getPodName(kubeletPodsDir, pod.Name())
 
-		
 		// In each dir, we are seeking to find its secret volume mounts.
 		// Example:
 		// ls volumes/kubernetes.io~secret/
@@ -302,7 +295,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 
 			// First, see if this secret is a service account token.
 			if strings.Contains(secretName, "-token-") {
-				
+
 				// TODO: Abstract this code to make handling tokens found in podVolumeSecretDir and podVolumeSADir use the same code.
 
 				tokenFilePath := secretPath + secretName + "/token"
@@ -341,7 +334,10 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 				certFound := false
 
 				thisSecretDirectory := kubeletPodsDir + pod.Name() + podVolumeSecretDir + secretName
-				secretDirFiles, _ := ioutil.ReadDir(thisSecretDirectory)
+				secretDirFiles, err := ioutil.ReadDir(thisSecretDirectory)
+				if err != nil {
+					continue
+				}
 
 				for _, file := range secretDirFiles {
 					fileName := file.Name()
@@ -413,27 +409,25 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 			}
 		}
 
-
 	}
 
-	// As of Kubernetes 1.21, service account tokens are provided through projected volumes, added by the 
+	// As of Kubernetes 1.21, service account tokens are provided through projected volumes, added by the
 	// Service Account token admission controller. For now, these are theoretically short-lived, but appear
 	// to last for a full year. If this timeline is reduced, we will need to refresh these tokens.
-	//  
-	// References: https://github.com/kubernetes/kubernetes/issues/70679 
+	//
+	// References: https://github.com/kubernetes/kubernetes/issues/70679
 	//             https://github.com/kubernetes/kubernetes/issues/48408
 
 	// The service account tokens are placed via projected volumes:
 
 	const podVolumeSADir = "/volumes/kubernetes.io~projected/"
-	
+
 	for _, pod := range dirs {
 
 		podName := getPodName(kubeletPodsDir, pod.Name())
 
-	
 		serviceAccountPath := kubeletPodsDir + pod.Name() + podVolumeSADir
-		
+
 		if _, err := os.Stat(serviceAccountPath); os.IsNotExist(err) {
 			continue
 		}
@@ -445,7 +439,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 			saDirName := saDir.Name()
 			// First, see if this secret is a service account token.
 			if strings.Contains(saDirName, "kube-api-access-") {
-				
+
 				// TODO: Abstract this code to make handling tokens found in podVolumeSecretDir and podVolumeSADir use the same code.
 
 				tokenFilePath := serviceAccountPath + saDirName + "/token"
@@ -550,20 +544,30 @@ func getPodName(kubeletPodsDir, podDirName string) string {
 }
 
 func listNamespaces(connectionString ServerInfo) {
-	Namespaces, _ := GetNamespaces(connectionString)
-	for _, namespace := range Namespaces {
+	var err error
+	Namespaces, err := GetNamespaces(connectionString)
+	if err != nil {
+		errorString := "[-] error while listing namespaces"
+		println(errorString)
+	}
+	for namespace := range Namespaces {
 		fmt.Println(namespace)
 	}
 }
 
 // SwitchNamespace switches the current ServerInfo.Namespace to one entered by the user.
 func menuSwitchNamespaces(connectionString *ServerInfo) bool {
+	var err error
 	listNamespaces(*connectionString)
 
-	namespacesList, _ := GetNamespaces(*connectionString)
+	namespacesList, err := GetNamespaces(*connectionString)
+	if err != nil {
+		errorString := "[-] error while listing namespaces"
+		println(errorString)
+	}
 
 	println("\nEnter namespace to switch to or hit enter to maintain current namespace: ")
-	input, _ := ReadLineStripWhitespace()
+	input, err := ReadLineStripWhitespace()
 
 	if input != "" {
 		// Warn user if namespace is not in the existing namespace list.
@@ -596,7 +600,6 @@ func GetNamespaces(connectionString ServerInfo) ([]string, error) {
 	var namespaces []string
 
 	NamespacesRaw, _, err := runKubectlSimple(connectionString, "get", "namespaces")
-
 	if err != nil {
 		errorString := "[-] error while running kubectl get namespaces"
 		println(errorString)
