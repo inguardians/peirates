@@ -69,7 +69,7 @@ func EnterIamCredentialsForAWS() (AWSCredentials, error) {
 		println("String entered isn't a " + component + "\n")
 		return credentials, errors.New("invalid " + component)
 	}
-	
+
 	credentials.AccessKeyId = strings.TrimSpace(strings.ToUpper(input))
 
 	component = "SecretAccessKey"

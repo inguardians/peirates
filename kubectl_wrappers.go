@@ -31,7 +31,7 @@ import (
 //
 // NOTE: You should generally use runKubectlSimple(), which calls runKubectlWithConfig, which calls this.
 func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
-	
+
 	cmd := exec.Cmd{
 		Path:   "/proc/self/exe",
 		Args:   append([]string{"kubectl"}, cmdArgs...),
@@ -138,30 +138,30 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 		certTmpFile, err := ioutil.TempFile("/tmp", "peirates-")
 		if err != nil {
 			println("DEBUG: Could not create a temp file for the client cert requested")
-    		return errors.New("Could not create a temp file for the client cert requested")
+			return errors.New("Could not create a temp file for the client cert requested")
 		}
-		
-		_, err = io.WriteString(certTmpFile,cfg.ClientCertData)
+
+		_, err = io.WriteString(certTmpFile, cfg.ClientCertData)
 		if err != nil {
 			println("DEBUG: Could not write to temp file for the client cert requested")
-    		return errors.New("Could not write to temp file for the client cert requested")
+			return errors.New("Could not write to temp file for the client cert requested")
 		}
 		certTmpFile.Sync()
-		
+
 		// Create a temp file for the client key
 		keyTmpFile, err := ioutil.TempFile("/tmp", "peirates-")
 		if err != nil {
 			println("DEBUG: Could not create a temp file for the client key requested")
-    		return errors.New("Could not create a temp file for the client key requested")
+			return errors.New("Could not create a temp file for the client key requested")
 		}
-		
-		_, err = io.WriteString(keyTmpFile,cfg.ClientKeyData)
+
+		_, err = io.WriteString(keyTmpFile, cfg.ClientKeyData)
 		if err != nil {
 			println("DEBUG: Could not write to temp file for the client key requested")
-    		return errors.New("Could not write to temp file for the client key requested")
+			return errors.New("Could not write to temp file for the client key requested")
 		}
 		keyTmpFile.Sync()
-		
+
 		connArgs = append(connArgs, "--client-certificate="+certTmpFile.Name())
 		connArgs = append(connArgs, "--client-key="+keyTmpFile.Name())
 	}

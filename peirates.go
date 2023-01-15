@@ -46,8 +46,7 @@ func getPodList(connectionString ServerInfo) []string {
 	}
 
 	var response PodsResponse
-	json.Unmarshal(responseJSON, &response)
-
+	err = json.Unmarshal(responseJSON, &response)
 	if err != nil {
 		fmt.Printf("[-] Error while getting pods: %s\n", err.Error())
 		return []string{}

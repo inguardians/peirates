@@ -9,7 +9,6 @@ import (
 
 	"github.com/trung/jwt-tools/display"
 	"gopkg.in/square/go-jose.v2/jwt"
-
 )
 
 // SERVICE ACCOUNT MANAGEMENT functions
@@ -24,7 +23,7 @@ type ServiceAccount struct {
 
 // ClientCertificateKeyPair stores certificate and key information for one principal.
 type ClientCertificateKeyPair struct {
-	Name                  string // Client cert-key pair name
+	Name string // Client cert-key pair name
 	// ClientKeyPath         string // Client key file path
 	// ClientCertificatePath string // Client cert file path
 	ClientKeyData         string // Client key data
@@ -174,14 +173,16 @@ func printJWT(tokenString string) {
 }
 
 // parseServiceAccountJWT() takes in a service account JWT and returns its expiration date and name.
-func parseServiceAccountJWT(tokenString string) ( int64 , string) {
+func parseServiceAccountJWT(tokenString string) (int64, string) {
 
 	var claims map[string]interface{}
 
-	token, _ := jwt.ParseSigned(tokenString)
-	_ = token.UnsafeClaimsWithoutVerification(&claims)
-
-	expiration := int64( claims["exp"].(float64) )
+	token, err := jwt.ParseSigned(tokenString)
+	err = token.UnsafeClaimsWithoutVerification(&claims)
+	if err != nil {
+		println("Problem with token thingy: %v", err)
+	}
+	expiration := int64(claims["exp"].(float64))
 
 	// Parse out the name of the service account
 	level1 := claims["kubernetes.io"].(map[string]interface{})

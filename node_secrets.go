@@ -43,7 +43,6 @@ func AddNewSecretFromPodViaNodeFS(secretName, secretPath, podName string, secret
 	return true
 }
 
-
 //
 //certificateSecrets *[]CertSecret, nonTokenNonCertSecrets *[]nonTokenNonCertSecrets,
 //
