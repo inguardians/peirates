@@ -11,6 +11,8 @@ go list -u -m all # view available minor and patch upgrades for all direct and i
 go get -u ./... # upgrades to the latest or minor patch release
 go get -t -u ./... # upgrade test dependencies
 go test all # run the following command to test that packages are working correctly after an upgrade
+```
+
 Additional external test apps and test data.
 ```
 
