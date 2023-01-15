@@ -97,6 +97,7 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 	randomString := randSeq(6)
 
 	// Create pod manifest in YAML
+	// TODO: The file creation should use mktemp() or similar.
 	MountInfoVars.yamlBuild = fmt.Sprintf(`apiVersion: v1
 kind: Pod
 metadata:
