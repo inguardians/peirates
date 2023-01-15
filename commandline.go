@@ -28,7 +28,10 @@ func parseOptions(opts *CommandLineOptions) {
 
 	// This is the function that actually runs the parser
 	// once you've defined all your options.
-	flagset.Parse(os.Args[1:])
+	err := flagset.Parse(os.Args[1:])
+	if err != nil {
+		println("Problem with args: %v", err)
+	}
 
 	// If the API Server URL is passed in, normalize it.
 	if len(opts.connectionConfig.APIServer) > 0 {

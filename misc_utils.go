@@ -27,11 +27,14 @@ func ReadLine() (string, error) {
 
 // pauseToHitEnter() just gives us a simple way to let the user see input before clearing the screen.
 func pauseToHitEnter(interactive bool) {
-
+	var err error
 	if interactive {
 		var input string
 
 		println("Press enter to continue")
-		fmt.Scanln(&input)
+		_, err = fmt.Scanln(&input)
+		if err != nil {
+			println("Problem with scanln: %v", err)
+		}
 	}
 }

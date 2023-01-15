@@ -45,3 +45,12 @@ go install github.com/securego/gosec/v2/cmd/gosec@latest
 # gosec -conf test/.gosec.config.json -track-suppressions -fmt=json -out=test/results.json -stdout ./...
 gosec -conf test/.gosec.config.json -track-suppressions ./...
 ```
+
+Govulncheck
+
+```sh
+# Install govulncheck
+go install golang.org/x/vuln/cmd/govulncheck@latest
+# Run govulncheck
+govulncheck ./...
+```

