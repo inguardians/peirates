@@ -66,6 +66,7 @@ func MakeClientCertificateKeyPair(name, clientCertificateData, clientKeyData, AP
 }
 
 func acceptServiceAccountFromUser() ServiceAccount {
+	var err error
 	println("\nPlease paste in a new service account token or hit ENTER to maintain current token.")
 	serviceAccount := ServiceAccount{
 		Name:            "",
@@ -74,9 +75,15 @@ func acceptServiceAccountFromUser() ServiceAccount {
 		DiscoveryMethod: "User Input",
 	}
 	println("\nWhat do you want to name this service account?")
-	serviceAccount.Name, _ = ReadLineStripWhitespace()
+	serviceAccount.Name, err = ReadLineStripWhitespace()
+	if err != nil {
+		println("Problem with white space: %v", err)
+	}
 	println("\nPaste the service account token and hit ENTER:")
-	serviceAccount.Token, _ = ReadLineStripWhitespace()
+	serviceAccount.Token, err = ReadLineStripWhitespace()
+	if err != nil {
+		println("Problem with white space: %v", err)
+	}
 
 	return serviceAccount
 }
@@ -140,17 +147,17 @@ func listServiceAccounts(serviceAccounts []ServiceAccount, connectionString Serv
 }
 
 func switchServiceAccounts(serviceAccounts []ServiceAccount, connectionString *ServerInfo) {
-
+	var err error
 	listServiceAccounts(serviceAccounts, *connectionString)
 	println("\nEnter service account number or exit to abort: ")
 	var tokNum int
 	var input string
-	fmt.Scanln(&input)
+	_, err = fmt.Scanln(&input)
 	if input == "exit" {
 		return
 	}
 
-	_, err := fmt.Sscan(input, &tokNum)
+	_, err = fmt.Sscan(input, &tokNum)
 	if err != nil {
 		fmt.Printf("Error parsing service account selection: %s\n", err.Error())
 	} else if tokNum < 0 || tokNum >= len(serviceAccounts) {
@@ -163,13 +170,16 @@ func switchServiceAccounts(serviceAccounts []ServiceAccount, connectionString *S
 }
 
 func printJWT(tokenString string) {
-
+	var err error
 	var claims map[string]interface{}
 
-	token, _ := jwt.ParseSigned(tokenString)
+	token, err := jwt.ParseSigned(tokenString)
 	err = token.UnsafeClaimsWithoutVerification(&claims)
+	if err != nil {
+		println("Problem with token thingy: %v", err)
+	}
 
-	display.PrintJSON(claims)
+	err = display.PrintJSON(claims)
 }
 
 // parseServiceAccountJWT() takes in a service account JWT and returns its expiration date and name.
