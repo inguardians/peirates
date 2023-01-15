@@ -353,6 +353,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 							argumentsLine := "x509 -in " + thisSecretDirectory + "/" + fileName + " -noout -text"
 							arguments := strings.Fields(argumentsLine)
 
+							/* #gosec G204 - this code runs the openssl command file names and directories found in the directory structure */
 							cmd := exec.Command(command, arguments...)
 							out, err := cmd.CombinedOutput()
 

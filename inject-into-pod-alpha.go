@@ -43,6 +43,7 @@ func injectIntoAPodViaAPIServer(connectionString ServerInfo, pod string) {
 			println("kubectl --token " + connectionString.Token + " --certificate-authority=" + connectionString.CAPath + " -n " + connectionString.Namespace + " exec -it " + pod + " -- /tmp/peirates\n")
 		} else {
 			env := os.Environ()
+			/* #gosec G204 - this code is intended to run arbitrary commands for the user */
 			execErr := syscall.Exec(path, args, env)
 			if execErr != nil {
 				println("[-] Exec failed - try manually, as below.\n")

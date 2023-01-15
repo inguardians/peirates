@@ -462,6 +462,7 @@ func Main() {
 				// pop the first item so we can pass it in separately
 				command, arguments := spaceDelimitedSet[0], spaceDelimitedSet[1:]
 
+				/* #gosec G204 - this code is intended to run arbitrary commands for the user */
 				cmd := exec.Command(command, arguments...)
 				out, err := cmd.CombinedOutput()
 				fmt.Printf("\n%s\n", string(out))
@@ -765,7 +766,7 @@ func Main() {
 
 			secretType := secretData["type"].(string)
 
-			/* #gosec G101 - this is not a hardcoded secret */
+			/* #gosec G101 - this is not a hardcoded credential */
 			if secretType != "kubernetes.io/service-account-token" {
 				println("[-] This secret is not a service account token.")
 				break
