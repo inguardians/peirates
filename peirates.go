@@ -765,6 +765,7 @@ func Main() {
 
 			secretType := secretData["type"].(string)
 
+			/* #gosec G101 - this is not a hardcoded secret */
 			if secretType != "kubernetes.io/service-account-token" {
 				println("[-] This secret is not a service account token.")
 				break

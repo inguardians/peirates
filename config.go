@@ -7,12 +7,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"regexp"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 const ServiceAccountPath = "/var/run/secrets/kubernetes.io/serviceaccount/"
@@ -269,6 +270,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 	var nonTokenSecrets []SecretFromPodViaNodeFS
 	var certsFound []string
 
+	/* #gosec G101 - this is not a hardcoded credential */
 	const podVolumeSecretDir = "/volumes/kubernetes.io~secret/"
 
 	for _, pod := range dirs {
