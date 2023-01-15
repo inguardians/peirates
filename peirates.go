@@ -3,11 +3,11 @@ package peirates
 // Peirates - an Attack tool for Kubernetes clusters
 
 import (
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/url"
 	"os"
 	"os/exec"
