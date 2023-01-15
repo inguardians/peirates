@@ -1,5 +1,8 @@
 name: gosec
 on:
+  commit:
+    branches:
+      - main
   pull_request:
     branches:
       - main
