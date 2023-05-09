@@ -7,9 +7,9 @@ gofmt:
 
 lint: gofmt
 	$(GOPATH)/bin/golint $(PACKAGES)
-	$(GOPATH)/bin/golangci-lint run
 	$(GOPATH)/bin/gosec -quiet -no-fail ./...
-
+	$(GOPATH)/bin/golangci-lint run
+	
 update-deps:
 	go get -u ./...
 	go mod tidy
