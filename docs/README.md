@@ -7,7 +7,7 @@ NOTE: You may need to allow `140.82.113.34` (GHCR) to pass the firewall
 ```sh
 gcloud components install gke-gcloud-auth-plugin || sudo apt-get install google-cloud-sdk-gke-gcloud-auth-plugin
 gke-gcloud-auth-plugin --version # verify auth plugin
-gcloud container clusters get-credentials lab-franklin-gke --region=us-central1 # get your credentials
+gcloud container clusters get-credentials YOUR-AWESOME-CLUSTER --region=us-central1 # get your credentials
 kubectl get nodes # you should see your nodes
 kubectl create namespace totally-innocuous # manually create a namespace
 kubectl apply -f deployments/deployment.yaml

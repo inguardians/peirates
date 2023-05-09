@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-# devsecfranklin@duck.com
+# Voice: +1-202-448-8958
+# Email: security@inguardians.com
 
 echo "‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️"
 kubectl rollout status deployment/peirates -n totally-innocuous

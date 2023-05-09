@@ -2,8 +2,8 @@
 
 FROM golang:1.17.3-alpine3.13 as build
 
-LABEL maintainer="Franklin <devsecfranklin@duck.com>"
-LABEL org.opencontainers.image.source = "https://github.com/devsecfranklin/peirates"
+LABEL maintainer="security <security@inguardians.com>"
+LABEL org.opencontainers.image.source = "https://github.com/ingaurdians/peirates"
 LABEL org.opencontainers.image.description="Peirates, a Kubernetes penetration tool"
 LABEL org.opencontainers.image.licenses=GPLv2
 
