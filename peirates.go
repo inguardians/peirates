@@ -13,6 +13,8 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+
+	"gitlab.com/taskfitio/lib/detectcloud" // https://github.com/perlogix/libdetectcloud
 )
 
 var UseAuthCanI bool = true
@@ -311,6 +313,8 @@ type PodNamespaceContainerTuple struct {
 // Main starts Peirates
 func Main() {
 	var err error
+
+	fmt.Println(detectcloud.Detect())
 
 	// Create a global variable named "connectionString" initialized to default values
 	connectionString := ImportPodServiceAccountToken()
