@@ -1,4 +1,7 @@
-#!/bin/sh
+#!/usr/bin/env bash
+
+# Voice: +1-202-448-8958
+# Email: security@inguardians.com
 
 # v0.2 - 08 May 2023 - Minor tweaks
 
