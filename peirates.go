@@ -1208,7 +1208,7 @@ func Main() {
 
 		case "94", "enumerate-dns":
 
-			enumerateDNS()
+			_ = enumerateDNS()
 
 		default:
 			fmt.Println("Command unrecognized.")
