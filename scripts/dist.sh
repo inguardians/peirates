@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Voice: +1-202-448-8958
-# Email: security@inguardians.com
+# Email: peirates-dev <peirates-dev@inguardians.com>
 
 compress() {
     tar cJf peirates-linux-"$1".tar.xz peirates-linux-"$1"
