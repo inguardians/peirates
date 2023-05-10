@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-# Voice: +1-202-448-8958
-# Email: security@inguardians.com
+# Email: peirates-dev <peirates-dev@inguardians.com>
 
 function build_from_source() {
   go get -v "github.com/inguardians/peirates"
