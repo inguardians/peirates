@@ -13,8 +13,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
-
-	"github.com/perlogix/libdetectcloud" // https://github.com/perlogix/libdetectcloud
+	L "./lib"
 )
 
 var UseAuthCanI bool = true
@@ -314,7 +313,10 @@ type PodNamespaceContainerTuple struct {
 func Main() {
 	var err error
 
-	fmt.Println("This cloud: " + libdetectcloud.Detect())
+	var detectCloud string
+
+	detectCloud = L.Detect()
+	fmt.Println("This cloud: " + detectCloud)
 
 	// Create a global variable named "connectionString" initialized to default values
 	connectionString := ImportPodServiceAccountToken()
