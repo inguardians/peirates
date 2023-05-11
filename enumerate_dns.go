@@ -44,13 +44,15 @@ func getAllServicesViaDNS() (*[]serviceHostIPPort, error) {
 	return &serviceHostIPPorts, nil
 }
 
-func enumerateDNS() {
-
+func enumerateDNS() (error) {
+	
 	println("\nRequesting SRV record any.any.svc.cluster.local - thank @raesene:\n")
 	servicesSlicePointer, err := getAllServicesViaDNS()
 
 	if err != nil {
-		println("no services returned or some kind of error")
+		println("error: no services returned - this cluster may have CoreDNS version 1.9.0 or later - see https://github.com/coredns/coredns/issues/4984")
+		println(err)
+		return err
 	}
 	// Print the services' DNS names, IP addresses and ports, but also create a unique set of IPs and ports to portscan:
 	names := make(map[string]bool)
@@ -79,4 +81,5 @@ func enumerateDNS() {
 	// Now print a list of names and ports
 	println("\nPortscan these services via:")
 	println("nmap -sTVC -v -n -p " + portList + nameList)
+	return nil
 }
