@@ -7,13 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	L "github.com/inguardians/peirates/pkg"
 	"math/rand"
 	"net/url"
 	"os"
 	"os/exec"
 	"regexp"
 	"strings"
-	L "./lib"
 )
 
 var UseAuthCanI bool = true

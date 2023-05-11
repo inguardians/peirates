@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# devsecfranklin@duck.com
+# franklin@dead10c5.org
 
 function build_from_source() {
   go get -v "github.com/inguardians/peirates"
@@ -18,11 +18,16 @@ function docker() {
 
 function main() {
   go get golang.org/x/tools/cmd/godoc
-  fish_add_path ${HOME}/go/bin
+
+  # binary will be $(go env GOPATH)/bin/golangci-lint
+  # https://golangci-lint.run/usage/install/#local-installation
+  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin 
+  
+  #fish_add_path ${HOME}/go/bin
   go mod download github.com/aws/aws-sdk-go
 
   # docker-compose build peirates # use the instructions in `deployments`  instead
-  echo "Tagging image:  $(shell docker images -q | head -1)"
+  #echo "Tagging image:  $(shell docker images -q | head -1)"
   #godoc -http=:6060
   #wget -m -k -q -erobots=off --no-host-directories --no-use-server-timestamps http://localhost:6060
 }
