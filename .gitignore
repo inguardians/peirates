@@ -1,7 +1,11 @@
-/peirates
+# SPDX-FileCopyrightText: 2023 peirates-dev <peirates-dev@inguardians.com>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
 
+/peirates
 .DS_Store
 go.sum
+*.log
 peirates.gz
 
 # build artifacts
