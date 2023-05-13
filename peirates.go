@@ -1214,7 +1214,7 @@ func Main() {
 
 		case "94", "enumerate-dns":
 
-			enumerateDNS()
+			_ = enumerateDNS()
 
 		default:
 			fmt.Println("Command unrecognized.")
@@ -1262,7 +1262,7 @@ func printBanner(interactive bool) {
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,`)
 	}
 	println(`________________________________________
-	Peirates v1.1.10 by InGuardians
+	Peirates v1.1.10a by InGuardians
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 }

@@ -74,15 +74,16 @@ func ImportPodServiceAccountToken() ServerInfo {
 func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) error {
 
 	// Paths to explore:
-	// /etc/kubernetes/kubelet.conf
 	// /var/lib/kubelet/kubeconfig
+	// /etc/kubernetes/kubeconfig
 	//
 
 	// Determine if one of the paths above exists and use it to get kubelet keypairs
 	kubeletKubeconfigFilePaths := make([]string, 0)
 
-	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/etc/kubernetes/kubelet.conf")
 	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/var/lib/kubelet/kubeconfig")
+	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/etc/kubernetes/kubeconfig")
+	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/etc/kubernetes/kubelet.conf")
 
 	for _, path := range kubeletKubeconfigFilePaths {
 		// On each path, check for existence of the file.
@@ -119,10 +120,18 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 		// users[0].user.client-certificate-data
 
 		// First, parse the API server URL and CA Cert from the "clusters" top-level data structure.
-
 		clustersSection := config["clusters"].([]interface{})
+		if clustersSection == nil {
+			continue
+		}
 		firstCluster := clustersSection[0].(map[string]interface{})
+		if firstCluster == nil{
+			continue
+		}
 		clusterSection := firstCluster["cluster"].(map[string]interface{})
+		if clusterSection == nil{
+			continue
+		}
 		APIServer := clusterSection["server"].(string)
 		CACertBase64Encoded := clusterSection["certificate-authority-data"].(string)
 
