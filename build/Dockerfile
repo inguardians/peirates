@@ -21,11 +21,12 @@ RUN mkdir -p ${MY_HOME} ;\
     gcc \
     doas \
     libc-dev\
+    bash \
   && rm -rf /var/cache/apk/*
 
 COPY . ${MY_HOME}/
 RUN \
-  ${MY_HOME}/build.sh
+  cd ${MY_HOME}/scripts && ${MY_HOME}/scripts/build.sh
 
 FROM alpine:3.13
 

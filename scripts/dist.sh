@@ -2,36 +2,86 @@
 
 # Email: peirates-dev <peirates-dev@inguardians.com>
 
-compress() {
-    tar cJf peirates-linux-"$1".tar.xz peirates-linux-"$1"
-    rm peirates-linux-"$1"/peirates
-    rmdir peirates-linux-"$1"
+# v0.2 - 13 May 2023 - Updates to script
+
+declare -a ARCHITECTURES=( "amd64" "arm" "arm64" "386" )
+
+OS="linux"
+ARCH="amd64"
+COMPRESS="yes" # unused right now. Who uses this functionality?
+
+function usage() {
+  echo "Dist script: Build for multiple distros."
+  echo
+  echo "Syntax: dist.sh [-a|-m|-r|-t|-x]"
+  echo "options:"
+  echo "-h     Print this Help."
+  echo "-a     Build for amd64"
+  echo "-m     Build for arm"
+  echo "-r     Build for arm64"
+  echo "-t     Build for 386"
+  echo "-x     Build all architectures"
 }
 
-build() {
-    echo "$1"
-    arch=$1
-
-    #GOOS=linux GOARCH="$arch" go build -i ../cmd/peirates
-    GOOS=linux GOARCH="$1" go build -ldflags="-s -w" ../cmd/peirates
-    mkdir peirates-linux-"$1"
-    mv peirates peirates-linux-"$1"
-
-    if  [ $COMPRESS == "yes" ] ; then
-       compress $arch
-    fi
-
+function compress() {
+  tar cJf peirates-${OS}-${ARCH}.tar.xz peirates-${OS}-${ARCH}
+  rm peirates-${OS}-${ARCH}/peirates
+  rmdir peirates-${OS}-${ARCH}
 }
 
-COMPRESS=yes
-if [ "$2" = "buildonly" ] ; then
-    COMPRESS=no
-fi
+function build() {
+  echo "Building for arch: ${ARCH}"
+  GOOS=${OS} GOARCH=${ARCH} go build -ldflags="-s -w" $(realpath ../cmd/peirates)
+  mkdir peirates-${OS}-${ARCH}
+  mv peirates peirates-${OS}-${ARCH}
+  compress ${ARCH}
+}
 
-if [ -z $1 ] ; then
-    for arch in amd64 arm arm64 386 ; do
-       build $arch
-    done
-else
-    build $1
+function main() {  
+  for xx in ${ARCHITECTURES[@]};
+  do
+    ARCH="${xx}"
+    build ${ARCH}
+  done
+}
+
+while getopts "hamrtx" option; do
+  case $option in
+    h)
+      usage
+      exit 0
+    ;;
+    a)
+      ARCHITECTURES=( "amd64" )
+      main
+      exit 0
+    ;;
+    m)
+      ARCHITECTURES=( "arm" )
+      main
+      exit 0
+    ;;
+    r)
+      ARCHITECTURES=( "arm64" )
+      main
+      exit 0
+    ;;
+    t)
+      ARCHITECTURES=( "386" )
+      main
+      exit 0
+    ;;
+    x)
+      main
+      exit 0
+    ;;
+    \?)
+      usage
+      exit 1
+    ;;
+  esac
+done
+
+if [ "$option" = "?" ]; then
+  usage && exit 1
 fi
