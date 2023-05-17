@@ -7,7 +7,7 @@ NAMESPACE="totally-innocuous" # this is an EXAMPLE namespace
 function usage() {
   echo "Pod connect script."
   echo
-  echo "Syntax: az_check.sh [-h|-n]"
+  echo "Syntax: ${0} [-h|-n]"
   echo "options:"
   echo "-h     Print this Help."
   echo "-n     Specify a Namespace."
