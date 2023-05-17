@@ -18,6 +18,6 @@ spec:
         app: totally-not-peirates
     spec:
       containers:
-        - name: peirates
-          image: ghcr.io/devsecfranklin/peirates:latest
-          imagePullPolicy: Always
+      - name: peirates
+        image: ghcr.io/devsecfranklin/peirates:latest
+        imagePullPolicy: Always
