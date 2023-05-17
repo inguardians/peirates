@@ -8,15 +8,16 @@ declare -a ARCHITECTURES=( "amd64" "arm" "arm64" "386" )
 
 OS="linux"
 ARCH="amd64"
-COMPRESS="yes" # unused right now. Who uses this functionality?
+COMPRESS="yes"
 
 function usage() {
   echo "Dist script: Build for multiple distros."
   echo
-  echo "Syntax: dist.sh [-a|-m|-r|-t|-x]"
+  echo "Syntax: dist.sh [-a|-C|-m|-r|-t|-x]"
   echo "options:"
   echo "-h     Print this Help."
   echo "-a     Build for amd64"
+  echo "-C     Do not compress binaries after building"
   echo "-m     Build for arm"
   echo "-r     Build for arm64"
   echo "-t     Build for 386"
@@ -32,12 +33,21 @@ function compress() {
 function build() {
   echo "Building for arch: ${ARCH}"
   GOOS=${OS} GOARCH=${ARCH} go build -ldflags="-s -w" $(realpath ../cmd/peirates)
-  mkdir peirates-${OS}-${ARCH}
+  if [ ! -d peirates-${OS}-${ARCH} ] ; then 
+    mkdir peirates-${OS}-${ARCH}
+  fi
   mv peirates peirates-${OS}-${ARCH}
-  compress ${ARCH}
+  if [ $COMPRESS == "yes" ] ; then
+    compress ${ARCH}
+  fi
 }
 
 function main() {  
+  if [ ! -e ../cmd/peirates ] ; then
+    echo "This script must be run from the scripts/ directory."
+    exit 1
+  fi
+
   for xx in ${ARCHITECTURES[@]};
   do
     ARCH="${xx}"
@@ -45,7 +55,7 @@ function main() {
   done
 }
 
-while getopts "hamrtx" option; do
+while getopts "haCmrtx" option; do
   case $option in
     h)
       usage
@@ -55,6 +65,9 @@ while getopts "hamrtx" option; do
       ARCHITECTURES=( "amd64" )
       main
       exit 0
+    ;;
+    C)
+      COMPRESS="no"
     ;;
     m)
       ARCHITECTURES=( "arm" )
