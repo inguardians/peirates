@@ -11,7 +11,7 @@ into the GHCR container storage.
 ```sh
 sudo sysctl -w net.ipv6.conf.all.forwarding=1 # Use when you have IPv6 network issues
 export CR_PAT=(pass show ghcr)
-echo $CR_PAT | docker login ghcr.io -u devsecfranklin --password-stdin
+echo $CR_PAT | docker login ghcr.io -u YOURUSERNAME --password-stdin
 make build
 make push
 ```

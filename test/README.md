@@ -14,7 +14,6 @@ go test all # run the following command to test that packages are working correc
 ```
 
 Additional external test apps and test data.
-```
 
 ## Setup
 

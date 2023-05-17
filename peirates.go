@@ -333,7 +333,6 @@ func Main() {
 	}
 
 	// If the user has chosen a
-
 	var serviceAccounts []ServiceAccount
 
 	// List of current service accounts
@@ -1229,7 +1228,7 @@ func printBanner(interactive bool) {
 |______________________________________|`)
 
 	if interactive {
-		println(`\n
+		println(`
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,.............:,,,,,,,,,,,,,
 ,,,,,,,,,,...,IIIIIIIIIII+...,,,,,,,,,,,

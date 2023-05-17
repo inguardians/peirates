@@ -10,13 +10,14 @@ spec:
   selector:
     matchLabels:
       app: totally-not-peirates
-  strategy: {}
+  strategy:
+    type: RollingUpdate
   template:
     metadata:
       labels:
         app: totally-not-peirates
     spec:
       containers:
-      - name: peirates
-        image: ghcr.io/devsecfranklin/peirates
-        imagePullPolicy: Always
+        - name: peirates
+          image: ghcr.io/devsecfranklin/peirates:latest
+          imagePullPolicy: Always
