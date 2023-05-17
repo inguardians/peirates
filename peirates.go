@@ -1255,7 +1255,7 @@ func printBanner(interactive bool) {
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,`)
 	}
 	println(`________________________________________
-	Peirates v1.1.10a by InGuardians and Peirates Open Source Developers
+	Peirates v1.1.11 by InGuardians and Peirates Open Source Developers
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 }
