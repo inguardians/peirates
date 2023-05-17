@@ -606,6 +606,7 @@ func GetNamespaces(connectionString ServerInfo) ([]string, error) {
 	if !kubectlAuthCanI(connectionString, "get", "namespaces") {
 		errorString := "[-] Permission Denied: your service account isn't allowed to get namespaces"
 		println(errorString)
+                println("Consider trying kubectl-try-all get namespaces to see if any RBAC principals you have can do this.")
 		return []string{}, errors.New(errorString)
 	}
 
@@ -615,6 +616,7 @@ func GetNamespaces(connectionString ServerInfo) ([]string, error) {
 	if err != nil {
 		errorString := "[-] error while running kubectl get namespaces"
 		println(errorString)
+		println("Consider trying kubectl-try-all get namespaces to see if any RBAC principals you have can do this.")
 		return []string{}, errors.New(errorString)
 	}
 	// Iterate over kubectl get namespaces, stripping off the first line which matches NAME and then grabbing the first column
