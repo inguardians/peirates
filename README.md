@@ -27,6 +27,8 @@ Adam persuaded the group to use a highly-interactive user interface. Dave brough
 Together, these four developers implemented attacks and began releasing this tool that we use on our
 penetration tests.
 
+Other contributors have helped as well - see GitHub to see more, but please also review [credits.md](https://github.com/inguardians/peirates/blob/main/credits.md).
+
 ## Do you welcome contributions?
 
 Yes, we absolutely do. Submit a pull request and/or reach out to <contact@inguardians.com>.
