@@ -10,7 +10,8 @@ spec:
   selector:
     matchLabels:
       app: totally-not-peirates
-  strategy: {}
+  strategy:
+    type: RollingUpdate
   template:
     metadata:
       labels:
@@ -18,5 +19,5 @@ spec:
     spec:
       containers:
       - name: peirates
-        image: ghcr.io/devsecfranklin/peirates
+        image: ghcr.io/devsecfranklin/peirates:latest
         imagePullPolicy: Always

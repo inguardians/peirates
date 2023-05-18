@@ -11,7 +11,6 @@ import (
 )
 
 // Tokens returned by the metadata API will look like this, unless error has occurred: {"access_token":"xxxxxxx","expires_in":2511,"token_type":"Bearer"}
-
 type GCPToken struct {
 	Token          string `json:"access_token"`
 	Expires        int64  `json:"expires_in"`

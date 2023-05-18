@@ -13,11 +13,7 @@ go get -t -u ./... # upgrade test dependencies
 go test all # run the following command to test that packages are working correctly after an upgrade
 ```
 
-```sh
-git config --global --add url."git@github.com:".insteadOf "https://github.com/"
-git config --global --add url."git@gitlab.com:".insteadOf "https://gitlab.com/"
-env GIT_TERMINAL_PROMPT=1 go get gitlab.com/taskfitio/lib/detectcloud
-```
+Additional external test apps and test data.
 
 ## Setup
 

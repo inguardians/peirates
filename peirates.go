@@ -339,7 +339,6 @@ func Main() {
 	}
 
 	// If the user has chosen a
-
 	var serviceAccounts []ServiceAccount
 
 	// List of current service accounts
@@ -1235,7 +1234,7 @@ func printBanner(interactive bool) {
 |______________________________________|`)
 
 	if interactive {
-		println(`\n
+		println(`
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,.............:,,,,,,,,,,,,,
 ,,,,,,,,,,...,IIIIIIIIIII+...,,,,,,,,,,,
@@ -1262,7 +1261,7 @@ func printBanner(interactive bool) {
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,`)
 	}
 	println(`________________________________________
-	Peirates v1.1.10a by InGuardians
+	Peirates v1.1.11 by InGuardians and Peirates Open Source Developers
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 }

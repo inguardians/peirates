@@ -55,7 +55,7 @@ gig of space because it needs the whole kubernetes repository)
 
 Build the executable
 
-    cd $GOPATH/github.com/inguardians/peirates
+    cd $GOPATH/github.com/inguardians/peirates/scripts
     ./build.sh
 
 This will generate an executable file named `peirates` in the same directory.

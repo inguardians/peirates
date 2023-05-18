@@ -2,8 +2,8 @@
 
 FROM golang:1.17.3-alpine3.13 as build
 
-LABEL maintainer="Franklin <devsecfranklin@duck.com>"
-LABEL org.opencontainers.image.source = "https://github.com/devsecfranklin/peirates"
+LABEL maintainer="peirates-dev <peirates-dev@inguardians.com>"
+LABEL org.opencontainers.image.source = "https://github.com/inguardians/peirates"
 LABEL org.opencontainers.image.description="Peirates, a Kubernetes penetration tool"
 LABEL org.opencontainers.image.licenses=GPLv2
 
@@ -21,11 +21,12 @@ RUN mkdir -p ${MY_HOME} ;\
     gcc \
     doas \
     libc-dev\
+    bash \
   && rm -rf /var/cache/apk/*
 
 COPY . ${MY_HOME}/
 RUN \
-  ${MY_HOME}/build.sh
+  cd ${MY_HOME}/scripts && ${MY_HOME}/scripts/build.sh
 
 FROM alpine:3.13
 
