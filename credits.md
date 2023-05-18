@@ -9,4 +9,4 @@
 
 ## Open Source Community Developers
 
-* @devsecfranklin
+* Franklin Diaz @devsecfranklin
