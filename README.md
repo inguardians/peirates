@@ -31,7 +31,7 @@ Other contributors have helped as well - see GitHub to see more, but please also
 
 ## Do you welcome contributions?
 
-Yes, we absolutely do. Submit a pull request and/or reach out to <contact@inguardians.com>.
+Yes, we absolutely do. Submit a pull request and/or reach out to <peirates-dev@inguardians.com>.
 
 ## What license is this released under?
 
