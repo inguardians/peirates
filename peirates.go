@@ -422,8 +422,27 @@ func Main() {
 			argumentsLine := strings.TrimPrefix(input, kubectlTryAllSpace)
 			arguments := strings.Fields(argumentsLine)
 
-			kubectlOutput, _, err := attemptEveryAccount(&connectionString, &serviceAccounts, &clientCertificates, arguments...)
-			println(string(kubectlOutput))
+			_, _, err := attemptEveryAccount(false, &connectionString, &serviceAccounts, &clientCertificates, arguments...)
+
+			// Note that we got an error code, in case it's the only output.
+			if err != nil {
+				println("[-] Could not perform action or received an error on: ", input)
+			}
+
+			// Make sure not to go into the switch-case
+			pauseToHitEnter(interactive)
+			continue
+		}
+
+		// Handle kubectl-try-all-until-success requests
+		const kubectlTryAllUntilSuccessSpace = "kubectl-try-all-until-success "
+		if strings.HasPrefix(input, kubectlTryAllUntilSuccessSpace) {
+
+			// remove the kubectl-try-all, then split the rest on whitespace
+			argumentsLine := strings.TrimPrefix(input, kubectlTryAllUntilSuccessSpace)
+			arguments := strings.Fields(argumentsLine)
+
+			_, _, err := attemptEveryAccount(true, &connectionString, &serviceAccounts, &clientCertificates, arguments...)
 
 			// Note that we got an error code, in case it's the only output.
 			if err != nil {
@@ -1255,7 +1274,7 @@ func printBanner(interactive bool) {
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,`)
 	}
 	println(`________________________________________
-	Peirates v1.1.11 by InGuardians and Peirates Open Source Developers
+	Peirates v1.1.11a by InGuardians and Peirates Open Source Developers
   https://www.inguardians.com/peirates
 ----------------------------------------------------------------`)
 }
@@ -1302,7 +1321,8 @@ Node Attacks |
 Off-Menu         +
 -----------------+
 [90] Run a kubectl command using the current authorization context [kubectl [arguments]]
-[] Run a kubectl command using EVERY authorization context until one works [kubectl-try-all [arguments]]
+[] Run a kubectl command using EVERY authorization context until one works [kubectl-try-all-until-success [arguments]]
+[] Run a kubectl command using EVERY authorization context [kubectl-try-all [arguments]]
 [91] Make an HTTP request (GET or POST) to a user-specified URL [curl]
 [92] Deactivate "auth can-i" checking before attempting actions [set-auth-can-i] 
 [93] Run a simple all-ports TCP port scan against an IP address [tcpscan]
