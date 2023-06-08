@@ -194,8 +194,8 @@ func runKubectlSimple(cfg ServerInfo, cmdArgs ...string) ([]byte, []byte, error)
 	return stdout.Bytes(), stderr.Bytes(), err
 }
 
-// Try this kubectl command as every single service account we have until we find one that works.
-func attemptEveryAccount(connectionStringPointer *ServerInfo, serviceAccounts *[]ServiceAccount, clientCertificates *[]ClientCertificateKeyPair, cmdArgs ...string) ([]byte, []byte, error) {
+// Try this kubectl command as every single service account, with option to stop when we find one that works.
+func attemptEveryAccount(stopOnFirstSuccess bool, connectionStringPointer *ServerInfo, serviceAccounts *[]ServiceAccount, clientCertificates *[]ClientCertificateKeyPair, cmdArgs ...string) ([]byte, []byte, error) {
 
 	// Try all service accounts first.
 	// Store the current service account or client certificate auth method.
@@ -203,14 +203,33 @@ func attemptEveryAccount(connectionStringPointer *ServerInfo, serviceAccounts *[
 
 	backupAuthContext := *connectionStringPointer
 
-	println("Trying the command as every service account until we find one that works.")
+	var successes int
+
+	if stopOnFirstSuccess {
+		println("Trying the command as every service account until we find one that works.")
+	} else {
+		println("Trying the command as every service account.")
+	}
+
 	for _, sa := range *serviceAccounts {
 		println("Trying " + sa.Name)
 		assignServiceAccountToConnection(sa, connectionStringPointer)
 		kubectlOutput, stderr, err := runKubectlSimple(*connectionStringPointer, cmdArgs...)
+
+		// If the command is successful...
 		if err == nil {
-			*connectionStringPointer = backupAuthContext
-			return kubectlOutput, stderr, err
+
+			// ...tally another success...
+			successes += 1
+			// ...display the output...
+			println(string(kubectlOutput))
+			println(string(stderr))
+
+			// ...and stop if we were told to stop on first success.
+			if stopOnFirstSuccess {
+				*connectionStringPointer = backupAuthContext
+				return kubectlOutput, stderr, err
+			}
 		}
 
 	}
@@ -221,16 +240,37 @@ func attemptEveryAccount(connectionStringPointer *ServerInfo, serviceAccounts *[
 		println("Trying " + cert.Name)
 		assignAuthenticationCertificateAndKeyToConnection(cert, connectionStringPointer)
 		kubectlOutput, stderr, err := runKubectlSimple(*connectionStringPointer, cmdArgs...)
+
+		// If the command is successful...
 		if err == nil {
-			*connectionStringPointer = backupAuthContext
-			return kubectlOutput, stderr, err
+
+			// ...tally another success...
+			successes += 1
+
+			// ...display the output...
+			println(string(kubectlOutput))
+			println(string(stderr))
+
+			// ...and stop if we were told to stop on first success.
+			if stopOnFirstSuccess {
+				*connectionStringPointer = backupAuthContext
+				return kubectlOutput, stderr, err
+			}
+			// This logic is repeated  -- can we combine these two for loops?
 		}
 
 	}
 
 	// Restore the auth context
 	*connectionStringPointer = backupAuthContext
-	return nil, nil, errors.New("no principals worked")
+
+	// Choose a return
+	if successes == 0 {
+		return nil, nil, errors.New("no principals worked")
+	} else {
+		fmt.Printf("%d principals were successful in running the command.\n", successes)
+		return nil, nil, nil
+	}
 }
 
 // runKubectlWithByteSliceForStdin is runKubectlSimple but you can pass in some bytes for stdin. Conven

@@ -13,7 +13,7 @@ COMPRESS="yes"
 function usage() {
   echo "Dist script: Build for multiple distros."
   echo
-  echo "Syntax: dist.sh [-a|-C|-m|-r|-t|-x]"
+  echo "Syntax: dist.sh [-a|-c|-m|-r|-t|-x]"
   echo "options:"
   echo "-h     Print this Help."
   echo "-a     Build for amd64"
@@ -63,30 +63,21 @@ while getopts "haCmrtx" option; do
     ;;
     a)
       ARCHITECTURES=( "amd64" )
-      main
-      exit 0
     ;;
     C)
       COMPRESS="no"
     ;;
     m)
       ARCHITECTURES=( "arm" )
-      main
-      exit 0
     ;;
     r)
       ARCHITECTURES=( "arm64" )
-      main
-      exit 0
     ;;
     t)
       ARCHITECTURES=( "386" )
-      main
-      exit 0
     ;;
     x)
-      main
-      exit 0
+      true
     ;;
     \?)
       usage
@@ -94,6 +85,9 @@ while getopts "haCmrtx" option; do
     ;;
   esac
 done
+
+main
+exit 0
 
 if [ "$option" = "?" ]; then
   usage && exit 1
