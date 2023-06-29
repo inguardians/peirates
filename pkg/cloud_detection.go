@@ -1,132 +1,106 @@
 package pkg
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 )
 
 var hc = &http.Client{Timeout: 300 * time.Millisecond}
 
-type Clouds struct {
-	Aws       string
-	Azure     string
-	Do        string
-	Gce       string
-	Ost       string
-	Sl        string
-	Vr        string
-	Container string
+type CloudProvider struct {
+	Name              string
+	URL               string
+	HTTPMethod        string
+	CustomHeader      string
+	CustomHeaderValue string
+	ResultString      string
 }
 
-func Detect() string {
-	if runtime.GOOS != "darwin" {
-		var c Clouds
-		var wg sync.WaitGroup
-		wg.Add(8)
-		go func() {
-			defer wg.Done()
-			c.Aws = detectAWS()
-		}()
-		go func() {
-			defer wg.Done()
-			c.Azure = detectAzure()
-		}()
-		go func() {
-			defer wg.Done()
-			c.Do = detectDigitalOcean()
-		}()
-		go func() {
-			defer wg.Done()
-			c.Gce = detectGCE()
-		}()
-		go func() {
-			defer wg.Done()
-			c.Ost = detectOpenStack()
-		}()
-		go func() {
-			defer wg.Done()
-			c.Sl = detectSoftlayer()
-		}()
-		go func() {
-			defer wg.Done()
-			c.Vr = detectVultr()
-		}()
-		go func() {
-			defer wg.Done()
-			c.Container = detectContainer()
-		}()
-		wg.Wait()
+func populateAndCheckCloudProviders() {
+	providers := []CloudProvider{
+		{
+			Name:              "AWS",
+			URL:               "http://169.254.169.254/latest/",
+			HTTPMethod:        "GET",
+			CustomHeader:      "",
+			CustomHeaderValue: "",
+			ResultString:      "Amazon Web Services",
+		},
+		{
+			Name:              "Azure",
+			URL:               "http://169.254.169.254/metadata/v1/InstanceInfo",
+			HTTPMethod:        "GET",
+			CustomHeader:      "",
+			CustomHeaderValue: "",
+			ResultString:      "Microsoft Azure",
+		},
+		{
+			Name:              "DigitalOcean",
+			URL:               "http://169.254.169.254/metadata/v1.json",
+			HTTPMethod:        "GET",
+			CustomHeader:      "",
+			CustomHeaderValue: "",
+			ResultString:      "Microsoft Azure",
+		},
+		{
+			Name:              "Google Cloud",
+			URL:               "http://metadata.google.internal/computeMetadata/v1/instance/tags",
+			HTTPMethod:        "GET",
+			CustomHeader:      "Metadata-Flavor",
+			CustomHeaderValue: "Google",
+			ResultString:      "Google Compute Engine",
+		},
+		{
+			Name:              "SoftLayer",
+			URL:               "https://api.service.softlayer.com/rest/v3/SoftLayer_Resource_Metadata/UserMetadata.txt",
+			HTTPMethod:        "GET",
+			CustomHeader:      "",
+			CustomHeaderValue: "",
+			ResultString:      "SoftLayer",
+		},
+		{
+			Name:              "Vultr",
+			URL:               "http://169.254.169.254/v1.json",
+			HTTPMethod:        "GET",
+			CustomHeader:      "",
+			CustomHeaderValue: "",
+			ResultString:      "Vultr",
+		},
+	}
 
-		if c.Aws != "" {
-			return c.Aws
-		}
-		if c.Azure != "" {
-			return c.Azure
-		}
-		if c.Do != "" {
-			return c.Do
-		}
-		if c.Gce != "" {
-			return c.Gce
-		}
-		if c.Ost != "" {
-			return c.Ost
-		}
-		if c.Sl != "" {
-			return c.Sl
-		}
-		if c.Vr != "" {
-			return c.Vr
-		}
-		if c.Container != "" {
-			return c.Container
-		}
-	}
-	return ""
-}
+	for _, provider := range providers {
+		fmt.Printf("Checking %s...\n", provider.Name)
 
-func detectAWS() string {
-	resp, err := hc.Get("http://169.254.169.254/latest/")
-	if err == nil && resp.StatusCode == http.StatusOK {
-		return "Amazon Web Services"
-	}
-	return ""
-}
+		// Use DoHTTPRequestAndGetBody()
+		req, err := http.NewRequest(provider.HTTPMethod, provider.URL, nil)
+		if err != nil {
+			fmt.Printf("Failed to create request for %s: %v\n", provider.Name, err)
+			continue
+		}
 
-func detectAzure() string {
-	resp, err := hc.Get("http://169.254.169.254/metadata/v1/InstanceInfo")
-	if err == nil && resp.StatusCode == http.StatusOK {
-		return "Microsoft Azure"
-	}
-	return ""
-}
+		if provider.CustomHeader != "" {
+			req.Header.Set(provider.CustomHeader, provider.CustomHeaderValue)
+		}
 
-func detectDigitalOcean() string {
-	resp, err := hc.Get("http://169.254.169.254/metadata/v1.json")
-	if err == nil && resp.StatusCode == http.StatusOK {
-		return "Digital Ocean"
-	}
-	return ""
-}
+		// use DoHTTPRequestAndGetBody
+		resp, err := client.Do(req)
+		if err != nil {
+			fmt.Printf("Failed to make request to %s: %v\n", provider.Name, err)
+			continue
+		}
+		defer resp.Body.Close()
 
-func detectGCE() string {
-	r, err := http.NewRequest("GET", "http://metadata.google.internal/computeMetadata/v1/instance/tags", nil)
-	if err != nil {
-		return ""
+		// Use DoHTTPRequestAndGetBody()
+		if resp.StatusCode == http.StatusOK {
+			// Check if there's a body string returned that matches ResultString
+		} else {
+			fmt.Printf("%s responded with HTTP %d\n", provider.Name, resp.StatusCode)
+		}
 	}
-	r.Header.Add("Metadata-Flavor", "Google")
-	resp, err := hc.Do(r)
-	if err != nil {
-		return ""
-	}
-	if resp.StatusCode == http.StatusOK {
-		return "Google Compute Engine"
-	}
-	return ""
 }
 
 func detectContainer() string {
@@ -160,22 +134,6 @@ func detectOpenStack() string {
 			return "OpenStack"
 		}
 		return ""
-	}
-	return ""
-}
-
-func detectSoftlayer() string {
-	resp, err := hc.Get("https://api.service.softlayer.com/rest/v3/SoftLayer_Resource_Metadata/UserMetadata.txt")
-	if err == nil && (resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotFound) {
-		return "SoftLayer"
-	}
-	return ""
-}
-
-func detectVultr() string {
-	resp, err := hc.Get("http://169.254.169.254/v1.json")
-	if err == nil && resp.StatusCode == http.StatusOK {
-		return "Vultr"
 	}
 	return ""
 }

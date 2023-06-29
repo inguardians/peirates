@@ -11,5 +11,6 @@ lint: gofmt
 	$(GOPATH)/bin/golangci-lint run
 	
 update-deps:
+	go clean -modcache
 	go get -u ./...
 	go mod tidy
