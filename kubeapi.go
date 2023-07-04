@@ -37,24 +37,24 @@ func newKubeRequest(path string, cfg RequestConfig) (*http.Request, error) {
 // Functions may be optionally passed in to modify the default configuration.
 // The default configuration is:
 //
-//	RequestConfig {
-//	    Host: "127.0.0.1",
-//	    Port: 6443,          // The default Kubernetes port
-//	    Method: "GET",
-//	    Https: true,
-//	    IgnoreHttpsErrors: true,
-//	}
+// RequestConfig {
+//     Host: "127.0.0.1",
+//     Port: 6443,          // The default Kubernetes port
+//     Method: "GET",
+//     Https: true,
+//     IgnoreHttpsErrors: true,
+// }
 //
 // For example:
 //
-//	func RequestSimple(path string, host string, port int) string {
-//	    // This passes a function literal (also known as a lambda or anonymous function)
-//	    // to RequestPath to configure the host and port.
-//	    return Request(path, func (cfg *RequestConfig) {
-//	        cfg.Host = host
-//	        cfg.Port = port
-//	    })
-//	}
+// func RequestSimple(path string, host string, port int) string {
+//     // This passes a function literal (also known as a lambda or anonymous function)
+//     // to RequestPath to configure the host and port.
+//     return Request(path, func (cfg *RequestConfig) {
+//         cfg.Host = host
+//         cfg.Port = port
+//     })
+// }
 func Request(path string, cfgs ...func(*RequestConfig)) string {
 	cfg := RequestConfig{
 		Host:              "127.0.0.1",
