@@ -6,11 +6,6 @@ require (
 	github.com/aws/aws-sdk-go v1.44.293
 	github.com/trung/jwt-tools v0.0.0-20191029184913-432ee57a2445
 	gopkg.in/square/go-jose.v2 v2.6.0
-	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/kubectl v0.27.3
-)
-
-require (
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
@@ -91,4 +86,5 @@ require (
 	sigs.k8s.io/kustomize/kyaml v0.14.3 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
+
 )
