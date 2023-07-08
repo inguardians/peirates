@@ -7,7 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-//	L "github.com/inguardians/peirates/pkg"
+
+	//	L "github.com/inguardians/peirates/pkg"
 	"math/rand"
 	"net/url"
 	"os"
@@ -313,10 +314,10 @@ type PodNamespaceContainerTuple struct {
 func Main() {
 	var err error
 
-//	var detectCloud string
+	var detectCloud string
 
-//	detectCloud = L.Detect()
-//	fmt.Println("This cloud: " + detectCloud)
+	detectCloud = populateAndCheckCloudProviders()
+	fmt.Println("This cloud: " + detectCloud)
 
 	// Create a global variable named "connectionString" initialized to default values
 	connectionString := ImportPodServiceAccountToken()

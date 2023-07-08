@@ -20,7 +20,7 @@ type CloudProvider struct {
 	ResultString      string
 }
 
-func populateAndCheckCloudProviders() {
+func populateAndCheckCloudProviders() string {
 	providers := []CloudProvider{
 		{
 			Name:              "AWS",
@@ -75,17 +75,22 @@ func populateAndCheckCloudProviders() {
 	for _, provider := range providers {
 		fmt.Printf("Checking %s...\n", provider.Name)
 
+		var response string
+
 		var lines []HeaderLine
-		if provider.CustomHeader == "" {
+		if provider.CustomHeader != "" {
 			line := HeaderLine{LHS: provider.CustomHeader, RHS: provider.CustomHeaderValue}
 			lines = append(lines, line)
+			response = GetRequest(provider.URL, lines, true)
+		} else {
+			response = GetRequest(provider.URL, nil, true)
 		}
-
-		response := GetRequest(provider.URL, lines, true)
 		if strings.Contains(response, provider.ResultString) {
-			println("DEBUG: detected provider ",provider.Name)
+			println("DEBUG: detected provider ", provider.Name)
+			return provider.Name
 		}
 	}
+	return ""
 }
 
 func detectContainer() string {
