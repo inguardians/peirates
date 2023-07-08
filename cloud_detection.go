@@ -77,36 +77,13 @@ func populateAndCheckCloudProviders() {
 
 		var lines []HeaderLine
 		if provider.CustomHeader == "" {
-			line = HeaderLine{LHS: provider.CustomHeader, RHS: provider.CustomHeaderValue}
+			line := HeaderLine{LHS: provider.CustomHeader, RHS: provider.CustomHeaderValue}
 			lines = append(lines, line)
 		}
 
 		response := GetRequest(provider.URL, lines, true)
-
-		// Use DoHTTPRequestAndGetBody()
-		req, err := http.NewRequest(provider.HTTPMethod, provider.URL, nil)
-		if err != nil {
-			fmt.Printf("Failed to create request for %s: %v\n", provider.Name, err)
-			continue
-		}
-
-		if provider.CustomHeader != "" {
-			req.Header.Set(provider.CustomHeader, provider.CustomHeaderValue)
-		}
-
-		// use DoHTTPRequestAndGetBody
-		resp, err := client.Do(req)
-		if err != nil {
-			fmt.Printf("Failed to make request to %s: %v\n", provider.Name, err)
-			continue
-		}
-		defer resp.Body.Close()
-
-		// Use DoHTTPRequestAndGetBody()
-		if resp.StatusCode == http.StatusOK {
-			// Check if there's a body string returned that matches ResultString
-		} else {
-			fmt.Printf("%s responded with HTTP %d\n", provider.Name, resp.StatusCode)
+		if strings.Contains(response, provider.ResultString) {
+			println("DEBUG: detected provider ",provider.Name)
 		}
 	}
 }
