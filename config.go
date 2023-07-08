@@ -125,11 +125,11 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 			continue
 		}
 		firstCluster := clustersSection[0].(map[string]interface{})
-		if firstCluster == nil{
+		if firstCluster == nil {
 			continue
 		}
 		clusterSection := firstCluster["cluster"].(map[string]interface{})
-		if clusterSection == nil{
+		if clusterSection == nil {
 			continue
 		}
 		APIServer := clusterSection["server"].(string)
@@ -606,7 +606,7 @@ func GetNamespaces(connectionString ServerInfo) ([]string, error) {
 	if !kubectlAuthCanI(connectionString, "get", "namespaces") {
 		errorString := "[-] Permission Denied: your service account isn't allowed to get namespaces"
 		println(errorString)
-                println("Consider trying kubectl-try-all get namespaces to see if any RBAC principals you have can do this.")
+		println("Consider trying kubectl-try-all get namespaces to see if any RBAC principals you have can do this.")
 		return []string{}, errors.New(errorString)
 	}
 

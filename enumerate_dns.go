@@ -44,8 +44,8 @@ func getAllServicesViaDNS() (*[]serviceHostIPPort, error) {
 	return &serviceHostIPPorts, nil
 }
 
-func enumerateDNS() (error) {
-	
+func enumerateDNS() error {
+
 	println("\nRequesting SRV record any.any.svc.cluster.local - thank @raesene:\n")
 	servicesSlicePointer, err := getAllServicesViaDNS()
 
