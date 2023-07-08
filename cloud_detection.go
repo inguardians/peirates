@@ -39,14 +39,6 @@ func populateAndCheckCloudProviders() string {
 			ResultString:      "Microsoft Azure",
 		},
 		{
-			Name:              "DigitalOcean",
-			URL:               "http://169.254.169.254/metadata/v1/dns/",
-			HTTPMethod:        "GET",
-			CustomHeader:      "",
-			CustomHeaderValue: "",
-			ResultString:      "nameservers",
-		},
-		{
 			Name:              "Google Cloud",
 			URL:               "http://metadata.google.internal/computeMetadata/",
 			HTTPMethod:        "GET",
@@ -54,6 +46,15 @@ func populateAndCheckCloudProviders() string {
 			CustomHeaderValue: "Google",
 			ResultString:      "v1/",
 		},
+                {
+                        Name:              "DigitalOcean",
+                        URL:               "http://169.254.169.254/metadata/v1/dns/",
+                        HTTPMethod:        "GET",
+                        CustomHeader:      "",
+                        CustomHeaderValue: "",
+                        ResultString:      "nameservers",
+                },
+
 		{
 			Name:              "SoftLayer",
 			URL:               "https://api.service.softlayer.com/rest/v3/SoftLayer_Resource_Metadata/UserMetadata.txt",
