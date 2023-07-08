@@ -1,4 +1,4 @@
-package pkg
+package peirates
 
 import (
 	"fmt"
@@ -74,6 +74,14 @@ func populateAndCheckCloudProviders() {
 
 	for _, provider := range providers {
 		fmt.Printf("Checking %s...\n", provider.Name)
+
+		var lines []HeaderLine
+		if provider.CustomHeader == "" {
+			line = HeaderLine{LHS: provider.CustomHeader, RHS: provider.CustomHeaderValue}
+			lines = append(lines, line)
+		}
+
+		response := GetRequest(provider.URL, lines, true)
 
 		// Use DoHTTPRequestAndGetBody()
 		req, err := http.NewRequest(provider.HTTPMethod, provider.URL, nil)
