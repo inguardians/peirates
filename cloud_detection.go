@@ -54,23 +54,6 @@ func populateAndCheckCloudProviders() string {
                         CustomHeaderValue: "",
                         ResultString:      "nameservers",
                 },
-
-		{
-			Name:              "SoftLayer",
-			URL:               "https://api.service.softlayer.com/rest/v3/SoftLayer_Resource_Metadata/UserMetadata.txt",
-			HTTPMethod:        "GET",
-			CustomHeader:      "",
-			CustomHeaderValue: "",
-			ResultString:      "SoftLayer",
-		},
-		{
-			Name:              "Vultr",
-			URL:               "http://169.254.169.254/v1.json",
-			HTTPMethod:        "GET",
-			CustomHeader:      "",
-			CustomHeaderValue: "",
-			ResultString:      "Vultr",
-		},
 	}
 
 	for _, provider := range providers {
