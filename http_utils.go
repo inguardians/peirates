@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // HeaderLine contains the left hand side (header name) and right hand side (header value) of an HTTP header.
@@ -69,7 +70,9 @@ func DoKubernetesAPIRequest(cfg ServerInfo, httpVerb, apiPath string, query inte
 // and added to the pool of valid certificates.
 func DoHTTPRequestAndGetBody(req *http.Request, https bool, ignoreTLSErrors bool, caCertPath string) ([]byte, error) {
 
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
 
 	if https {
 
