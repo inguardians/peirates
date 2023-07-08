@@ -40,11 +40,11 @@ func populateAndCheckCloudProviders() string {
 		},
 		{
 			Name:              "DigitalOcean",
-			URL:               "http://169.254.169.254/metadata/v1.json",
+			URL:               "http://169.254.169.254/metadata/v1/dns/",
 			HTTPMethod:        "GET",
 			CustomHeader:      "",
 			CustomHeaderValue: "",
-			ResultString:      "Microsoft Azure",
+			ResultString:      "nameservers",
 		},
 		{
 			Name:              "Google Cloud",
