@@ -28,7 +28,7 @@ func populateAndCheckCloudProviders() string {
 			HTTPMethod:        "GET",
 			CustomHeader:      "",
 			CustomHeaderValue: "",
-			ResultString:      "Amazon Web Services",
+			ResultString:      "meta-data",
 		},
 		{
 			Name:              "Azure",
