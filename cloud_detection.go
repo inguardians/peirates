@@ -48,11 +48,11 @@ func populateAndCheckCloudProviders() string {
 		},
 		{
 			Name:              "Google Cloud",
-			URL:               "http://metadata.google.internal/computeMetadata/v1/instance/tags",
+			URL:               "http://metadata.google.internal/computeMetadata/",
 			HTTPMethod:        "GET",
 			CustomHeader:      "Metadata-Flavor",
 			CustomHeaderValue: "Google",
-			ResultString:      "Google Compute Engine",
+			ResultString:      "v1/",
 		},
 		{
 			Name:              "SoftLayer",
@@ -85,12 +85,12 @@ func populateAndCheckCloudProviders() string {
 		} else {
 			response = GetRequest(provider.URL, nil, true)
 		}
+
 		if strings.Contains(response, provider.ResultString) {
-			println("DEBUG: detected provider ", provider.Name)
 			return provider.Name
 		}
 	}
-	return ""
+	return "-- Public Cloud Provider not detected --"
 }
 
 func detectContainer() string {
