@@ -12,7 +12,6 @@ if [ $exit_code -eq 0 ] ; then
   chmod 755 peirates
   mv peirates ..
   echo "Final executable at $(realpath ../peirates)"
-  cat $(realpath ../peirates) | gzip -c > $(realpath ../peirates)
   exit 0
 else
   exit $exit_code
