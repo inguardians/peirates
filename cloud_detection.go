@@ -56,6 +56,17 @@ func populateAndCheckCloudProviders() string {
 		},
 	}
 
+	// Check to see if we are on a cloud provider at all before checking every single cloud provider's Metadata API.
+	client := http.Client{
+		Timeout: 1 * time.Second,
+	}
+	url := "http://169.254.169.254/"
+	_, err := client.Get(url)
+	if err != nil {
+		return "-- Public Cloud Provider not detected --"
+	}
+
+	// Now check each cloud provider's metadata API.
 	for _, provider := range providers {
 		fmt.Printf("Checking %s...\n", provider.Name)
 

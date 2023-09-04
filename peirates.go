@@ -253,7 +253,7 @@ func clearScreen(interactive bool) {
 
 }
 
-func banner(connectionString ServerInfo, awsCredentials AWSCredentials, assumedAWSRole AWSCredentials, interactive bool) {
+func banner(connectionString ServerInfo, detectCloud string, awsCredentials AWSCredentials, assumedAWSRole AWSCredentials, interactive bool) {
 
 	name, err := os.Hostname()
 	if err != nil {
@@ -279,6 +279,13 @@ func banner(connectionString ServerInfo, awsCredentials AWSCredentials, assumedA
 	}
 	println("[+] Current hostname/pod name:", name)
 	println("[+] Current namespace:", connectionString.Namespace)
+
+	// If cloud has been detected, print it here.
+	if len(detectCloud) > 0 {
+		println("[+] Cloud provider:", detectCloud)
+	}
+
+	// If we have an AWS role, print it here.
 	if len(assumedAWSRole.AccessKeyId) > 0 {
 		println("[+] AWS IAM Credentials (assumed): " + assumedAWSRole.AccessKeyId + " (" + assumedAWSRole.accountName + ")\n")
 	}
@@ -318,10 +325,7 @@ type PodNamespaceContainerTuple struct {
 func Main() {
 	var err error
 
-	var detectCloud string
-
-	detectCloud = populateAndCheckCloudProviders()
-	fmt.Println("This cloud: " + detectCloud)
+	detectCloud := populateAndCheckCloudProviders()
 
 	// Create a global variable named "connectionString" initialized to default values
 	connectionString := ImportPodServiceAccountToken()
@@ -379,7 +383,7 @@ func Main() {
 
 	var input int
 	for ok := true; ok; ok = (input != 2) {
-		banner(connectionString, awsCredentials, assumedAWSrole, interactive)
+		banner(connectionString, detectCloud, awsCredentials, assumedAWSrole, interactive)
 
 		var input string
 		var userResponse string
