@@ -51,8 +51,15 @@ func ImportPodServiceAccountToken() ServerInfo {
 	if errRead == nil {
 		configInfoVars.Token = string(token)
 		fmt.Println("Read a service account token from " + tokenFile)
-		// Name the token for its hostname / pod
-		configInfoVars.TokenName = "Pod ns:" + configInfoVars.Namespace + ":" + os.Getenv("HOSTNAME")
+
+		// Try naming the service account token with its JWT name
+		_, name := parseServiceAccountJWT(configInfoVars.Token)
+		if name != "" {
+			configInfoVars.TokenName = name
+		} else {
+			// otherwise, name the token for its hostname / pod
+			configInfoVars.TokenName = "Pod ns:" + configInfoVars.Namespace + ":" + os.Getenv("HOSTNAME")
+		}
 	}
 
 	// Reading namespace file and store in variable namespace
@@ -464,19 +471,8 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 				}
 				token := string(tokenBytes)
 
-				// If possible, name the token for the namespace
-				namespacePath := serviceAccountPath + saDirName + "/namespace"
-				if _, err := os.Stat(namespacePath); os.IsNotExist(err) {
-					continue
-				}
-				namespaceBytes, err := ioutil.ReadFile(namespacePath)
-				if err != nil {
-					continue
-				}
-				namespace := string(namespaceBytes)
-
 				_, tokenName := parseServiceAccountJWT(token)
-				fullSAName := "short-lived-sa/" + namespace + "/" + tokenName
+				fullSAName := "short-lived-sa/" + tokenName
 
 				// FEATURE REQUEST: spell out which node this was found on in the last arg.
 				if AddNewServiceAccount(fullSAName, string(token), "pod service account token harvested from node ", serviceAccounts) {

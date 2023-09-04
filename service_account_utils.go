@@ -194,10 +194,34 @@ func parseServiceAccountJWT(tokenString string) (int64, string) {
 	}
 	expiration := int64(claims["exp"].(float64))
 
-	// Parse out the name of the service account
-	level1 := claims["kubernetes.io"].(map[string]interface{})
-	level2 := level1["serviceaccount"].(map[string]interface{})
-	name := level2["name"].(string)
+	// Parse out the name of the service account.
+	// Here's what a sample JWT looks like:
+	// {
+	//   "aud": ["https://kubernetes.default.svc.cluster.local"],
+	//   "exp": 1725391365,
+	//   "iat": 1693855365,
+	//   "iss": "https://kubernetes.default.svc.cluster.local",
+	//   "kubernetes.io": {
+	//     "namespace": "default",
+	//     "pod": {
+	//       "name": "web",
+	//       "uid": "..."
+	//     },
+	//     "serviceaccount": {
+	//       "name": "default",
+	//       "uid": "..."
+	//     },
+	//     "warnafter": 1693858972
+	//   },
+	//   "nbf": 1693855365,
+	//   "sub": "system:serviceaccount:default:default"
+	// }
 
-	return expiration, name
+	kubernetesIOstruct := claims["kubernetes.io"].(map[string]interface{})
+	namespace := kubernetesIOstruct["namespace"].(string)
+
+	saStruct := kubernetesIOstruct["serviceaccount"].(map[string]interface{})
+	name := saStruct["name"].(string)
+
+	return expiration, namespace + ":" + name
 }
