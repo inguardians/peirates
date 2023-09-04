@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -280,6 +281,27 @@ func curlNonWizard(arguments ...string) (request *http.Request, https bool, igno
 	request, err = createHTTPrequest(method, fullURL, headers, paramLocation, params)
 	return request, https, ignoreTLSErrors, caCertPath, err
 
+}
+
+func GetMyIPAddress(interfaceName string) (string, error) {
+
+	iface, err := net.InterfaceByName(interfaceName)
+	if err != nil {
+		fmt.Printf("Error retrieving interface %s: %v\n", interfaceName, err)
+		return "", err
+	}
+	addrs, err := iface.Addrs()
+	if err != nil {
+		fmt.Printf("Error retrieving addresses for interface %s: %v\n", interfaceName, err)
+		return "", err
+	}
+	for _, addr := range addrs {
+		ipNet, ok := addr.(*net.IPNet)
+		if ok && !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
+			return ipNet.IP.String(), nil
+		}
+	}
+	return "", errors.New("Could not find a valid IP address for this interface")
 }
 
 // GetMyIPAddressesNative gets a list of IP addresses available via Golang's Net library

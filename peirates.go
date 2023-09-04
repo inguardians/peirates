@@ -289,7 +289,11 @@ func banner(connectionString ServerInfo, awsCredentials AWSCredentials, assumedA
 			println("[+] AWS IAM Credentials (available): " + awsCredentials.AccessKeyId + "\n")
 		}
 	}
-
+	// TODO: Refactor this to only gather IP address once per run.
+	eth0IP, err := GetMyIPAddress("eth0")
+	if err == nil {
+		fmt.Println("[+] IP address for eth0 is", eth0IP)
+	}
 }
 
 // GetNodesInfo runs kubectl get nodes -o json.
@@ -833,6 +837,12 @@ func Main() {
 		// [20] Gain a reverse rootshell by launching a hostPath / pod
 		case "20", "attack-pod-hostpath-mount", "attack-hostpath-mount", "attack-pod-mount", "attack-hostmount-pod", "attack-mount-pod":
 			allPods := getPodList(connectionString)
+
+			// Before presenting all IP addresses, give the user the IP address for eth0 if available.
+			eth0IP, err := GetMyIPAddress("eth0")
+			if err != nil {
+				fmt.Println("IP address for eth0 is ", eth0IP)
+			}
 
 			println("Your IP addresses: ")
 			GetMyIPAddressesNative()
