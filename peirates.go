@@ -17,6 +17,8 @@ import (
 	"strings"
 )
 
+var version = "1.1.13"
+
 var UseAuthCanI bool = true
 
 // AWS credentials currently in use.
@@ -253,7 +255,7 @@ func clearScreen(interactive bool) {
 
 }
 
-func banner(connectionString ServerInfo, detectCloud string, awsCredentials AWSCredentials, assumedAWSRole AWSCredentials, interactive bool) {
+func banner(connectionString ServerInfo, detectCloud string, eth0IP string, awsCredentials AWSCredentials, assumedAWSRole AWSCredentials, interactive bool) {
 
 	name, err := os.Hostname()
 	if err != nil {
@@ -264,42 +266,43 @@ func banner(connectionString ServerInfo, detectCloud string, awsCredentials AWSC
 
 	if connectionString.Token != "" {
 
-		fmt.Printf("[+] Service Account Loaded: %s\n", connectionString.TokenName)
+		fmt.Println("[+] Service Account Loaded            :", connectionString.TokenName)
 	}
 	if connectionString.ClientCertData != "" {
-		fmt.Printf("[+] Client Certificate/Key Pair Loaded: %s\n", connectionString.ClientCertName)
+		fmt.Println("[+] Client Certificate/Key Pair Loaded:", connectionString.ClientCertName)
 	}
 	var haveCa bool = false
 	if connectionString.CAPath != "" {
 		haveCa = true
 	}
-	fmt.Printf("[+] Certificate Authority Certificate: %t\n", haveCa)
+	fmt.Printf("[+] Certificate Authority Certificate : %t\n", haveCa)
 	if len(connectionString.APIServer) > 0 {
-		fmt.Printf("[+] Kubernetes API Server: %s\n", connectionString.APIServer)
+		fmt.Println("[+] Kubernetes API Server             :", connectionString.APIServer)
 	}
-	println("[+] Current hostname/pod name:", name)
-	println("[+] Current namespace:", connectionString.Namespace)
+	if len(connectionString.Namespace) > 0 {
+		fmt.Println("[+] Current hostname/pod name         :", name)
+		fmt.Println("[+] Current namespace                 :", connectionString.Namespace)
+	}
 
+	// Print out the eth0 interface's IP address if it exists
+	if len(eth0IP) > 0 {
+		fmt.Println("[+] IP address for eth0               :", eth0IP)
+	}
 	// If cloud has been detected, print it here.
 	if len(detectCloud) > 0 {
-		println("[+] Cloud provider:", detectCloud)
+		fmt.Println("[+] Cloud provider                    :", detectCloud)
 	}
 
 	// If we have an AWS role, print it here.
 	if len(assumedAWSRole.AccessKeyId) > 0 {
-		println("[+] AWS IAM Credentials (assumed): " + assumedAWSRole.AccessKeyId + " (" + assumedAWSRole.accountName + ")\n")
+		fmt.Println("[+] AWS IAM Credentials (assumed)     :" + assumedAWSRole.AccessKeyId + " (" + assumedAWSRole.accountName + ")\n")
 	}
 	if len(awsCredentials.AccessKeyId) > 0 {
 		if len(awsCredentials.accountName) > 0 {
-			println("[+] AWS IAM Credentials (available): " + awsCredentials.AccessKeyId + " (" + awsCredentials.accountName + ")\n")
+			fmt.Println("[+] AWS IAM Credentials (available)   : " + awsCredentials.AccessKeyId + " (" + awsCredentials.accountName + ")\n")
 		} else {
-			println("[+] AWS IAM Credentials (available): " + awsCredentials.AccessKeyId + "\n")
+			fmt.Println("[+] AWS IAM Credentials (available)   : " + awsCredentials.AccessKeyId + "\n")
 		}
-	}
-	// TODO: Refactor this to only gather IP address once per run.
-	eth0IP, err := GetMyIPAddress("eth0")
-	if err == nil {
-		fmt.Println("[+] IP address for eth0 is", eth0IP)
 	}
 }
 
@@ -335,7 +338,7 @@ func Main() {
 	// or in command-line mode (false)
 
 	interactive := true
-	//var kubeRoles KubeRoles
+
 	var podInfo PodDetails
 
 	// Run the option parser to initialize connectionStrings
@@ -347,10 +350,8 @@ func Main() {
 		interactive = false
 	}
 
-	// If the user has chosen a
+	// List of service accounts gathered so far
 	var serviceAccounts []ServiceAccount
-
-	// List of current service accounts
 	if len(connectionString.TokenName) > 0 {
 		AddNewServiceAccount(connectionString.TokenName, connectionString.Token, "Loaded at startup", &serviceAccounts)
 	}
@@ -381,9 +382,15 @@ func Main() {
 	// Read AWS credentials from environment variables if present.
 	awsCredentials = PullIamCredentialsFromEnvironmentVariables()
 
+	// Collect the pod IP address if we are in a pod or on a node that has an eth0 interface.
+	eth0IP, err := GetMyIPAddress("eth0")
+	if err != nil {
+		eth0IP = ""
+	}
+
 	var input int
 	for ok := true; ok; ok = (input != 2) {
-		banner(connectionString, detectCloud, awsCredentials, assumedAWSrole, interactive)
+		banner(connectionString, detectCloud, eth0IP, awsCredentials, assumedAWSrole, interactive)
 
 		var input string
 		var userResponse string
@@ -1294,14 +1301,15 @@ func printBanner(interactive bool) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,`)
 	}
-	println(`________________________________________
-	Peirates v1.1.12 by InGuardians and Peirates Open Source Developers
+	credit := fmt.Sprintf(`________________________________________
+  Peirates v%s by InGuardians and Peirates Open Source Developers
   https://www.inguardians.com/peirates
-----------------------------------------------------------------`)
+---------------------------------------------------------------------`, version)
+	println(credit)
 }
 
 func printMenu() {
-	println(`----------------------------------------------------------------
+	println(`---------------------------------------------------------------------
 Namespaces, Service Accounts and Roles |
 ---------------------------------------+
 [1] List, maintain, or switch service account contexts [sa-menu]  (try: listsa *, switchsa)
@@ -1351,6 +1359,6 @@ Off-Menu         +
 []  Run a shell command [shell <command and arguments>]
 
 [exit] Exit Peirates 
-----------------------------------------------------------------`)
+---------------------------------------------------------------------`)
 	fmt.Printf("\nPeirates:># ")
 }
