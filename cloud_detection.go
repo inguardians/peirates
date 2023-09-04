@@ -46,14 +46,14 @@ func populateAndCheckCloudProviders() string {
 			CustomHeaderValue: "Google",
 			ResultString:      "v1/",
 		},
-                {
-                        Name:              "DigitalOcean",
-                        URL:               "http://169.254.169.254/metadata/v1/dns/",
-                        HTTPMethod:        "GET",
-                        CustomHeader:      "",
-                        CustomHeaderValue: "",
-                        ResultString:      "nameservers",
-                },
+		{
+			Name:              "DigitalOcean",
+			URL:               "http://169.254.169.254/metadata/v1/dns/",
+			HTTPMethod:        "GET",
+			CustomHeader:      "",
+			CustomHeaderValue: "",
+			ResultString:      "nameservers",
+		},
 	}
 
 	for _, provider := range providers {
