@@ -16,3 +16,9 @@ services:
     container_name: peirates
     volumes:
       - ./:/usr/local/go/src/peirates
+  peirates-static:
+    image: peirates-static
+    build:
+      context: ..
+      dockerfile: build/Dockerfile.build
+
