@@ -1,6 +1,7 @@
 ## v1.1.14
 - Added a feature to display the values of stored service account tokens
 - Added a verbose (-v) flag to display additional DEBUG messages.
+- Updated upstream libraries to handle vulnerabilities found in dependencies: CVE-2023-39325, CVE-2023-44487, CVE-2023-3978
 
 ## v1.1.13
 
