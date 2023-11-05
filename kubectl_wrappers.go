@@ -108,7 +108,7 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 
 	// Confirm that we have a certificate authority path entry.
 	if len(cfg.CAPath) == 0 {
-		println("DEBUG: certificate authority path not defined - will not communicate with api server")
+		println("ERROR: certificate authority path not defined - will not communicate with api server")
 		return errors.New("certificate authority path not defined - will not communicate with api server")
 	}
 
@@ -235,7 +235,13 @@ func attemptEveryAccount(stopOnFirstSuccess bool, connectionStringPointer *Serve
 	}
 
 	// Now try all client certificates.
-	println("Trying the command as every client cert until we find one that works.")
+	// clientCertificates
+
+	if stopOnFirstSuccess {
+		println("Trying the command as every client cert until we find one that works.")
+	} else {
+		println("Trying the command as every client cert.")
+	}
 	for _, cert := range *clientCertificates {
 		println("Trying " + cert.Name)
 		assignAuthenticationCertificateAndKeyToConnection(cert, connectionStringPointer)

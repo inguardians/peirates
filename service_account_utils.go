@@ -39,7 +39,9 @@ func AddNewServiceAccount(name, token, discoveryMethod string, serviceAccountLis
 	// Confirm we don't have this service account already.
 	for _, sa := range *serviceAccountList {
 		if strings.TrimSpace(sa.Name) == strings.TrimSpace(name) {
-			// println("DEBUG: found a service account token we already had: " + sa.Name)
+			if Verbose {
+				println("DEBUG: found a service account token we already had: " + sa.Name)
+			}
 			return false
 		}
 	}
@@ -91,6 +93,10 @@ func acceptServiceAccountFromUser() ServiceAccount {
 func assignServiceAccountToConnection(account ServiceAccount, info *ServerInfo) {
 	info.TokenName = account.Name
 	info.Token = account.Token
+
+	if Verbose {
+		println("DEBUG: Setting token to %s", info.Token)
+	}
 
 	// Zero out any client certificate + key, so it's clear what to authenticate with.
 	info.ClientCertData = ""
@@ -165,6 +171,28 @@ func switchServiceAccounts(serviceAccounts []ServiceAccount, connectionString *S
 	} else {
 		assignServiceAccountToConnection(serviceAccounts[tokNum], connectionString)
 		fmt.Printf("Selected %s // %s\n", connectionString.TokenName, connectionString.Token)
+	}
+	return
+}
+
+func displayServiceAccountTokenInteractive(serviceAccounts []ServiceAccount, connectionString *ServerInfo) {
+	var err error
+	listServiceAccounts(serviceAccounts, *connectionString)
+	println("\nEnter service account number or exit to abort: ")
+	var tokNum int
+	var input string
+	_, err = fmt.Scanln(&input)
+	if input == "exit" {
+		return
+	}
+
+	_, err = fmt.Sscan(input, &tokNum)
+	if err != nil {
+		fmt.Printf("Error parsing service account selection: %s\n", err.Error())
+	} else if tokNum < 0 || tokNum >= len(serviceAccounts) {
+		fmt.Printf("Service account %d does not exist!\n", tokNum)
+	} else {
+		fmt.Printf("Service account %s is accessed with token %s\n", serviceAccounts[tokNum].Name, serviceAccounts[tokNum].Token)
 	}
 	return
 }

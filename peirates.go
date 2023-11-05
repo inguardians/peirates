@@ -17,8 +17,15 @@ import (
 	"strings"
 )
 
-var version = "1.1.13"
+// Peirates version string
+var version = "1.1.14"
 
+// Verbosity mode - if set to true, DEBUG messages will be printed to STDOUT.
+var Verbose bool
+
+// If this option is on, kubectl commands will be preceded with an auth can-i
+// check. Note that this only checks against RBAC, such that admission
+// controllers can still block an action that RBAC permits.
 var UseAuthCanI bool = true
 
 // AWS credentials currently in use.
@@ -579,6 +586,7 @@ func Main() {
 			println("[4] Export service accounts to JSON [export]")
 			println("[5] Import service accounts from JSON [import]")
 			println("[6] Decode a stored or entered service account token (JWT) [decode]")
+			println("[7] Display a stored service account token in its raw form [display]")
 
 			println("\n")
 
@@ -658,6 +666,8 @@ func Main() {
 						printJWT(serviceAccounts[tokNum].Token)
 					}
 				}
+			case "7", "display":
+				displayServiceAccountTokenInteractive(serviceAccounts, &connectionString)
 
 			}
 

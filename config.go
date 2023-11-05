@@ -374,11 +374,14 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 							out, err := cmd.CombinedOutput()
 
 							if err != nil {
-								println("DEBUG: running command failed with " + err.Error())
+								if Verbose {
+									println("DEBUG: running command failed with " + err.Error())
+								}
 								continue
 							}
-
-							// fmt.Printf("DEBUG: Certificate is \n%s\n", string(out))
+							if Verbose {
+								fmt.Printf("DEBUG: Certificate is \n%s\n", string(out))
+							}
 
 							// Now find a Subject line:
 
@@ -389,7 +392,9 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 								line := strings.TrimSpace(line)
 								subjectValue := strings.TrimPrefix(line, "Subject: ")
 								certNameFound = strings.TrimSpace(subjectValue)
-								// println("DEBUG: subject value was : " + subjectValue)
+								if Verbose {
+									println("DEBUG: subject value was : " + subjectValue)
+								}
 								break
 
 							}
@@ -542,7 +547,9 @@ func getPodName(kubeletPodsDir, podDirName string) string {
 				podName = strings.Fields(line)[1]
 				break
 			} else {
-				println("DEBUG: unexpected line type: " + line)
+				if Verbose {
+					println("DEBUG: unexpected line type: " + line)
+				}
 			}
 
 		}

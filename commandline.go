@@ -12,6 +12,7 @@ import (
 type CommandLineOptions struct {
 	connectionConfig *ServerInfo
 	moduleToRun      string
+	verbose          bool
 }
 
 // parseOptions parses command-line options. We call it in main().
@@ -25,6 +26,7 @@ func parseOptions(opts *CommandLineOptions) {
 	flagset.StringVar(&opts.connectionConfig.APIServer, "u", opts.connectionConfig.APIServer, "API Server URL: ex. https://10.96.0.1:6443")
 	flagset.StringVar(&opts.connectionConfig.Token, "t", opts.connectionConfig.Token, "Token (JWT)")
 	flagset.StringVar(&opts.moduleToRun, "m", "", "module to run from menu - items on main menu with an * support this.")
+	flagset.BoolVar(&opts.verbose, "v", false, "verbose mode - display debug messages")
 
 	// This is the function that actually runs the parser
 	// once you've defined all your options.
@@ -52,5 +54,10 @@ func parseOptions(opts *CommandLineOptions) {
 	}
 	if opts.connectionConfig.Token != "" {
 		log.Println("JWT provided on the command line.")
+	}
+
+	Verbose = opts.verbose
+	if Verbose {
+		println("DEBUG: verbose mode on")
 	}
 }

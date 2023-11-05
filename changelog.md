@@ -1,3 +1,7 @@
+## v1.1.14
+- Added a feature to display the values of stored service account tokens
+- Added a verbose (-v) flag to display additional DEBUG messages.
+
 ## v1.1.13
 
 - Added cloud provider detection from @devsecfranklin
