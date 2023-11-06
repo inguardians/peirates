@@ -131,6 +131,9 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 	if len(cfg.Token) > 0 {
 		// Append the token to connArgs
 		connArgs = append(connArgs, "--token="+cfg.Token)
+		if Verbose {
+			fmt.Println("DEBUG: using token-based authentication")
+		}
 	}
 	// If we are using cert-based authentication, use that:
 	if len(cfg.ClientCertData) > 0 {
@@ -138,11 +141,19 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 		//       Even better, can we use whatever library kubectl uses to parse kubeconfig files or just pass the file we found this cert in?
 		//       One challenge - we might not always have access to the same filesystem where we found the cert?
 
+		if Verbose {
+			fmt.Println("DEBUG: using cert-based authentication")
+		}
+
 		// Create a temp file for the client cert
 		certTmpFile, err := ioutil.TempFile("/tmp", "peirates-")
 		if err != nil {
-			println("DEBUG: Could not create a temp file for the client cert requested")
+			println("ERROR: Could not create a temp file for the client cert requested")
 			return errors.New("Could not create a temp file for the client cert requested")
+		}
+
+		if Verbose {
+			println("DEBUG: using cert-based auth with cert located at ",certTmpFile.Name())
 		}
 
 		_, err = io.WriteString(certTmpFile, cfg.ClientCertData)
