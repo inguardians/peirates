@@ -1170,7 +1170,7 @@ func Main() {
 
 			}
 
-			paramLocation := "url"
+			var paramLocation string
 			if len(params) > 0 {
 				for (paramLocation != "url") && (paramLocation != "body") {
 					fmt.Println("\nWould you like to place parameters in the URL (like in a GET query) or in the body (like in a POST)\nurl or body: ")
