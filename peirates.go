@@ -1348,24 +1348,24 @@ func printMenu() {
 
 func printMenuMinimal() {
 	println(`---------------------------------------------------------------------
-Namespaces, Service Accounts and Roles |
----------------------------------------+
-[sa-menu]     List, maintain, or switch service account contexts (try: listsa *, switchsa)
-[ns-menu]     List and/or change namespaces (try: listns, switchns)
-[cert-menu]   Switch authentication contexts: certificate-based authentication (kubelet, kubeproxy, manually-entered) 
+Menu |
+-----+
+[sa-menu]                             List, maintain, or switch service account contexts (try: listsa *, switchsa)
+[ns-menu]                             List and/or change namespaces (try: listns, switchns)
+[cert-menu]                           Switch certificate-based authentication (kubelet or manually-entered)
 
-[kubectl ________________________ ]  Run a kubectl command using the current authorization context
-[kubectl-try-all-until-success __ ]  Run a kubectl command using EVERY authorization context until one works
-[kubectl-try-all ________________ ]  Run a kubectl command using EVERY authorization context
+[ kubectl ________________________ ]  Run a kubectl command using the current authorization context
+[ kubectl-try-all-until-success __ ]  Run a kubectl command using EVERY authorization context until one works
+[ kubectl-try-all ________________ ]  Run a kubectl command using EVERY authorization context
 
-[set-auth-can-i]   Deactivate "auth can-i" checking before attempting actions 
-[curl]             Make an HTTP request (GET or POST) to a user-specified URL 
-[tcpscan]          Run a simple all-ports TCP port scan against an IP address 
-[enumerate-dns]    Enumerate services via DNS  *
-[shell <command>]  Run a shell command 
+[ set-auth-can-i ]                    Deactivate "auth can-i" checking before attempting actions 
+[ curl ]                              Make an HTTP request (GET or POST) to a user-specified URL 
+[ tcpscan ]                           Run a simple all-ports TCP port scan against an IP address 
+[ enumerate-dns ]                     Enumerate services via DNS  *
+[ shell <command> ]                   Run a shell command 
 
-[full] Switch to full (classic menu) with a longer list of commands
-[exit] Exit Peirates 
+[ full ]                              Switch to full (classic menu) with a longer list of commands
+[ exit ]                              Exit Peirates 
 ---------------------------------------------------------------------`)
 	fmt.Printf("\nPeirates:># ")
 }
@@ -1382,7 +1382,7 @@ Namespaces, Service Accounts and Roles |
 [6] Enter AWS IAM credentials manually [enter-aws-credentials]
 [7] Attempt to Assume a Different AWS Role [aws-assume-role]
 [8] Deactivate assumed AWS role [aws-empty-assumed-role]
-[9] Switch authentication contexts: certificate-based authentication (kubelet, kubeproxy, manually-entered) [cert-menu]
+[9] Switch certificate-based authentication (kubelet or manually-entered) [cert-menu]
 -------------------------+
 Steal Service Accounts   |
 -------------------------+
