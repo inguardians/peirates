@@ -85,7 +85,7 @@ func populateAndCheckCloudProviders() string {
 			return provider.Name
 		}
 	}
-	return "-- Public Cloud Provider not detected --"
+	return "-- Public Cloud Metadata API not detected --"
 }
 
 func detectContainer() string {

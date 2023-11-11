@@ -306,7 +306,7 @@ func banner(connectionString ServerInfo, detectCloud string, eth0IP string, awsC
 	}
 	// If cloud has been detected, print it here.
 	if len(detectCloud) > 0 {
-		fmt.Println("[+] Cloud provider                    :", detectCloud)
+		fmt.Println("[+] Cloud provider metadata API       :", detectCloud)
 	}
 
 	// If we have an AWS role, print it here.
