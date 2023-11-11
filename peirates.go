@@ -906,7 +906,7 @@ func Main() {
 			// Make a request for a list of service account(s)
 			var headers []HeaderLine
 			headers = []HeaderLine{
-				HeaderLine{"Metadata-Flavor", "Google"},
+				{"Metadata-Flavor", "Google"},
 			}
 			url := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/"
 			svcAcctListRaw := GetRequest(url, headers, false)
@@ -938,7 +938,7 @@ func Main() {
 			// Make a request for kube-env, in case it is in the instance attributes, as with a number of installers
 			var headers []HeaderLine
 			headers = []HeaderLine{
-				HeaderLine{"Metadata-Flavor", "Google"},
+				{"Metadata-Flavor", "Google"},
 			}
 			kubeEnv := GetRequest("http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env", headers, false)
 			if (kubeEnv == "") || (strings.HasPrefix(kubeEnv, "ERROR:")) {
