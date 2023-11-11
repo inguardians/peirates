@@ -1279,7 +1279,7 @@ func Main() {
 
 			_ = enumerateDNS()
 
-		case "full":
+		case "full", "help":
 			fullMenu = true
 			// Skip the "press enter to continue"
 			continue
