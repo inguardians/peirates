@@ -18,10 +18,15 @@ import (
 )
 
 // Peirates version string
-var version = "1.1.14"
+var version = "1.1.15"
 
 // Verbosity mode - if set to true, DEBUG messages will be printed to STDOUT.
 var Verbose bool
+
+// Menu detail level
+// - true: the "full" menu that Peirates had classically
+// - false: a shorter menu of options - all options still work, but not all are shown
+var fullMenu bool = true
 
 // If this option is on, kubectl commands will be preceded with an auth can-i
 // check. Note that this only checks against RBAC, such that admission
@@ -1220,6 +1225,8 @@ func Main() {
 			case "false", "0", "f":
 				UseAuthCanI = false
 			}
+			// Skip the "press enter to continue"
+			continue
 
 		// [93] Run a simple all-ports TCP port scan against an IP address [tcpscan]
 		case "93", "tcpscan", "tcp scan", "portscan", "port scan":
@@ -1267,6 +1274,16 @@ func Main() {
 		case "94", "enumerate-dns":
 
 			_ = enumerateDNS()
+
+		case "full":
+			fullMenu = true
+			// Skip the "press enter to continue"
+			continue
+
+		case "short", "minimal":
+			fullMenu = false
+			// Skip the "press enter to continue"
+			continue
 
 		default:
 			fmt.Println("Command unrecognized.")
@@ -1321,6 +1338,39 @@ func printBanner(interactive bool) {
 }
 
 func printMenu() {
+	if fullMenu == true {
+		printMenuClassic()
+	} else {
+		printMenuMinimal()
+	}
+
+}
+
+func printMenuMinimal() {
+	println(`---------------------------------------------------------------------
+Namespaces, Service Accounts and Roles |
+---------------------------------------+
+[sa-menu]     List, maintain, or switch service account contexts (try: listsa *, switchsa)
+[ns-menu]     List and/or change namespaces (try: listns, switchns)
+[cert-menu]   Switch authentication contexts: certificate-based authentication (kubelet, kubeproxy, manually-entered) 
+
+[kubectl ________________________ ]  Run a kubectl command using the current authorization context
+[kubectl-try-all-until-success __ ]  Run a kubectl command using EVERY authorization context until one works
+[kubectl-try-all ________________ ]  Run a kubectl command using EVERY authorization context
+
+[set-auth-can-i]   Deactivate "auth can-i" checking before attempting actions 
+[curl]             Make an HTTP request (GET or POST) to a user-specified URL 
+[tcpscan]          Run a simple all-ports TCP port scan against an IP address 
+[enumerate-dns]    Enumerate services via DNS  *
+[shell <command>]  Run a shell command 
+
+[full] Switch to full (classic menu) with a longer list of commands
+[exit] Exit Peirates 
+---------------------------------------------------------------------`)
+	fmt.Printf("\nPeirates:># ")
+}
+
+func printMenuClassic() {
 	println(`---------------------------------------------------------------------
 Namespaces, Service Accounts and Roles |
 ---------------------------------------+
@@ -1370,6 +1420,7 @@ Off-Menu         +
 [94] Enumerate services via DNS [enumerate-dns] *
 []  Run a shell command [shell <command and arguments>]
 
+[short] Reduce the set of visible commands in this menu
 [exit] Exit Peirates 
 ---------------------------------------------------------------------`)
 	fmt.Printf("\nPeirates:># ")
