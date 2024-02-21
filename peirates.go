@@ -18,7 +18,7 @@ import (
 )
 
 // Peirates version string
-var version = "1.1.15"
+var version = "1.1.16"
 
 // Verbosity mode - if set to true, DEBUG messages will be printed to STDOUT.
 var Verbose bool
@@ -1052,6 +1052,10 @@ func Main() {
 		case "22", "exec-via-kubelet", "exec-via-kubelets":
 			ExecuteCodeOnKubelet(connectionString, &serviceAccounts)
 
+		// [23] Use CVE-2024-21626 (Leaky Vessels) to get a shell on the host (runc versions <1.12)
+		case "23", "leakyvessels", "cve-2024-21626":
+			_ = createLeakyVesselPod(connectionString)
+
 		// [30] Steal secrets from the node filesystem [nodefs-steal-secrets]
 		case "30", "nodefs-steal-secrets", "steal-nodefs-secrets":
 			println("\nAttempting to steal secrets from the node filesystem - this will return no output if run in a container or if /var/lib/kubelet is inaccessible.\n")
@@ -1408,6 +1412,7 @@ Compromise |
 [20] Gain a reverse rootshell on a node by launching a hostPath-mounting pod [attack-pod-hostpath-mount]
 [21] Run command in one or all pods in this namespace via the API Server [exec-via-api]
 [22] Run a token-dumping command in all pods via Kubelets (authorization permitting) [exec-via-kubelet]
+[23] Use CVE-2024-21626 (Leaky Vessels) to get a shell on the host (runc versions <1.12) [leakyvessels]
 -------------+
 Node Attacks |
 -------------+
