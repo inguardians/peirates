@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"regexp"
 	"strings"
@@ -93,7 +92,6 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 	}
 
 	//create random string
-	rand.Seed(time.Now().UnixNano())
 	randomString := randSeq(6)
 
 	// Create pod manifest in YAML
