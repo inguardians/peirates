@@ -1052,7 +1052,7 @@ func Main() {
 		case "22", "exec-via-kubelet", "exec-via-kubelets":
 			ExecuteCodeOnKubelet(connectionString, &serviceAccounts)
 
-		// [23] Use CVE-2024-21626 (Leaky Vessels) to get a shell on the host (runc versions <1.12)
+		// [23] Use CVE-2024-21626 (Leaky Vessels) to get a shell on the host (runc versions <1.12) [leakyvessels] *
 		case "23", "leakyvessels", "cve-2024-21626":
 			_ = createLeakyVesselPod(connectionString)
 
@@ -1412,7 +1412,7 @@ Compromise |
 [20] Gain a reverse rootshell on a node by launching a hostPath-mounting pod [attack-pod-hostpath-mount]
 [21] Run command in one or all pods in this namespace via the API Server [exec-via-api]
 [22] Run a token-dumping command in all pods via Kubelets (authorization permitting) [exec-via-kubelet]
-[23] Use CVE-2024-21626 (Leaky Vessels) to get a shell on the host (runc versions <1.12) [leakyvessels]
+[23] Use CVE-2024-21626 (Leaky Vessels) to get a shell on the host (runc versions <1.12) [leakyvessels] *
 -------------+
 Node Attacks |
 -------------+

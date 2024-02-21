@@ -39,7 +39,9 @@ func PullIamCredentialsFromEnvironmentVariables() AWSCredentials {
 	credentials.SessionToken = os.Getenv("AWS_SESSION_TOKEN")
 	credentials.accountName = "AWS Credentials from Environment Variables"
 
-	DisplayAWSIAMCredentials(credentials)
+	if len(credentials.AccessKeyId) > 0 {
+		DisplayAWSIAMCredentials(credentials)
+	}
 
 	return credentials
 }
