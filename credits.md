@@ -10,3 +10,5 @@
 ## Open Source Community Developers
 
 * Franklin Diaz @devsecfranklin
+* Kai Hoffman @kaihoffman
+* Ian Lee @IanLee1521
