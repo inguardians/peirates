@@ -37,12 +37,22 @@ Yes, we absolutely do. Submit a pull request and/or reach out to <peirates-dev@i
 
 Peirates is released under the GPLv2 license.
 
-## Modules
-
-## Building and Running
+## Running Peirates
 
 If you just want the peirates binary to start attacking things, grab the latest
 release from the [releases page](https://github.com/inguardians/peirates/releases/latest).
+
+## Peirates as a Container Image
+
+You can find a useful [alpine-peirates container image on Docker Hub](https://hub.docker.com/r/bustakube/alpine-peirates), with a version number tag that tracks the Peirates version.
+
+For example, for `alpine-peirates:1.1.16`, which contains peirates version `1.1.16`, run:
+
+```shell
+docker pull bustakube/alpine-peirates:1.1.16
+```
+
+## Building Peirates
 
 However, if you want to build from source, read on!
 
