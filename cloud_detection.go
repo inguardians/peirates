@@ -31,6 +31,14 @@ func populateAndCheckCloudProviders() string {
 			ResultString:      "meta-data",
 		},
 		{
+			Name:              "AWS (IMDSv2)",
+			URL:               "http://169.254.169.254/latest/api/token",
+			HTTPMethod:        "PUT",
+			CustomHeader:      "X-aws-ec2-metadata-token-ttl-seconds",
+			CustomHeaderValue: "21600",
+			ResultString:      "AWS (IMDSv2)"
+		},
+		{
 			Name:              "Azure",
 			URL:               "http://169.254.169.254/metadata/v1/InstanceInfo",
 			HTTPMethod:        "GET",
@@ -61,6 +69,7 @@ func populateAndCheckCloudProviders() string {
 		Timeout: 1 * time.Second,
 	}
 	url := "http://169.254.169.254/"
+	// IMDSv2 will return a 401 in this case
 	_, err := client.Get(url)
 	if err != nil {
 		return "-- Public Cloud Provider not detected --"
