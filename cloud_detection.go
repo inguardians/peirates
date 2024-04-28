@@ -36,7 +36,7 @@ func populateAndCheckCloudProviders() string {
 			HTTPMethod:        "PUT",
 			CustomHeader:      "X-aws-ec2-metadata-token-ttl-seconds",
 			CustomHeaderValue: "21600",
-			ResultString:      "AWS (IMDSv2)"
+			ResultString:      "",
 		},
 		{
 			Name:              "Azure",
@@ -80,14 +80,21 @@ func populateAndCheckCloudProviders() string {
 		fmt.Printf("Checking %s...\n", provider.Name)
 
 		var response string
+		var statusCode int
 
 		var lines []HeaderLine
 		if provider.CustomHeader != "" {
 			line := HeaderLine{LHS: provider.CustomHeader, RHS: provider.CustomHeaderValue}
 			lines = append(lines, line)
-			response = GetRequest(provider.URL, lines, true)
+			response, statusCode = GetRequest(provider.URL, lines, true)
 		} else {
-			response = GetRequest(provider.URL, nil, true)
+			response, statusCode = GetRequest(provider.URL, nil, true)
+		}
+
+		if provider.Name == "AWS (IMDSv2)" {
+			if statusCode == http.StatusOK {
+				return provider.Name
+			}
 		}
 
 		if strings.Contains(response, provider.ResultString) {

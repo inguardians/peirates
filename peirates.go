@@ -909,7 +909,7 @@ func Main() {
 				{"Metadata-Flavor", "Google"},
 			}
 			url := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/"
-			svcAcctListRaw := GetRequest(url, headers, false)
+			svcAcctListRaw, _ := GetRequest(url, headers, false)
 			if (svcAcctListRaw == "") || (strings.HasPrefix(svcAcctListRaw, "ERROR:")) {
 				break
 			}
@@ -940,7 +940,7 @@ func Main() {
 			headers = []HeaderLine{
 				{"Metadata-Flavor", "Google"},
 			}
-			kubeEnv := GetRequest("http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env", headers, false)
+			kubeEnv, _ := GetRequest("http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env", headers, false)
 			if (kubeEnv == "") || (strings.HasPrefix(kubeEnv, "ERROR:")) {
 				println("[-] Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env/")
 				// TODO: Should we get error code the way we used to:
