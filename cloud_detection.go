@@ -31,6 +31,14 @@ func populateAndCheckCloudProviders() string {
 			ResultString:      "meta-data",
 		},
 		{
+			Name:              "AWS (IMDSv2)",
+			URL:               "http://169.254.169.254/latest/api/token",
+			HTTPMethod:        "PUT",
+			CustomHeader:      "X-aws-ec2-metadata-token-ttl-seconds",
+			CustomHeaderValue: "21600",
+			ResultString:      "",
+		},
+		{
 			Name:              "Azure",
 			URL:               "http://169.254.169.254/metadata/v1/InstanceInfo",
 			HTTPMethod:        "GET",
@@ -61,6 +69,7 @@ func populateAndCheckCloudProviders() string {
 		Timeout: 1 * time.Second,
 	}
 	url := "http://169.254.169.254/"
+	// IMDSv2 will return a 401 in this case
 	_, err := client.Get(url)
 	if err != nil {
 		return "-- Public Cloud Provider not detected --"
@@ -71,14 +80,21 @@ func populateAndCheckCloudProviders() string {
 		fmt.Printf("Checking %s...\n", provider.Name)
 
 		var response string
+		var statusCode int
 
 		var lines []HeaderLine
 		if provider.CustomHeader != "" {
 			line := HeaderLine{LHS: provider.CustomHeader, RHS: provider.CustomHeaderValue}
 			lines = append(lines, line)
-			response = GetRequest(provider.URL, lines, true)
+			response, statusCode = GetRequest(provider.URL, lines, true)
 		} else {
-			response = GetRequest(provider.URL, nil, true)
+			response, statusCode = GetRequest(provider.URL, nil, true)
+		}
+
+		if provider.Name == "AWS (IMDSv2)" {
+			if statusCode == http.StatusOK {
+				return provider.Name
+			}
 		}
 
 		if strings.Contains(response, provider.ResultString) {
