@@ -18,7 +18,7 @@ import (
 )
 
 // Peirates version string
-var version = "1.1.16"
+var version = "1.1.17"
 
 // Verbosity mode - if set to true, DEBUG messages will be printed to STDOUT.
 var Verbose bool

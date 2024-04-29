@@ -78,12 +78,49 @@ func ImportPodServiceAccountToken() ServerInfo {
 	return configInfoVars
 }
 
+func getKubeletKubeconfigPath() (string, error) {
+	// Open the /proc directory
+	dir, err := os.Open("/proc")
+	if err != nil {
+		fmt.Println("DEBUG: Error opening /proc:", err)
+		return "", err
+	}
+	defer dir.Close()
+
+	// List all entries in the /proc directory
+	procs, err := dir.Readdirnames(-1)
+	if err != nil {
+		fmt.Println("DEBUG: Error reading /proc:", err)
+		return "", err
+	}
+
+	// Look for the kubelet process by checking cmdline for each process
+	for _, pid := range procs {
+		args, err := getCmdLine(pid)
+		if err != nil || len(args) == 0 {
+			continue
+		}
+
+		// Find the "kubelet" process and return its kubeconfig path
+		if strings.Contains(args[0], "kubelet") {
+			kubeConfig := findFlagValue(args, "--kubeconfig")
+			if kubeConfig != "" {
+				fmt.Printf("DEBUG: Kubelet is running with PID %s and uses kubeconfig: %s\n", pid, kubeConfig)
+				return kubeConfig, nil
+			}
+		}
+	}
+
+	return "", errors.New("Kubelet not found")
+}
+
 func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) error {
 
 	// Paths to explore:
 	// /var/lib/kubelet/kubeconfig
 	// /etc/kubernetes/kubeconfig
-	//
+	// <whatever path you get from checking the kubeconfig command line argument>
+	// <whatever path you get from checking the kubeconfig command line argument>
 
 	// Determine if one of the paths above exists and use it to get kubelet keypairs
 	kubeletKubeconfigFilePaths := make([]string, 0)
@@ -91,6 +128,11 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/var/lib/kubelet/kubeconfig")
 	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/etc/kubernetes/kubeconfig")
 	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/etc/kubernetes/kubelet.conf")
+
+	psDiscoveredPath, err := getKubeletKubeconfigPath()
+	if err != nil {
+		kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, psDiscoveredPath)
+	}
 
 	for _, path := range kubeletKubeconfigFilePaths {
 		// On each path, check for existence of the file.
@@ -640,4 +682,31 @@ func GetNamespaces(connectionString ServerInfo) ([]string, error) {
 	}
 
 	return namespaces, nil
+}
+
+// Function to get the command line arguments of a process from its PID
+func getCmdLine(pid string) ([]string, error) {
+	// Read the cmdline file which contains the command line arguments
+	data, err := ioutil.ReadFile(fmt.Sprintf("/proc/%s/cmdline", pid))
+	if err != nil {
+		return nil, err
+	}
+
+	// The arguments are null-separated in cmdline, so we split on the null character
+	args := strings.Split(string(data), "\x00")
+	return args, nil
+}
+
+// Function to find the value for a specific flag in the command line arguments
+func findFlagValue(args []string, flag string) string {
+	for _, arg := range args {
+		if strings.HasPrefix(arg, flag) {
+			// Split the argument on "=" to separate the flag from its value
+			parts := strings.SplitN(arg, "=", 2)
+			if len(parts) == 2 {
+				return parts[1]
+			}
+		}
+	}
+	return ""
 }
