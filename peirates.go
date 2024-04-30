@@ -8,8 +8,6 @@ import (
 	"errors"
 	"fmt"
 
-	//	L "github.com/inguardians/peirates/pkg"
-
 	"net/url"
 	"os"
 	"os/exec"
@@ -974,6 +972,10 @@ func Main() {
 			println("\nChoice: ")
 
 			_, err = fmt.Scanln(&input)
+			if err != nil {
+				println("Error reading input: %v", err)
+				break
+			}
 
 			switch strings.ToLower(input) {
 			case "exit":
