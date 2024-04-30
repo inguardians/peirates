@@ -3,7 +3,6 @@ package peirates
 // Peirates - an Attack tool for Kubernetes clusters
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -519,44 +518,7 @@ func Main() {
 
 		// [11] Get a service account token from a secret
 		case "11", "get-secret", "secret-to-sa":
-			println("\nPlease enter the name of the secret for which you'd like the contents: ")
-			var secretName string
-			_, err = fmt.Scanln(&secretName)
-			if err != nil {
-				println("[-] Error reading secret name: ", err)
-				break
-			}
-
-			secretJSON, _, err := runKubectlSimple(connectionString, "get", "secret", secretName, "-o", "json")
-			if err != nil {
-				println("[-] Could not retrieve secret")
-				break
-			}
-
-			var secretData map[string]interface{}
-			err = json.Unmarshal(secretJSON, &secretData)
-			if err != nil {
-				println("[-] Error unmarshaling secret data: ", err)
-				break
-			}
-
-			secretType := secretData["type"].(string)
-
-			/* #gosec G101 - this is not a hardcoded credential */
-			if secretType != "kubernetes.io/service-account-token" {
-				println("[-] This secret is not a service account token.")
-				break
-			}
-
-			opaqueToken := secretData["data"].(map[string]interface{})["token"].(string)
-			token, err := base64.StdEncoding.DecodeString(opaqueToken)
-			if err != nil {
-				println("[-] ERROR: couldn't decode")
-			} else {
-				fmt.Printf("[+] Saved %s // %s\n", secretName, token)
-				AddNewServiceAccount(secretName, string(token), "Cluster Secret", &serviceAccounts)
-
-			}
+			getServiceAccountTokenFromSecret(connectionString, &serviceAccounts, interactive)
 
 		// [5] Check all pods for volume mounts
 		case "5", "find-volume-mounts", "find-mounts":

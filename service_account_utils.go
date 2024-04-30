@@ -1,6 +1,8 @@
 package peirates
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -252,4 +254,50 @@ func parseServiceAccountJWT(tokenString string) (int64, string) {
 	name := saStruct["name"].(string)
 
 	return expiration, namespace + ":" + name
+}
+
+func getServiceAccountTokenFromSecret(connectionString ServerInfo, serviceAccounts *[]ServiceAccount, interactive bool) {
+	println("\nPlease enter the name of the secret for which you'd like the contents: ")
+	var secretName string
+	_, err := fmt.Scanln(&secretName)
+	if err != nil {
+		println("[-] Error reading secret name: ", err)
+		pauseToHitEnter(interactive)
+		return
+	}
+
+	secretJSON, _, err := runKubectlSimple(connectionString, "get", "secret", secretName, "-o", "json")
+	if err != nil {
+		println("[-] Could not retrieve secret")
+		pauseToHitEnter(interactive)
+		return
+	}
+
+	var secretData map[string]interface{}
+	err = json.Unmarshal(secretJSON, &secretData)
+	if err != nil {
+		println("[-] Error unmarshaling secret data: ", err)
+		pauseToHitEnter(interactive)
+		return
+	}
+
+	secretType := secretData["type"].(string)
+
+	/* #gosec G101 - this is not a hardcoded credential */
+	if secretType != "kubernetes.io/service-account-token" {
+		println("[-] This secret is not a service account token.")
+		pauseToHitEnter(interactive)
+		return
+	}
+
+	opaqueToken := secretData["data"].(map[string]interface{})["token"].(string)
+	token, err := base64.StdEncoding.DecodeString(opaqueToken)
+	if err != nil {
+		println("[-] ERROR: couldn't decode")
+		pauseToHitEnter(interactive)
+		return
+	} else {
+		fmt.Printf("[+] Saved %s // %s\n", secretName, token)
+		AddNewServiceAccount(secretName, string(token), "Cluster Secret", serviceAccounts)
+	}
 }
