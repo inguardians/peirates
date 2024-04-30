@@ -677,11 +677,7 @@ func Main() {
 
 		// [16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [attack-kops-aws-1]
 		case "16":
-			err := KopsAttackAWS(&serviceAccounts, awsCredentials, assumedAWSrole)
-			if err != nil {
-				println("Attack failed on AWS.")
-			}
-			pauseToHitEnter(interactive)
+			KopsAttackAWS(&serviceAccounts, awsCredentials, assumedAWSrole, interactive)
 
 		case "17", "aws-s3-ls", "aws-ls-s3", "ls-s3", "s3-ls":
 

