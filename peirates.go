@@ -1031,6 +1031,10 @@ func Main() {
 
 				var podToRunIn string
 				_, err = fmt.Scanln(&podToRunIn)
+				if err != nil {
+					println("Problem with reading pod name: %v", err)
+					_, _ = fmt.Scanln(&input)
+				}
 				podsToRunTheCommandIn := []string{podToRunIn}
 
 				if commandToRunInPods != "" {
@@ -1044,7 +1048,7 @@ func Main() {
 					execInAllPods(connectionString, commandToRunInPods)
 				} else {
 					fmt.Print("[-] ERROR - command string was empty.")
-					_, err = fmt.Scanln(&input)
+					_, _ = fmt.Scanln(&input)
 				}
 
 			}
@@ -1089,6 +1093,10 @@ func Main() {
 		case "91", "curl":
 			println("[+] Enter a URL, including http:// or https:// - if parameters are required, you must provide them as part of the URL: ")
 			fullURL, err := ReadLineStripWhitespace()
+			if err != nil {
+				println("Problem with reading URL: %v", err)
+				break
+			}
 			fullURL = strings.ToLower(fullURL)
 
 			// Make sure the URL begins with http:// or https://.
@@ -1117,6 +1125,10 @@ func Main() {
 
 				println("If you would like to set a custom certificate authority cert path, enter it here.  Otherwise, hit enter.")
 				caCertPath, err = ReadLineStripWhitespace()
+				if err != nil {
+					println("Problem with stripping whitespace: %v", err)
+					break
+				}
 			}
 
 			// Get the HTTP method
@@ -1124,6 +1136,10 @@ func Main() {
 			for (method != "GET") && (method != "POST") {
 				fmt.Println("[+] Enter method - only GET and POST are supported: ")
 				input, err = ReadLineStripWhitespace()
+				if err != nil {
+					println("Problem with stripping whitespace: %v", err)
+					break
+				}
 				method = strings.TrimSpace(strings.ToUpper(input))
 			}
 
@@ -1138,6 +1154,10 @@ func Main() {
 
 				fmt.Println("[+] Enter a header name or a blank line if done: ")
 				input, err = ReadLineStripWhitespace()
+				if err != nil {
+					println("Problem with stripping whitespace: %v", err)
+					break
+				}
 
 				inputHeader = strings.TrimSpace(input)
 
@@ -1148,6 +1168,10 @@ func Main() {
 					// Request a header rhs (value)
 					fmt.Println("[+] Enter a value for " + inputHeader + ":")
 					input, err = ReadLineStripWhitespace()
+					if err != nil {
+						println("Problem with stripping whitespace: %v", err)
+						break
+					}
 
 					// Add the header value to the list
 					var header HeaderLine
@@ -1171,11 +1195,19 @@ func Main() {
 
 				fmt.Println("[+] Enter a parameter or a blank line to finish entering parameters: ")
 				inputParameter, err = ReadLineStripWhitespace()
+				if err != nil {
+					println("Problem with stripping whitespace: %v", err)
+					break
+				}
 
 				if inputParameter != "" {
 					// Request a parameter value
 					fmt.Println("[+] Enter a value for " + inputParameter + ": ")
 					input, err = ReadLineStripWhitespace()
+					if err != nil {
+						println("Problem with stripping whitespace: %v", err)
+						break
+					}
 
 					// Add the parameter pair to the list
 					params[inputParameter] = url.QueryEscape(input)
@@ -1189,7 +1221,8 @@ func Main() {
 					fmt.Println("\nWould you like to place parameters in the URL (like in a GET query) or in the body (like in a POST)\nurl or body: ")
 					paramLocation, err = ReadLineStripWhitespace()
 					if err != nil {
-						continue
+						println("Problem with stripping whitespace: %v", err)
+						break
 					}
 					paramLocation = strings.ToLower(paramLocation)
 				}
@@ -1244,6 +1277,10 @@ func Main() {
 			for !matched {
 				println("Enter an IP address to scan or hit enter to exit the portscan function: ")
 				_, err = fmt.Scan(&input)
+				if err != nil {
+					println("Input error: %v", err)
+					break
+				}
 				if input == "" {
 					break
 				}
