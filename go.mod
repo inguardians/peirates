@@ -9,5 +9,6 @@ require (
 	gopkg.in/square/go-jose.v2 v2.6.0
 	gopkg.in/yaml.v3 v3.0.0
 	k8s.io/cli-runtime v0.22.3 // indirect
+	k8s.io/client-go v0.22.3 // indirect
 	k8s.io/kubectl v0.22.3
 )
