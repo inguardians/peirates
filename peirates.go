@@ -1383,7 +1383,7 @@ func printBanner(interactive bool) {
 }
 
 func printMenu() {
-	if fullMenu == true {
+	if fullMenu {
 		printMenuClassic()
 	} else {
 		printMenuMinimal()
