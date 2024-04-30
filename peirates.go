@@ -731,42 +731,8 @@ func Main() {
 		// [21] Run command in one or all pods in this namespace
 		case "21", "exec-via-api":
 
-			println("\n[1] Run command on a specific pod\n[2] Run command on all pods")
-			_, err = fmt.Scanln(&input)
-			println("[+] Please provide the command to run in the pods: ")
+			execInPodMenu(connectionString, interactive)
 
-			commandToRunInPods, err := ReadLineStripWhitespace()
-			if err != nil {
-				println("Problem with stripping white space: %v", err)
-			}
-
-			switch input {
-			case "1":
-				println("[+] Enter the pod name in which to run the command: ")
-
-				var podToRunIn string
-				_, err = fmt.Scanln(&podToRunIn)
-				if err != nil {
-					println("Problem with reading pod name: %v", err)
-					_, _ = fmt.Scanln(&input)
-				}
-				podsToRunTheCommandIn := []string{podToRunIn}
-
-				if commandToRunInPods != "" {
-					if len(podsToRunTheCommandIn) > 0 {
-						execInListPods(connectionString, podsToRunTheCommandIn, commandToRunInPods)
-					}
-				}
-			case "2":
-				var input string
-				if commandToRunInPods != "" {
-					execInAllPods(connectionString, commandToRunInPods)
-				} else {
-					fmt.Print("[-] ERROR - command string was empty.")
-					_, _ = fmt.Scanln(&input)
-				}
-
-			}
 		// [22] Use the kubelet to gain the token in every pod where we can run a command
 		case "22", "exec-via-kubelet", "exec-via-kubelets":
 			ExecuteCodeOnKubelet(connectionString, &serviceAccounts)
@@ -783,24 +749,11 @@ func Main() {
 		// [31] List all secrets stolen from the node filesystem [nodefs-secrets-list]  (unimplemented)
 		case "31", "nodefs-secrets-list", "list-nodefs-secrets":
 			println("Item not yet implemented")
+
 		// [89] Inject peirates into another pod via API Server [inject-and-exec]
 		case "89", "inject-and-exec":
 
-			println("\nThis item has been removed from the menu and is currently not supported.\n")
-			println("\nChoose a pod to inject peirates into:\n")
-			runningPods := getPodList(connectionString)
-			for i, listpod := range runningPods {
-				fmt.Printf("[%d] %s\n", i, listpod)
-			}
-
-			println("Enter the number of a pod to inject peirates into: ")
-
-			var choice int
-			_, err = fmt.Scanln(&choice)
-
-			podName := runningPods[choice]
-
-			injectIntoAPodViaAPIServer(connectionString, podName)
+			injectAndExecMenu(connectionString)
 
 		// [91] Make an HTTP request (GET or POST) to a URL of your choice [curl]
 		// This is available both on the main menu line and interactively.

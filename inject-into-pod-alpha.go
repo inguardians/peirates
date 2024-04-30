@@ -7,6 +7,28 @@ import (
 	"syscall"
 )
 
+func injectAndExecMenu(connectionString ServerInfo) {
+	println("\nThis item has been removed from the menu and is currently not supported.\n")
+	println("\nChoose a pod to inject peirates into:\n")
+	runningPods := getPodList(connectionString)
+	for i, listpod := range runningPods {
+		fmt.Printf("[%d] %s\n", i, listpod)
+	}
+
+	println("Enter the number of a pod to inject peirates into: ")
+
+	var choice int
+	_, err := fmt.Scanln(&choice)
+	if err != nil {
+		println("[-] Error reading input: ", err)
+		return
+	}
+
+	podName := runningPods[choice]
+
+	injectIntoAPodViaAPIServer(connectionString, podName)
+}
+
 func injectIntoAPodViaAPIServer(connectionString ServerInfo, pod string) {
 	if !kubectlAuthCanI(connectionString, "exec", "pods") {
 		println("[-] Permission Denied: your service account isn't allowed to exec into pods")
