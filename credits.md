@@ -12,4 +12,4 @@
 * Franklin Diaz @devsecfranklin
 * Kai Hoffman @kaihoffman
 * Ian Lee @IanLee1521
-* Riley Dakota 
+* Dakota Riley
