@@ -2,8 +2,8 @@ package peirates
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -105,7 +105,7 @@ func populateAndCheckCloudProviders() string {
 }
 
 func detectContainer() string {
-	b, err := ioutil.ReadFile("/proc/self/cgroup")
+	b, err := os.ReadFile("/proc/self/cgroup")
 	if err != nil {
 		return ""
 	}
@@ -127,7 +127,7 @@ func detectContainer() string {
 
 func detectOpenStack() string {
 	if runtime.GOOS != "windows" {
-		data, err := ioutil.ReadFile("/sys/class/dmi/id/sys_vendor")
+		data, err := os.ReadFile("/sys/class/dmi/id/sys_vendor")
 		if err != nil {
 			return ""
 		}

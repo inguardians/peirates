@@ -45,7 +45,7 @@ func ImportPodServiceAccountToken() ServerInfo {
 
 	// Reading token file and storing in variable token
 	const tokenFile = ServiceAccountPath + "token"
-	token, errRead := ioutil.ReadFile(tokenFile)
+	token, errRead := os.ReadFile(tokenFile)
 
 	// Only return output if a JWT was found.
 	if errRead == nil {
@@ -63,14 +63,14 @@ func ImportPodServiceAccountToken() ServerInfo {
 	}
 
 	// Reading namespace file and store in variable namespace
-	namespace, errRead := ioutil.ReadFile(ServiceAccountPath + "namespace")
+	namespace, errRead := os.ReadFile(ServiceAccountPath + "namespace")
 	if errRead == nil {
 		configInfoVars.Namespace = string(namespace)
 	}
 
 	// Attempt to read a ca.crt file from the normal pod location - store if found.
 	expectedCACertPath := ServiceAccountPath + "ca.crt"
-	_, err := ioutil.ReadFile(expectedCACertPath)
+	_, err := os.ReadFile(expectedCACertPath)
 	if err == nil {
 		configInfoVars.CAPath = expectedCACertPath
 	}
@@ -140,7 +140,7 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 			continue
 		}
 
-		kubeconfigFile, err := ioutil.ReadFile(path)
+		kubeconfigFile, err := os.ReadFile(path)
 		if err != nil {
 			println("ERROR: could not open file " + path)
 			continue
@@ -244,7 +244,7 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 				println("ERROR: kubelet kubeconfig file names " + path + " as holding its key, but this file does not exist.")
 				continue
 			}
-			contents, err := ioutil.ReadFile(path)
+			contents, err := os.ReadFile(path)
 			if err != nil {
 				println("ERROR: kubelet kubeconfig file names " + path + " as holding its key, but cannot read this file.")
 				continue
@@ -259,7 +259,7 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 				println("ERROR: kubelet kubeconfig file names " + path + " as holding its cert, but this file does not exist.")
 				continue
 			}
-			contents, err := ioutil.ReadFile(path)
+			contents, err := os.ReadFile(path)
 			if err != nil {
 				println("ERROR: kubelet kubeconfig file names " + path + " as holding its cert, but cannot read this file.")
 				continue
@@ -362,7 +362,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 				if _, err := os.Stat(tokenFilePath); os.IsNotExist(err) {
 					continue
 				}
-				tokenBytes, err := ioutil.ReadFile(tokenFilePath)
+				tokenBytes, err := os.ReadFile(tokenFilePath)
 				if err != nil {
 					continue
 				}
@@ -373,7 +373,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 				if _, err := os.Stat(namespacePath); os.IsNotExist(err) {
 					continue
 				}
-				namespaceBytes, err := ioutil.ReadFile(namespacePath)
+				namespaceBytes, err := os.ReadFile(namespacePath)
 				if err != nil {
 					continue
 				}
@@ -512,7 +512,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 				if _, err := os.Stat(tokenFilePath); os.IsNotExist(err) {
 					continue
 				}
-				tokenBytes, err := ioutil.ReadFile(tokenFilePath)
+				tokenBytes, err := os.ReadFile(tokenFilePath)
 				if err != nil {
 					continue
 				}
@@ -687,7 +687,7 @@ func GetNamespaces(connectionString ServerInfo) ([]string, error) {
 // Function to get the command line arguments of a process from its PID
 func getCmdLine(pid string) ([]string, error) {
 	// Read the cmdline file which contains the command line arguments
-	data, err := ioutil.ReadFile(fmt.Sprintf("/proc/%s/cmdline", pid))
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%s/cmdline", pid))
 	if err != nil {
 		return nil, err
 	}

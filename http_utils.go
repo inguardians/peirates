@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"net"
 	"net/http"
 	"net/url"
@@ -85,7 +86,7 @@ func DoHTTPRequestAndGetBody(req *http.Request, https bool, ignoreTLSErrors bool
 		}
 
 		if caCertPath != "" {
-			caCert, err := ioutil.ReadFile(caCertPath)
+			caCert, err := os.ReadFile(caCertPath)
 			if err != nil {
 				fmt.Printf("[-] DoHTTPRequestAndGetBody failed reading CA cert from %s: %s\n", caCertPath, err.Error())
 				return []byte{}, err
