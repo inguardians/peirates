@@ -394,7 +394,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 				certFound := false
 
 				thisSecretDirectory := kubeletPodsDir + pod.Name() + podVolumeSecretDir + secretName
-				secretDirFiles, err := ioutil.ReadDir(thisSecretDirectory)
+				secretDirFiles, err := os.ReadDir(thisSecretDirectory)
 				if err != nil {
 					continue
 				}
