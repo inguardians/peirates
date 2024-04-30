@@ -9,7 +9,7 @@ import (
 	"fmt"
 
 	//	L "github.com/inguardians/peirates/pkg"
-	"math/rand"
+
 	"net/url"
 	"os"
 	"os/exec"
@@ -25,243 +25,6 @@ var Verbose bool
 // controllers can still block an action that RBAC permits.
 var UseAuthCanI bool = true
 
-// AWS credentials currently in use.
-var awsCredentials AWSCredentials
-
-// Make room for an assumed role.
-var assumedAWSrole AWSCredentials
-
-// getPodList returns an array of running pod information, parsed from "kubectl -n namespace get pods -o json"
-func getPodList(connectionString ServerInfo) []string {
-
-	if !kubectlAuthCanI(connectionString, "get", "pods") {
-		println("[-] Permission Denied: your service account isn't allowed to get pods")
-		return []string{}
-	}
-
-	responseJSON, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
-	if err != nil {
-		fmt.Printf("[-] Error while getting pods: %s\n", err.Error())
-		return []string{}
-	}
-
-	type PodsResponse struct {
-		Items []struct {
-			Metadata struct {
-				Name string `json:"name"`
-			} `json:"metadata"`
-		} `json:"items"`
-	}
-
-	var response PodsResponse
-	err = json.Unmarshal(responseJSON, &response)
-	if err != nil {
-		fmt.Printf("[-] Error while getting pods: %s\n", err.Error())
-		return []string{}
-	}
-
-	pods := make([]string, len(response.Items))
-
-	for i, pod := range response.Items {
-		pods[i] = pod.Metadata.Name
-	}
-
-	return pods
-}
-
-// Get the names of the available Secrets from the current namespace and a list of service account tokens
-func getSecretList(connectionString ServerInfo) ([]string, []string) {
-
-	if !kubectlAuthCanI(connectionString, "get", "secrets") {
-		println("[-] Permission Denied: your service account isn't allowed to list secrets")
-		return []string{}, []string{}
-	}
-
-	type SecretsResponse struct {
-		Items []struct {
-			Metadata struct {
-				Name string `json:"name"`
-			} `json:"metadata"`
-			Type string `json:"type"`
-		} `json:"items"`
-	}
-
-	secretsJSON, _, err := runKubectlSimple(connectionString, "get", "secrets", "-o", "json")
-	if err != nil {
-		fmt.Printf("[-] Error while getting secrets: %s\n", err.Error())
-		return []string{}, []string{}
-	}
-
-	var response SecretsResponse
-	err = json.Unmarshal(secretsJSON, &response)
-	if err != nil {
-		fmt.Printf("[-] Error while getting secrets: %s\n", err.Error())
-		return []string{}, []string{}
-	}
-
-	secrets := make([]string, len(response.Items))
-	var serviceAccountTokens []string
-
-	for i, secret := range response.Items {
-		secrets[i] = secret.Metadata.Name
-		if secret.Type == "kubernetes.io/service-account-token" {
-			serviceAccountTokens = append(serviceAccountTokens, secret.Metadata.Name)
-		}
-	}
-
-	return secrets, serviceAccountTokens
-}
-
-// inAPod() attempts to determine if we are running in a pod.
-// Long-term, this will likely go away
-// func inAPod(connectionString ServerInfo) bool {
-
-// 	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
-// 		println("[+] You may be in a Kubernetes pod. API Server to be found at: ", os.Getenv("KUBERNETES_SERVICE_HOST"))
-// 		return true
-// 	} else {
-// 		println("[-] You may not be in a Kubernetes pod. Press ENTER to continue.")
-// 		var input string
-// 		fmt.Scanln(&input)
-// 		return false
-// 	}
-// }
-
-func printListOfPods(connectionString ServerInfo) {
-	runningPods := getPodList(connectionString)
-	for _, listpod := range runningPods {
-		println("[+] Pod Name: " + listpod)
-	}
-
-}
-
-// execInAllPods() runs a command in all running pods
-func execInAllPods(connectionString ServerInfo, command string) {
-	runningPods := getPodList(connectionString)
-	execInListPods(connectionString, runningPods, command)
-}
-
-// execInListPods() runs a command in all pods in the provided list
-func execInListPods(connectionString ServerInfo, pods []string, command string) {
-	if !kubectlAuthCanI(connectionString, "exec", "pods") {
-		println("[-] Permission Denied: your service account isn't allowed to exec commands in pods")
-		return
-	}
-
-	println("[+] Running supplied command in list of pods")
-	for _, execPod := range pods {
-		execInPodOut, _, err := runKubectlSimple(connectionString, "exec", "-it", execPod, "--", "/bin/sh", "-c", command)
-		if err != nil {
-			fmt.Printf("[-] Executing %s in Pod %s failed: %s\n", command, execPod, err)
-		} else {
-			println(" ")
-			println(string(execInPodOut))
-		}
-	}
-}
-
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-// Added mountFS code to create yaml file drop to disk and create a pod.    |
-//--------------------------------------------------------------------------|
-
-// randSeq generates a LENGTH length string of random lowercase letters.
-func randSeq(length int) string {
-	letters := []rune("abcdefghijklmnopqrstuvwxyz")
-	b := make([]rune, length)
-
-	/* #nosec G404 - the name of the pod created does not need to be random, though we should make the YAML file with mktemp */
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(b)
-}
-
-type AWSS3BucketObject struct {
-	Data string `json:"Data"`
-}
-
-// GetPodsInfo gets details for all pods in json output and stores in PodDetails struct
-func GetPodsInfo(connectionString ServerInfo, podDetails *PodDetails) {
-
-	if !kubectlAuthCanI(connectionString, "get", "pods") {
-		println("[-] Permission Denied: your service account isn't allowed to get pods")
-		return
-	}
-
-	println("[+] Getting details for all pods")
-	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
-	println(string(podDetailOut))
-	if err != nil {
-		println("[-] Unable to retrieve details from this pod: ", err)
-	} else {
-		println("[+] Retrieving details for all pods was successful: ")
-		err := json.Unmarshal(podDetailOut, &podDetails)
-		if err != nil {
-			println("[-] Error unmarshaling data: ", err)
-		}
-	}
-}
-
-// PrintHostMountPoints prints all pods' host volume mounts parsed from the Spec.Volumes pod spec by GetPodsInfo()
-func PrintHostMountPoints(podInfo PodDetails) {
-	println("[+] Getting all host mount points for pods in current namespace")
-	for _, item := range podInfo.Items {
-		// println("+ Host Mount Points for Pod: " + item.Metadata.Name)
-		for _, volume := range item.Spec.Volumes {
-			if volume.HostPath.Path != "" {
-				println("\tHost Mount Point: " + string(volume.HostPath.Path) + " found for pod " + item.Metadata.Name)
-			}
-		}
-	}
-}
-
-// PrintHostMountPointsForPod prints a single pod's host volume mounts parsed from the Spec.Volumes pod spec by GetPodsInfo()
-func PrintHostMountPointsForPod(podInfo PodDetails, pod string) {
-	println("[+] Getting all Host Mount Points only for pod: " + pod)
-	for _, item := range podInfo.Items {
-		if item.Metadata.Name == pod {
-			for _, volume := range item.Spec.Volumes {
-				if volume.HostPath.Path != "" {
-					println("\tHost Mount Point: " + string(volume.HostPath.Path))
-				}
-			}
-		}
-	}
-}
-
-// GetRoles enumerates all roles in use on the cluster (in the default namespace).
-// It parses all roles into a KubeRoles object.
-func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
-	println("[+] Getting all Roles")
-	rolesOut, _, err := runKubectlSimple(connectionString, "get", "role", "-o", "json")
-	if err != nil {
-		println("[-] Unable to retrieve roles from this pod: ", err)
-	} else {
-		println("[+] Retrieving roles was successful: ")
-		err := json.Unmarshal(rolesOut, &kubeRoles)
-		if err != nil {
-			println("[-] Error unmarshaling data: ", err)
-		}
-
-	}
-}
-
-// GetNodesInfo runs kubectl get nodes -o json.
-func GetNodesInfo(connectionString ServerInfo) {
-	println("[+] Getting details for all pods")
-	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "nodes", "-o", "json")
-	println(string(podDetailOut))
-	if err != nil {
-		println("[-] Unable to retrieve node details: ", err)
-	}
-}
-
-type PodNamespaceContainerTuple struct {
-	PodName       string
-	PodNamespace  string
-	ContainerName string
-}
-
 //------------------------------------------------------------------------------------------------------------------------------------------------
 
 // Main starts Peirates
@@ -275,6 +38,12 @@ func Main() {
 	// - true: the "full" menu that Peirates had classically
 	// - false: a shorter menu of options - all options still work, but not all are shown
 	var fullMenu bool = true
+
+	// AWS credentials currently in use.
+	var awsCredentials AWSCredentials
+
+	// Make room for an assumed role.
+	var assumedAWSrole AWSCredentials
 
 	detectCloud := populateAndCheckCloudProviders()
 
@@ -544,10 +313,15 @@ func Main() {
 				serviceAccount := acceptServiceAccountFromUser()
 				serviceAccounts = append(serviceAccounts, serviceAccount)
 
-				println("")
+				println()
 				println("[1] Switch to this service account")
 				println("[2] Maintain current service account")
 				_, err = fmt.Scanln(&input)
+				if err != nil {
+					fmt.Printf("Error reading input: %s\n", err.Error())
+					break
+				}
+
 				switch input {
 				case "1":
 					assignServiceAccountToConnection(serviceAccount, &connectionString)
@@ -816,8 +590,16 @@ func Main() {
 			var ip, port string
 			println("IP:")
 			_, err = fmt.Scanln(&ip)
+			if err != nil {
+				println("[-] Error reading IP address.")
+				break
+			}
 			println("Port:")
 			_, err = fmt.Scanln(&port)
+			if err != nil {
+				println("[-] Error reading port.")
+				break
+			}
 			MountRootFS(allPods, connectionString, ip, port)
 
 		// [12] Request IAM credentials from AWS Metadata API [AWS only]
@@ -897,7 +679,7 @@ func Main() {
 
 		// [16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [attack-kops-aws-1]
 		case "16":
-			err := KopsAttackAWS(&serviceAccounts)
+			err := KopsAttackAWS(&serviceAccounts, awsCredentials, assumedAWSrole)
 			if err != nil {
 				println("Attack failed on AWS.")
 			}

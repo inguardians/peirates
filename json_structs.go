@@ -177,3 +177,13 @@ type GetNodeDetails struct {
 		} `json:"status"`
 	} `json:"items"`
 }
+
+type AWSS3BucketObject struct {
+	Data string `json:"Data"`
+}
+
+type PodNamespaceContainerTuple struct {
+	PodName       string
+	PodNamespace  string
+	ContainerName string
+}

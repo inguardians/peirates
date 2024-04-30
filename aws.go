@@ -321,7 +321,7 @@ func nonexitErrorf(msg string, args ...interface{}) {
 
 }
 
-func KopsAttackAWS(serviceAccounts *[]ServiceAccount) (err error) {
+func KopsAttackAWS(serviceAccounts *[]ServiceAccount, awsCredentials AWSCredentials, assumedAWSrole AWSCredentials) (err error) {
 
 	var storeTokens string
 	placeTokensInStore := false
@@ -329,6 +329,10 @@ func KopsAttackAWS(serviceAccounts *[]ServiceAccount) (err error) {
 	println("[1] Store all tokens found in Peirates data store")
 	println("[2] Retrieve all tokens - I will copy and paste")
 	_, err = fmt.Scanln(&storeTokens)
+	if err != nil {
+		println("[-] Error reading input")
+		return err
+	}
 	storeTokens = strings.TrimSpace(storeTokens)
 
 	if storeTokens == "1" {

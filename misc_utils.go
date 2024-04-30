@@ -3,6 +3,7 @@ package peirates
 import (
 	"bufio"
 	"fmt"
+	"math/rand"
 	"os"
 	"strings"
 )
@@ -37,4 +38,16 @@ func pauseToHitEnter(interactive bool) {
 			println("Problem with scanln: %v", err)
 		}
 	}
+}
+
+// randSeq generates a LENGTH length string of random lowercase letters.
+func randSeq(length int) string {
+	letters := []rune("abcdefghijklmnopqrstuvwxyz")
+	b := make([]rune, length)
+
+	/* #nosec G404 - the name of the pod created does not need to be random, though we should make the YAML file with mktemp */
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
 }
