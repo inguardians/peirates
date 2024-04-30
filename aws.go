@@ -509,3 +509,28 @@ func getAWSToken(interactive bool) (awsCredentials AWSCredentials, err error) {
 	DisplayAWSIAMCredentials(awsCredentials)
 	return awsCredentials, nil
 }
+
+func assumeAWSrole(awsCredentials AWSCredentials, assumedAWSrole *AWSCredentials, interactive bool) {
+
+	// Get role to assume
+	var input string
+	println("[+] Enter a role to assume, in the format arn:aws:iam::123456789012:role/roleName : ")
+	_, err := fmt.Scanln(&input)
+
+	iamArnValidationPattern := regexp.MustCompile(`arn:aws:iam::\d{12,}:\w+\/\w+`)
+	if !iamArnValidationPattern.MatchString(input) {
+		println("String entered isn't a AWS role name in the format requested.\n")
+		pauseToHitEnter(interactive)
+		return
+	}
+	roleToAssume := strings.TrimSpace(input)
+
+	// Attempt to assume role.
+	roleAssumption, err := AWSSTSAssumeRole(awsCredentials, roleToAssume)
+	if err != nil {
+		pauseToHitEnter(interactive)
+		return
+	}
+
+	*assumedAWSrole = roleAssumption
+}

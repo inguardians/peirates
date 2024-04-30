@@ -9,7 +9,6 @@ import (
 
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 )
 
@@ -430,25 +429,7 @@ func Main() {
 		// [7] Attempt to Assume a Different AWS Role [aws-assume-role]
 		case "7", "aws-assume-role":
 
-			// Get role to assume
-			var input string
-			println("[+] Enter a role to assume, in the format arn:aws:iam::123456789012:role/roleName : ")
-			_, err = fmt.Scanln(&input)
-
-			iamArnValidationPattern := regexp.MustCompile(`arn:aws:iam::\d{12,}:\w+\/\w+`)
-			if !iamArnValidationPattern.MatchString(input) {
-				println("String entered isn't a AWS role name in the format requested.\n")
-				break
-			}
-			roleToAssume := strings.TrimSpace(input)
-
-			// Attempt to assume role.
-			roleAssumption, err := AWSSTSAssumeRole(awsCredentials, roleToAssume)
-			if err != nil {
-				break
-			}
-
-			assumedAWSrole = roleAssumption
+			assumeAWSrole(awsCredentials, &assumedAWSrole, interactive)
 
 		// [8] Deactivate assumed AWS role [aws-empty-assumed-role]
 		case "8", "aws-empty-assumed-role", "empty-aws-assumed-role":
