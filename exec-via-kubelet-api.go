@@ -38,8 +38,7 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, serviceAccounts *[]Servic
 
 			for _, addr := range item.Status.Addresses {
 				// println("[+] Found IP for node " + item.Metadata.Name + " - " + addr.Address)
-				if addr.Type == "Hostname" {
-				} else {
+				if addr.Type != "Hostname" {
 
 					// Make a request for our service account(s)
 					var headers []HeaderLine
