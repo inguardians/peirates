@@ -6,7 +6,7 @@ package peirates
 import (
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 )
@@ -97,7 +97,7 @@ func Request(path string, cfgs ...func(*RequestConfig)) string {
 	}
 
 	// Read and return the response
-	contents, err := ioutil.ReadAll(res.Body)
+	contents, err := io.ReadAll(res.Body)
 	if err != nil {
 		// TODO should we return the error instead?
 		log.Fatal(err)
