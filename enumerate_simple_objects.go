@@ -169,3 +169,32 @@ func printListOfPods(connectionString ServerInfo) {
 	}
 
 }
+
+func findVolumeMounts(connectionString ServerInfo, podInfo *PodDetails) {
+	println("[1] Get all host mount points [all]")
+	println("[2] Get volume mount points for a specific pod [single]")
+	println("\nPeirates:># ")
+	var input string
+	_, err := fmt.Scanln(&input)
+	if err != nil {
+		println("Problem with scanln: %v", err)
+		return
+	}
+
+	GetPodsInfo(connectionString, podInfo)
+
+	switch input {
+	case "1", "all":
+		println("[+] Getting volume mounts for all pods")
+		// BUG: Need to make it so this Get doesn't print all info even though it gathers all info.
+		PrintHostMountPoints(*podInfo)
+
+		//MountRootFS(allPods, connectionString)
+	case "2", "single":
+		println("[+] Please provide the pod name: ")
+		var userResponse string
+		_, err = fmt.Scanln(&userResponse)
+		fmt.Printf("[+] Printing volume mount points for %s\n", userResponse)
+		PrintHostMountPointsForPod(*podInfo, userResponse)
+	}
+}

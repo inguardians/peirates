@@ -107,7 +107,7 @@ func Main() {
 		banner(connectionString, detectCloud, eth0IP, awsCredentials, assumedAWSrole)
 
 		var input string
-		var userResponse string
+
 		err := errors.New("empty")
 
 		if interactive {
@@ -560,26 +560,7 @@ func Main() {
 
 		// [5] Check all pods for volume mounts
 		case "5", "find-volume-mounts", "find-mounts":
-			println("[1] Get all host mount points [all]")
-			println("[2] Get volume mount points for a specific pod [single]")
-			println("\nPeirates:># ")
-			_, err = fmt.Scanln(&input)
-
-			GetPodsInfo(connectionString, &podInfo)
-
-			switch input {
-			case "1", "all":
-				println("[+] Getting volume mounts for all pods")
-				// BUG: Need to make it so this Get doesn't print all info even though it gathers all info.
-				PrintHostMountPoints(podInfo)
-
-				//MountRootFS(allPods, connectionString)
-			case "2", "single":
-				println("[+] Please provide the pod name: ")
-				_, err = fmt.Scanln(&userResponse)
-				fmt.Printf("[+] Printing volume mount points for %s\n", userResponse)
-				PrintHostMountPointsForPod(podInfo, userResponse)
-			}
+			findVolumeMounts(connectionString, &podInfo)
 
 		// [20] Gain a reverse rootshell by launching a hostPath / pod
 		case "20", "attack-pod-hostpath-mount", "attack-hostpath-mount", "attack-pod-mount", "attack-hostmount-pod", "attack-mount-pod":
