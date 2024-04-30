@@ -576,16 +576,10 @@ func Main() {
 
 		// [12] Request IAM credentials from AWS Metadata API [AWS only]
 		case "12", "get-aws-token":
-			// Pull IAM credentials from the Metadata API, store in a struct and display
-
-			result, err := PullIamCredentialsFromAWS()
+			result, err := getAWSToken(interactive)
 			if err != nil {
-				println("[-] Operation failed.")
-				break
+				awsCredentials = result
 			}
-
-			awsCredentials = result
-			DisplayAWSIAMCredentials(awsCredentials)
 
 		// [13] Request IAM credentials from GCP Metadata API [GCP only]
 		case "13", "get-gcp-token":

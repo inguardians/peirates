@@ -495,3 +495,17 @@ func awsS3ListBucketObjectsMenu(awsCredentials AWSCredentials, assumedAWSrole AW
 		println("[-] Error listing bucket objects.")
 	}
 }
+
+func getAWSToken(interactive bool) (awsCredentials AWSCredentials, err error) {
+
+	// Pull IAM credentials from the Metadata API, store in a struct and display
+
+	awsCredentials, err = PullIamCredentialsFromAWS()
+	if err != nil {
+		println("[-] Operation failed.")
+		return awsCredentials, err
+	}
+
+	DisplayAWSIAMCredentials(awsCredentials)
+	return awsCredentials, nil
+}
