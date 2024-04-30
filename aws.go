@@ -435,9 +435,39 @@ func KopsAttackAWS(serviceAccounts *[]ServiceAccount, awsCredentials AWSCredenti
 
 }
 
-func awsS3ListBucketMenu(awsCredentials AWSCredentials, assumedAWSrole AWSCredentials) {
+func awsS3ListBucketsMenu(awsCredentials AWSCredentials, assumedAWSrole AWSCredentials) {
 
-	// [18] List contents of an AWS S3 Bucket [AWS]
+	var credentialsToUse AWSCredentials
+	if len(assumedAWSrole.AccessKeyId) > 0 {
+		credentialsToUse = assumedAWSrole
+	} else if len(awsCredentials.AccessKeyId) > 0 {
+		credentialsToUse = awsCredentials
+	} else {
+		println("Pulling AWS credentials from the metadata API.")
+		result, err := PullIamCredentialsFromAWS()
+		if err != nil {
+			println("[-] Could not get AWS credentials from metadata API.")
+			return
+		}
+		println("[+] Got AWS credentials from metadata API.")
+		awsCredentials = result
+		credentialsToUse = awsCredentials
+	}
+
+	result, err := ListAWSBuckets(credentialsToUse)
+	if err != nil {
+		println("List bucket operation failed.")
+		return
+	}
+
+	for _, bucket := range result {
+		println(bucket)
+	}
+
+}
+
+func awsS3ListBucketObjectsMenu(awsCredentials AWSCredentials, assumedAWSrole AWSCredentials) {
+
 	var bucket string
 
 	println("Enter a bucket name to list: ")

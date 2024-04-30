@@ -684,38 +684,14 @@ func Main() {
 			pauseToHitEnter(interactive)
 
 		case "17", "aws-s3-ls", "aws-ls-s3", "ls-s3", "s3-ls":
+
 			// [17] List AWS S3 Buckets accessible (Auto-Refreshing Metadata API credentials) [AWS]
-
-			var credentialsToUse AWSCredentials
-			if len(assumedAWSrole.AccessKeyId) > 0 {
-				credentialsToUse = assumedAWSrole
-			} else if len(awsCredentials.AccessKeyId) > 0 {
-				credentialsToUse = awsCredentials
-			} else {
-				println("Pulling AWS credentials from the metadata API.")
-				result, err := PullIamCredentialsFromAWS()
-				if err != nil {
-					println("[-] Could not get AWS credentials from metadata API.")
-					break
-				}
-				println("[+] Got AWS credentials from metadata API.")
-				awsCredentials = result
-				credentialsToUse = awsCredentials
-			}
-
-			result, err := ListAWSBuckets(credentialsToUse)
-			if err != nil {
-				println("List bucket operation failed.")
-				break
-			}
-
-			for _, bucket := range result {
-				println(bucket)
-			}
+			awsS3ListBucketsMenu(awsCredentials, assumedAWSrole)
 
 		case "18", "aws-s3-ls-objects", "aws-s3-list-objects", "aws-s3-list-bucket":
 
-			awsS3ListBucketMenu(awsCredentials, assumedAWSrole)
+			// [18] List contents of an AWS S3 Bucket [AWS]
+			awsS3ListBucketObjectsMenu(awsCredentials, assumedAWSrole)
 
 		// [21] Run command in one or all pods in this namespace
 		case "21", "exec-via-api":
