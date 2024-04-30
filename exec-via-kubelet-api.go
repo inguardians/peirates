@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -107,7 +107,7 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, serviceAccounts *[]Servic
 									continue
 								}
 								defer respExecPod.Body.Close()
-								bodyExecCommand, err := ioutil.ReadAll(respExecPod.Body)
+								bodyExecCommand, err := io.ReadAll(respExecPod.Body)
 								if err != nil {
 									println("[-] Error reading data: ", err)
 								}
