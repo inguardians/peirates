@@ -150,15 +150,12 @@ func clearScreen(interactive bool) {
 
 }
 
-func banner(connectionString ServerInfo, detectCloud string, eth0IP string, awsCredentials AWSCredentials, assumedAWSRole AWSCredentials, interactive bool) {
+func banner(connectionString ServerInfo, detectCloud string, eth0IP string, awsCredentials AWSCredentials, assumedAWSRole AWSCredentials) {
 
 	name, err := os.Hostname()
 	if err != nil {
 		panic(err)
 	}
-
-	// Experiment with removing the banner except when program first started.
-	// printBanner(interactive)
 
 	if connectionString.Token != "" {
 
@@ -167,17 +164,7 @@ func banner(connectionString ServerInfo, detectCloud string, eth0IP string, awsC
 	if connectionString.ClientCertData != "" {
 		fmt.Println("[+] Client Certificate/Key Pair Loaded:", connectionString.ClientCertName)
 	}
-	// Experiment with removing some status lines...
 
-	// var haveCa bool = false
-	// if connectionString.CAPath != "" {
-	// 	haveCa = true
-	// }
-	// fmt.Printf("[+] Certificate Authority Certificate : %t\n", haveCa)
-
-	// if len(connectionString.APIServer) > 0 {
-	// 	fmt.Println("[+] Kubernetes API Server             :", connectionString.APIServer)
-	// }
 	if len(connectionString.Namespace) > 0 {
 		fmt.Println("[+] Current hostname/pod name         :", name)
 		fmt.Println("[+] Current namespace                 :", connectionString.Namespace)

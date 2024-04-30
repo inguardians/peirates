@@ -338,7 +338,7 @@ func Main() {
 
 	var input int
 	for ok := true; ok; ok = (input != 2) {
-		banner(connectionString, detectCloud, eth0IP, awsCredentials, assumedAWSrole, interactive)
+		banner(connectionString, detectCloud, eth0IP, awsCredentials, assumedAWSrole)
 
 		var input string
 		var userResponse string
