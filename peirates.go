@@ -470,6 +470,10 @@ func Main() {
 			println("\n")
 
 			_, err = fmt.Scanln(&input)
+			if err != nil {
+				fmt.Printf("Error reading input: %s\n", err.Error())
+				break
+			}
 			switch strings.ToLower(input) {
 			case "1", "list":
 				println("\nAvailable Client Certificate/Key Pairs:")
@@ -484,6 +488,10 @@ func Main() {
 				println("\nEnter certificate/key pair number or exit to abort: ")
 				var tokNum int
 				_, err = fmt.Scanln(&input)
+				if err != nil {
+					fmt.Printf("Error reading input: %s\n", err.Error())
+					break
+				}
 				if input == "exit" {
 					break
 				}
@@ -514,9 +522,8 @@ func Main() {
 			println("\nPlease enter the name of the secret for which you'd like the contents: ")
 			var secretName string
 			_, err = fmt.Scanln(&secretName)
-
-			if !kubectlAuthCanI(connectionString, "get", "secret") {
-				println("[-] Permission Denied: your service account isn't allowed to get secrets")
+			if err != nil {
+				println("[-] Error reading secret name: ", err)
 				break
 			}
 
@@ -528,6 +535,10 @@ func Main() {
 
 			var secretData map[string]interface{}
 			err = json.Unmarshal(secretJSON, &secretData)
+			if err != nil {
+				println("[-] Error unmarshaling secret data: ", err)
+				break
+			}
 
 			secretType := secretData["type"].(string)
 
