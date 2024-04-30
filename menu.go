@@ -1,6 +1,10 @@
 package peirates
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"os/exec"
+)
 
 func printMenu(fullMenu bool) {
 	if fullMenu {
@@ -131,4 +135,72 @@ func printBanner(interactive bool, version string) {
   https://www.inguardians.com/peirates
 ---------------------------------------------------------------------`, version)
 	println(credit)
+}
+
+func clearScreen(interactive bool) {
+	var err error
+
+	pauseToHitEnter(interactive)
+	c := exec.Command("clear")
+	c.Stdout = os.Stdout
+	err = c.Run()
+	if err != nil {
+		println("[-] Error running command: ", err)
+	}
+
+}
+
+func banner(connectionString ServerInfo, detectCloud string, eth0IP string, awsCredentials AWSCredentials, assumedAWSRole AWSCredentials, interactive bool) {
+
+	name, err := os.Hostname()
+	if err != nil {
+		panic(err)
+	}
+
+	// Experiment with removing the banner except when program first started.
+	// printBanner(interactive)
+
+	if connectionString.Token != "" {
+
+		fmt.Println("[+] Service Account Loaded            :", connectionString.TokenName)
+	}
+	if connectionString.ClientCertData != "" {
+		fmt.Println("[+] Client Certificate/Key Pair Loaded:", connectionString.ClientCertName)
+	}
+	// Experiment with removing some status lines...
+
+	// var haveCa bool = false
+	// if connectionString.CAPath != "" {
+	// 	haveCa = true
+	// }
+	// fmt.Printf("[+] Certificate Authority Certificate : %t\n", haveCa)
+
+	// if len(connectionString.APIServer) > 0 {
+	// 	fmt.Println("[+] Kubernetes API Server             :", connectionString.APIServer)
+	// }
+	if len(connectionString.Namespace) > 0 {
+		fmt.Println("[+] Current hostname/pod name         :", name)
+		fmt.Println("[+] Current namespace                 :", connectionString.Namespace)
+	}
+
+	// Print out the eth0 interface's IP address if it exists
+	if len(eth0IP) > 0 {
+		fmt.Println("[+] IP address for eth0               :", eth0IP)
+	}
+	// If cloud has been detected, print it here.
+	if len(detectCloud) > 0 {
+		fmt.Println("[+] Cloud provider metadata API       :", detectCloud)
+	}
+
+	// If we have an AWS role, print it here.
+	if len(assumedAWSRole.AccessKeyId) > 0 {
+		fmt.Println("[+] AWS IAM Credentials (assumed)     :" + assumedAWSRole.AccessKeyId + " (" + assumedAWSRole.accountName + ")\n")
+	}
+	if len(awsCredentials.AccessKeyId) > 0 {
+		if len(awsCredentials.accountName) > 0 {
+			fmt.Println("[+] AWS IAM Credentials (available)   : " + awsCredentials.AccessKeyId + " (" + awsCredentials.accountName + ")\n")
+		} else {
+			fmt.Println("[+] AWS IAM Credentials (available)   : " + awsCredentials.AccessKeyId + "\n")
+		}
+	}
 }
