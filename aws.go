@@ -434,3 +434,28 @@ func KopsAttackAWS(serviceAccounts *[]ServiceAccount, awsCredentials AWSCredenti
 	return nil
 
 }
+
+func awsS3ListBucketMenu(awsCredentials AWSCredentials, assumedAWSrole AWSCredentials) {
+
+	// [18] List contents of an AWS S3 Bucket [AWS]
+	var bucket string
+
+	println("Enter a bucket name to list: ")
+	_, err := fmt.Scanln(&bucket)
+	if err != nil {
+		println("[-] Error reading input")
+		return
+	}
+
+	// Altering this to allow self-entered credentials.
+	// var IAMCredentials = PullIamCredentialsFromAWS()
+	if len(assumedAWSrole.AccessKeyId) > 0 {
+		err = ListBucketObjects(assumedAWSrole, bucket)
+	} else {
+		err = ListBucketObjects(awsCredentials, bucket)
+	}
+
+	if err != nil {
+		println("[-] Error listing bucket objects.")
+	}
+}

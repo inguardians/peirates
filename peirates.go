@@ -714,19 +714,8 @@ func Main() {
 			}
 
 		case "18", "aws-s3-ls-objects", "aws-s3-list-objects", "aws-s3-list-bucket":
-			// [18] List contents of an AWS S3 Bucket (Auto-Refreshing Metadata API credentials) [AWS]
-			var bucket string
 
-			println("Enter a bucket name to list: ")
-			_, err = fmt.Scanln(&bucket)
-
-			// Altering this to allow self-entered credentials.
-			// var IAMCredentials = PullIamCredentialsFromAWS()
-			if len(assumedAWSrole.AccessKeyId) > 0 {
-				err = ListBucketObjects(assumedAWSrole, bucket)
-			} else {
-				err = ListBucketObjects(awsCredentials, bucket)
-			}
+			awsS3ListBucketMenu(awsCredentials, assumedAWSrole)
 
 		// [21] Run command in one or all pods in this namespace
 		case "21", "exec-via-api":
