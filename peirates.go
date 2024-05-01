@@ -293,21 +293,7 @@ func Main() {
 		case "switch-ns", "switchns", "nsswitch", "ns-switch":
 			menuSwitchNamespaces(&connectionString)
 		case "2", "ns-menu", "namespace-menu", "ns", "namespace":
-			println(`
-			[1] List namespaces [list]
-			[2] Switch namespace [switch]
-			`)
-			_, err = fmt.Scanln(&input)
-			switch input {
-			case "1", "list":
-				listNamespaces(connectionString)
-
-			case "2", "switch":
-				menuSwitchNamespaces(&connectionString)
-
-			default:
-				break
-			}
+			interactiveNSMenu(&connectionString)
 
 		// [3] Get list of pods
 		case "3", "get-pods", "list-pods":
@@ -346,13 +332,7 @@ func Main() {
 
 		//	[10] Get secrets from API server
 		case "10", "list-secrets":
-			secrets, serviceAccountTokens := getSecretList(connectionString)
-			for _, secret := range secrets {
-				println("[+] Secret found: ", secret)
-			}
-			for _, svcAcct := range serviceAccountTokens {
-				println("[+] Service account found: ", svcAcct)
-			}
+			listSecrets(&connectionString)
 
 		// [11] Get a service account token from a secret
 		case "11", "get-secret", "secret-to-sa":
