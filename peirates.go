@@ -11,7 +11,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/chzyer/readline"
+	"github.com/ergochat/readline"
 )
 
 // Verbosity mode - if set to true, DEBUG messages will be printed to STDOUT.
