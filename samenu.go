@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo) {
+func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, interactive bool) {
 
 	println("Current primary service account: ", connectionString.TokenName)
 	println("\n")
@@ -38,7 +38,8 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo) {
 		_, err = fmt.Scanln(&input)
 		if err != nil {
 			fmt.Printf("Error reading input: %s\n", err.Error())
-			break
+			pauseToHitEnter(interactive)
+			return
 		}
 
 		switch input {
@@ -46,7 +47,8 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo) {
 			assignServiceAccountToConnection(serviceAccount, connectionString)
 
 		case "2":
-			break
+			pauseToHitEnter(interactive)
+			return
 		default:
 			println("Input not understood - adding service account but not switching context")
 		}
@@ -55,6 +57,8 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo) {
 		serviceAccountJSON, err := json.Marshal(serviceAccounts)
 		if err != nil {
 			fmt.Printf("[-] Error exporting service accounts: %s\n", err.Error())
+			pauseToHitEnter(interactive)
+			return
 		} else {
 			println(string(serviceAccountJSON))
 		}
@@ -63,6 +67,8 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo) {
 		err := json.NewDecoder(os.Stdin).Decode(&newserviceAccounts)
 		if err != nil {
 			fmt.Printf("[-] Error importing service accounts: %s\n", err.Error())
+			pauseToHitEnter(interactive)
+			return
 		} else {
 			*serviceAccounts = append(*serviceAccounts, newserviceAccounts...)
 			fmt.Printf("[+] Successfully imported service accounts\n")
@@ -78,6 +84,11 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo) {
 		case "1":
 			println("\nEnter a JWT: ")
 			_, err = fmt.Scanln(&token)
+			if err != nil {
+				print("Error reading input: %s\n", err.Error())
+				pauseToHitEnter(interactive)
+				return
+			}
 			printJWT(token)
 		case "2":
 			println("\nAvailable Service Accounts:")
@@ -92,13 +103,18 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo) {
 			var tokNum int
 			_, err = fmt.Scanln(&input)
 			if input == "exit" {
-				break
+				pauseToHitEnter(interactive)
+				return
 			}
 			_, err := fmt.Sscan(input, &tokNum)
 			if err != nil {
 				fmt.Printf("Error parsing service account selection: %s\n", err.Error())
+				pauseToHitEnter(interactive)
+				return
 			} else if tokNum < 0 || tokNum >= len(*serviceAccounts) {
 				fmt.Printf("Service account %d does not exist!\n", tokNum)
+				pauseToHitEnter(interactive)
+				return
 			} else {
 				printJWT((*serviceAccounts)[tokNum].Token)
 			}

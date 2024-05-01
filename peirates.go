@@ -285,7 +285,7 @@ func Main() {
 		case "listsa", "list-sa", "salist", "sa-list":
 			listServiceAccounts(serviceAccounts, connectionString)
 		case "1", "sa-menu", "service-account-menu", "sa", "service-account":
-			saMenu(&serviceAccounts, &connectionString)
+			saMenu(&serviceAccounts, &connectionString, interactive)
 
 		// [2] List and/or change namespaces [ns-menu] (try: listns, switchns)
 		case "list-ns", "listns", "nslist", "ns-list":
@@ -322,6 +322,7 @@ func Main() {
 		case "6", "enter-aws-credentials", "aws-creds":
 			credentials, err := EnterIamCredentialsForAWS()
 			if err != nil {
+				println("[-] Error entering AWS credentials: ", err)
 				break
 			}
 
@@ -341,54 +342,7 @@ func Main() {
 
 		// [9] Switch authentication contexts: certificate-based authentication (kubelet, kubeproxy, manually-entered) [cert-menu]
 		case "9", "cert-menu":
-			println("Current certificate-based authentication: ", connectionString.ClientCertName)
-			println("\n")
-			println("[1] List client certificates [list]")
-			println("[2] Switch active client certificates [switch]")
-			// println("[3] Enter new client certificate and key [add]")
-			// println("[4] Export service accounts to JSON [export]")
-			// println("[5] Import service accounts from JSON [import]")
-			// println("[6] Decode a stored or entered service account token (JWT) [decode]")
-
-			println("\n")
-
-			_, err = fmt.Scanln(&input)
-			if err != nil {
-				fmt.Printf("Error reading input: %s\n", err.Error())
-				break
-			}
-			switch strings.ToLower(input) {
-			case "1", "list":
-				println("\nAvailable Client Certificate/Key Pairs:")
-				for i, account := range clientCertificates {
-					fmt.Printf("  [%d] %s\n", i, account.Name)
-				}
-			case "2", "switch":
-				println("\nAvailable Client Certificate/Key Pairs:")
-				for i, account := range clientCertificates {
-					fmt.Printf("  [%d] %s\n", i, account.Name)
-				}
-				println("\nEnter certificate/key pair number or exit to abort: ")
-				var tokNum int
-				_, err = fmt.Scanln(&input)
-				if err != nil {
-					fmt.Printf("Error reading input: %s\n", err.Error())
-					break
-				}
-				if input == "exit" {
-					break
-				}
-
-				_, err := fmt.Sscan(input, &tokNum)
-				if err != nil {
-					fmt.Printf("Error parsing certificate/key pair selection: %s\n", err.Error())
-				} else if tokNum < 0 || tokNum >= len(clientCertificates) {
-					fmt.Printf("Certificate/key pair  %d does not exist!\n", tokNum)
-				} else {
-					assignAuthenticationCertificateAndKeyToConnection(clientCertificates[tokNum], &connectionString)
-					fmt.Printf("Selected %s\n", connectionString.ClientCertName)
-				}
-			}
+			certMenu(&clientCertificates, &connectionString, interactive)
 
 		//	[10] Get secrets from API server
 		case "10", "list-secrets":
@@ -486,33 +440,7 @@ func Main() {
 
 		// [92] Deactivate "auth can-i" checking before attempting actions [set-auth-can-i]
 		case "92", "set-auth-can-i":
-			// Toggle UseAuthCanI between true and false
-			println("\nWhen Auth-Can-I is set to true, Peirates uses the kubectl auth can-i feature to determine if an action is permitted before taking it.")
-			println("Toggle this to false if auth can-i results aren't accurate for this cluster.")
-			println("Auth-Can-I is currently set to ", UseAuthCanI)
-			println("\nPlease choose a new value for Auth-Can-I:")
-			println("[true] Set peirates to check whether an action is permitted")
-			println("[false] Set peirates to skip the auth can-i check")
-			println("[exit] Leave the setting at its current value")
-
-			println("\nChoice: ")
-
-			_, err = fmt.Scanln(&input)
-			if err != nil {
-				println("Error reading input: %v", err)
-				break
-			}
-
-			switch strings.ToLower(input) {
-			case "exit":
-				continue
-			case "true", "1", "t":
-				UseAuthCanI = true
-			case "false", "0", "f":
-				UseAuthCanI = false
-			}
-			// Skip the "press enter to continue"
-			continue
+			setAuthCanIMenu(&UseAuthCanI, interactive)
 
 		// [93] Run a simple all-ports TCP port scan against an IP address [tcpscan]
 		case "93", "tcpscan", "tcp scan", "portscan", "port scan":
