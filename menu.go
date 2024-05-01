@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+
+	"github.com/ergochat/readline"
 )
 
 func printMenu(fullMenu bool) {
@@ -190,4 +192,87 @@ func banner(connectionString ServerInfo, detectCloud string, eth0IP string, awsC
 			fmt.Println("[+] AWS IAM Credentials (available)   : " + awsCredentials.AccessKeyId + "\n")
 		}
 	}
+}
+
+func setUpCompletionMainMenu() *readline.PrefixCompleter {
+	completer := readline.NewPrefixCompleter(
+
+		//	[1] List, maintain, or switch service account contexts [sa-menu]  (try: listsa, switchsa)
+		readline.PcItem("sa-menu"),
+		readline.PcItem("switch-sa"),
+		readline.PcItem("sa-switch"),
+		readline.PcItem("list-sa"),
+		readline.PcItem("sa-list"),
+		readline.PcItem("get-sa"),
+		readline.PcItem("list-sa"),
+		// [2] List and/or change namespaces [ns-menu] (try: listns, switchns)
+		readline.PcItem("ns-menu"),
+		readline.PcItem("list-ns"),
+		readline.PcItem("switch-ns"),
+		// [3] Get list of pods
+		readline.PcItem("get-pods"),
+		readline.PcItem("list-pods"),
+		// [4] Get complete info on all pods (json) [dump-pod-info]
+		readline.PcItem("dump-pod-info"),
+		// [5] Check all pods for volume mounts [find-volume-mounts]
+		readline.PcItem("find-volume-mounts"),
+		// [6] Enter AWS IAM credentials manually [enter-aws-credentials]
+		readline.PcItem("enter-aws-credentials"),
+		// [7] Attempt to Assume a Different AWS Role [aws-assume-role]
+		readline.PcItem("aws-assume-role"),
+		// [8] Deactivate assumed AWS role [aws-empty-assumed-role]
+		readline.PcItem("aws-empty-assumed-rol"),
+		// [9] Switch authentication contexts: certificate-based authentication (kubelet, kubeproxy, manually-entered) [cert-menu]
+		readline.PcItem("cert-menu"),
+		// [10] List secrets in this namespace from API server [list-secrets, get-secrets]
+		readline.PcItem("list-secrets"),
+		readline.PcItem("get-secrets"),
+		// [11] Get a service account token from a secret [secret-to-sa]
+		readline.PcItem("secret-to-sa"),
+		// [12] Request IAM credentials from AWS Metadata API [get-aws-token] *
+		readline.PcItem("get-aws-token"),
+		// [13] Request IAM credentials from GCP Metadata API [get-gcp-token] *
+		readline.PcItem("get-gcp-token"),
+		// [14] Request kube-env from GCP Metadata API [attack-kube-env-gcp]
+		readline.PcItem("attack-kube-env-gcp"),
+		// [15] Pull Kubernetes service account tokens from kops' GCS bucket (Google Cloud only) [attack-kops-gcs-1]  *
+		readline.PcItem("attack-kops-gcs-1"),
+		// [16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [attack-kops-aws-1]
+		readline.PcItem("attack-kops-aws-1"),
+		// [17] List AWS S3 Buckets accessible (Make sure to get credentials via get-aws-token or enter manually) [aws-s3-ls]
+		readline.PcItem("aws-s3-ls"),
+		// [18] List contents of an AWS S3 Bucket (Make sure to get credentials via get-aws-token or enter manually) [aws-s3-ls-objects]
+		readline.PcItem("aws-s3-ls-objects"),
+		// [20] Gain a reverse rootshell on a node by launching a hostPath-mounting pod [attack-pod-hostpath-mount]
+		readline.PcItem("attack-pod-hostpath-mount"),
+		// [21] Run command in one or all pods in this namespace via the API Server [exec-via-api]
+		readline.PcItem("exec-via-api"),
+		// [22] Run a token-dumping command in all pods via Kubelets (authorization permitting) [exec-via-kubelet]
+		readline.PcItem("exec-via-kubelet"),
+		// [23] Use CVE-2024-21626 (Leaky Vessels) to get a shell on the host (runc versions <1.12) [leakyvessels] *
+		readline.PcItem("leakyvessels"),
+		// [30] Steal secrets from the node filesystem [nodefs-steal-secrets]
+		readline.PcItem("nodefs-steal-secrets"),
+		// [90] Run a kubectl command using the current authorization context [kubectl [arguments]]
+		readline.PcItem("kubectl"),
+		// [] Run a kubectl command using EVERY authorization context until one works [kubectl-try-all-until-success [arguments]]
+		readline.PcItem("kubectl-try-all-until-success"),
+		// [] Run a kubectl command using EVERY authorization context [kubectl-try-all [arguments]]
+		readline.PcItem("kubectl-try-all"),
+		// [91] Make an HTTP request (GET or POST) to a user-specified URL [curl]
+		readline.PcItem("curl"),
+		// [92] Deactivate "auth can-i" checking before attempting actions [set-auth-can-i]
+		readline.PcItem("set-auth-can-i"),
+		// [93] Run a simple all-ports TCP port scan against an IP address [tcpscan]
+		readline.PcItem("tcpscan"),
+		// [94] Enumerate services via DNS [enumerate-dns] *
+		readline.PcItem("enumerate-dns"),
+		// []  Run a shell command [shell <command and arguments>]
+		readline.PcItem("shell"),
+		// [short] Reduce the set of visible commands in this menu
+		readline.PcItem("short"),
+		// [exit] Exit Peirates
+		readline.PcItem("exit"),
+	)
+	return completer
 }
