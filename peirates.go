@@ -107,7 +107,7 @@ var completer = readline.NewPrefixCompleter(
 // Main starts Peirates
 func Main() {
 	// Peirates version string
-	var version = "1.1.17"
+	var version = "1.1.18"
 
 	var err error
 
