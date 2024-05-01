@@ -19,7 +19,7 @@ func printMenuMinimal() {
 	println(`---------------------------------------------------------------------
 Menu |
 -----+
-[sa-menu]                             List, maintain, or switch service account contexts (try: listsa *, switchsa)
+[sa-menu]                             List, maintain, or switch service account contexts (try: listsa *, switchsa, get-sa)
 [ns-menu]                             List and/or change namespaces (try: listns, switchns)
 [cert-menu]                           Switch certificate-based authentication (kubelet or manually-entered)
 
@@ -43,9 +43,9 @@ func printMenuClassic() {
 	println(`---------------------------------------------------------------------
 Namespaces, Service Accounts and Roles |
 ---------------------------------------+
-[1] List, maintain, or switch service account contexts [sa-menu]  (try: listsa *, switchsa)
-[2] List and/or change namespaces [ns-menu] (try: listns, switchns)
-[3] Get list of pods in current namespace [list-pods] 
+[1] List, maintain, or switch service account contexts [sa-menu]  (try: list-sa *, switch-sa, get-sa)
+[2] List and/or change namespaces [ns-menu] (try: list-ns, switch-ns, get-ns)
+[3] Get list of pods in current namespace [list-pods, get-pods] 
 [4] Get complete info on all pods (json) [dump-pod-info] 
 [5] Check all pods for volume mounts [find-volume-mounts] 
 [6] Enter AWS IAM credentials manually [enter-aws-credentials]
@@ -55,7 +55,7 @@ Namespaces, Service Accounts and Roles |
 -------------------------+
 Steal Service Accounts   |
 -------------------------+
-[10] List secrets in this namespace from API server [list-secrets] 
+[10] List secrets in this namespace from API server [list-secrets, get-secrets] 
 [11] Get a service account token from a secret [secret-to-sa]
 [12] Request IAM credentials from AWS Metadata API [get-aws-token] *
 [13] Request IAM credentials from GCP Metadata API [get-gcp-token] *
