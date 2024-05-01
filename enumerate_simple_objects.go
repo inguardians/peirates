@@ -163,6 +163,7 @@ func getSecretList(connectionString ServerInfo) ([]string, []string) {
 }
 
 func printListOfPods(connectionString ServerInfo) {
+	println("\n[+] Printing a list of Pods in this namespace......")
 	runningPods := getPodList(connectionString)
 	for _, listpod := range runningPods {
 		println("[+] Pod Name: " + listpod)

@@ -297,7 +297,6 @@ func Main() {
 
 		// [3] Get list of pods
 		case "3", "get-pods", "list-pods":
-			println("\n[+] Printing a list of Pods in this namespace......")
 			printListOfPods(connectionString)
 
 		//[4] Get complete info on all pods (json)
@@ -318,7 +317,6 @@ func Main() {
 
 		// [7] Attempt to Assume a Different AWS Role [aws-assume-role]
 		case "7", "aws-assume-role":
-
 			assumeAWSrole(awsCredentials, &assumedAWSrole, interactive)
 
 		// [8] Deactivate assumed AWS role [aws-empty-assumed-role]
