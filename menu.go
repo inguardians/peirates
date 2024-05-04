@@ -271,6 +271,8 @@ func setUpCompletionMainMenu() *readline.PrefixCompleter {
 		readline.PcItem("shell"),
 		// [short] Reduce the set of visible commands in this menu
 		readline.PcItem("short"),
+		// [full] Switch to full (classic menu) with a longer list of commands
+		readline.PcItem("full"),
 		// [exit] Exit Peirates
 		readline.PcItem("exit"),
 	)
