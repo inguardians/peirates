@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -144,6 +145,99 @@ func PullIamCredentialsFromAWS() (AWSCredentials, error) {
 	body2, err := ioutil.ReadAll(response2.Body)
 
 	err = json.Unmarshal(body2, &credentials)
+	if err != nil {
+		println("[-] Error - problem with JSON unmarshal")
+	}
+	return credentials, nil
+
+}
+
+func PullIamCredentialsFromAWSWithIMDSv2() (AWSCredentials, error) {
+
+	var credentials AWSCredentials
+
+	//  REQUEST 1: Get a token to interact with the Metadata API
+	tokenURL := "http://169.254.169.254/latest/api/token"
+	req, err := http.NewRequest("PUT", tokenURL, nil)
+	if err != nil {
+		fmt.Println("Error creating request for token:", err)
+		return credentials, err
+	}
+	// Set necessary headers for token request
+	req.Header.Set("X-aws-ec2-metadata-token-ttl-seconds", "21600") // 6 hours
+
+	// Send the request to get the token
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error fetching token:", err)
+		return credentials, err
+	}
+	defer resp.Body.Close()
+
+	// Use the token
+	token, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error reading token:", err)
+		return credentials, err
+	}
+
+	println("DEBUG: Got IMDSv2 token: " + string(token))
+
+	//  REQUEST 2: Get the account/role name
+	accountURL := "http://169.254.169.254/latest/meta-data/iam/security-credentials/"
+
+	// Set up the request object
+	req2, err := http.NewRequest("GET", accountURL, nil)
+	if err != nil {
+		fmt.Println("Error creating request for security credentials:", err)
+		return credentials, err
+	}
+	// Attach the token to the new request
+	req2.Header.Set("X-aws-ec2-metadata-token", string(token))
+	// Send the request to get the security credentials
+	resp, err = client.Do(req2)
+	if err != nil {
+		fmt.Println("Error fetching security credentials:", err)
+		return credentials, err
+	}
+	defer resp.Body.Close()
+	// Parse the response to get the account name
+	accountName, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error reading security credentials:", err)
+		return credentials, err
+	}
+	// fmt.Println("DEBUG: Role Name:", string(accountName))
+
+	// REQUEST 3: Get the security credentials
+	credURL := accountURL + string(accountName)
+	// Set up the request object
+	req3, err := http.NewRequest("GET", credURL, nil)
+	if err != nil {
+		fmt.Println("Error creating request for security credentials:", err)
+		return credentials, err
+	}
+	// Attach the token to the new request
+	req3.Header.Set("X-aws-ec2-metadata-token", string(token))
+	// Send the request to get the security credentials
+	resp, err = client.Do(req3)
+	if err != nil {
+		fmt.Println("Error fetching security credentials:", err)
+		return credentials, err
+	}
+	defer resp.Body.Close()
+	// Parse the response to get the account name
+	temporaryCredentials, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error reading security credentials:", err)
+		return credentials, err
+	}
+	// fmt.Println("DEBUG Credentials:", string(temporaryCredentials))
+
+	// Parse result as an account, then construct a request asking for that account's credentials
+
+	err = json.Unmarshal(temporaryCredentials, &credentials)
 	if err != nil {
 		println("[-] Error - problem with JSON unmarshal")
 	}
@@ -452,8 +546,12 @@ func awsS3ListBucketsMenu(awsCredentials AWSCredentials, assumedAWSrole AWSCrede
 		println("Pulling AWS credentials from the metadata API.")
 		result, err := PullIamCredentialsFromAWS()
 		if err != nil {
-			println("[-] Could not get AWS credentials from metadata API.")
-			return
+			println("[-] Did not work with IMDSv1, trying IMDSv2.")
+			result, err = PullIamCredentialsFromAWSWithIMDSv2()
+			if err != nil {
+				println("[-] Could not get AWS credentials from metadata API.")
+				return
+			}
 		}
 		println("[+] Got AWS credentials from metadata API.")
 		awsCredentials = result
