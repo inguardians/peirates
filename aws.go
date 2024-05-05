@@ -182,7 +182,7 @@ func PullIamCredentialsFromAWSWithIMDSv2() (AWSCredentials, error) {
 		return credentials, err
 	}
 
-	println("DEBUG: Got IMDSv2 token: " + string(token))
+	// println("DEBUG: Got IMDSv2 token: " + string(token))
 
 	//  REQUEST 2: Get the account/role name
 	accountURL := "http://169.254.169.254/latest/meta-data/iam/security-credentials/"
