@@ -33,6 +33,8 @@ import (
 func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
 	var err error
 
+	// TODO: Can we run this with the KUBECONFIG set to empty?
+
 	cmd := exec.Cmd{
 		Path:   "/proc/self/exe",
 		Args:   append([]string{"kubectl"}, cmdArgs...),
@@ -149,17 +151,17 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 		certTmpFile, err := ioutil.TempFile("/tmp", "peirates-")
 		if err != nil {
 			println("ERROR: Could not create a temp file for the client cert requested")
-			return errors.New("Could not create a temp file for the client cert requested")
+			return errors.New("could not create a temp file for the client cert requested")
 		}
 
 		if Verbose {
-			println("DEBUG: using cert-based auth with cert located at ",certTmpFile.Name())
+			println("DEBUG: using cert-based auth with cert located at ", certTmpFile.Name())
 		}
 
 		_, err = io.WriteString(certTmpFile, cfg.ClientCertData)
 		if err != nil {
 			println("DEBUG: Could not write to temp file for the client cert requested")
-			return errors.New("Could not write to temp file for the client cert requested")
+			return errors.New("could not write to temp file for the client cert requested")
 		}
 		err = certTmpFile.Sync()
 		if err != nil {
@@ -170,13 +172,13 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 		keyTmpFile, err := ioutil.TempFile("/tmp", "peirates-")
 		if err != nil {
 			println("DEBUG: Could not create a temp file for the client key requested")
-			return errors.New("Could not create a temp file for the client key requested")
+			return errors.New("could not create a temp file for the client key requested")
 		}
 
 		_, err = io.WriteString(keyTmpFile, cfg.ClientKeyData)
 		if err != nil {
 			println("DEBUG: Could not write to temp file for the client key requested")
-			return errors.New("Could not write to temp file for the client key requested")
+			return errors.New("could not write to temp file for the client key requested")
 		}
 		err = keyTmpFile.Sync()
 		if err != nil {
