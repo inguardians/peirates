@@ -137,6 +137,12 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, int
 		println("Peirates:># ")
 		_, err = fmt.Scanln(&input)
 
+		if err != nil {
+			fmt.Printf("[-] Error reading input: %s\n", err.Error())
+			pauseToHitEnter(interactive)
+			return
+		}
+
 		switch input {
 		case "1":
 			println("\nEnter a JWT: ")
