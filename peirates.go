@@ -24,7 +24,7 @@ var UseAuthCanI bool = true
 
 //------------------------------------------------------------------------------------------------------------------------------------------------
 
-// Main starts Peirates
+// Main starts Peirates[]
 func Main() {
 	// Peirates version string
 	var version = "1.1.19"
