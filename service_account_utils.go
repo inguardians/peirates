@@ -4,8 +4,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -112,7 +112,7 @@ func assignAuthenticationCertificateAndKeyToConnection(keypair ClientCertificate
 	// Write out the CACert to a path
 	const tmpFileFormat = "*-ca.crt"
 
-	file, err := ioutil.TempFile("", tmpFileFormat)
+	file, err := os.CreateTemp("/tmp", tmpFileFormat)
 	if err != nil {
 		log.Fatal(err)
 	}
