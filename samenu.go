@@ -109,7 +109,7 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, int
 			println("Input not understood - adding service account but not switching context")
 		}
 		println("")
-	case "4", "import":
+	case "4", "export":
 		serviceAccountJSON, err := json.Marshal(serviceAccounts)
 		if err != nil {
 			fmt.Printf("[-] Error exporting service accounts: %s\n", err.Error())
@@ -118,8 +118,9 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, int
 		} else {
 			println(string(serviceAccountJSON))
 		}
-	case "5", "export":
+	case "5", "import":
 		var newserviceAccounts []ServiceAccount
+		println("Please enter service account token")
 		err := json.NewDecoder(os.Stdin).Decode(&newserviceAccounts)
 		if err != nil {
 			fmt.Printf("[-] Error importing service accounts: %s\n", err.Error())
