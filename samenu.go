@@ -3,11 +3,53 @@ package peirates
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
+
+	"github.com/ergochat/readline"
 )
 
+func setUpCompletionSaMenu() *readline.PrefixCompleter {
+	completer := readline.NewPrefixCompleter(
+		// [1] List service accounts [list]
+		readline.PcItem("list"),
+		// [2] Switch primary service account [switch]
+		readline.PcItem("switch"),
+		// [3] Enter new service account JWT [add]
+		readline.PcItem("add"),
+		// [4] Export service accounts to JSON [export]
+		readline.PcItem("export"),
+		// [5] Import service accounts from JSON [import]
+		readline.PcItem("import"),
+		// [6] Decode a stored or entered service account token (JWT) [decode]
+		readline.PcItem("decode"),
+		// [7] Display a stored service account token in its raw form [display]
+		readline.PcItem("display"),
+	)
+	return completer
+}
+
 func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, interactive bool) {
+
+	// Set up main menu tab completion
+	var completer *readline.PrefixCompleter = setUpCompletionSaMenu()
+
+	l, err := readline.NewEx(&readline.Config{
+		Prompt:          "\033[31m»\033[0m ",
+		HistoryFile:     "/tmp/peirates.tmp",
+		AutoComplete:    completer,
+		InterruptPrompt: "^C",
+		EOFPrompt:       "exit",
+
+		HistorySearchFold: true,
+		// FuncFilterInputRune: filterInput,
+	})
+	if err != nil {
+		panic(err)
+	}
+	defer l.Close()
+	// l.CaptureExitSignal()
 
 	println("Current primary service account: ", connectionString.TokenName)
 	println("\n")
@@ -22,7 +64,21 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, int
 	println("\n")
 
 	var input string
-	_, err := fmt.Scanln(&input)
+
+	line, err := l.Readline()
+	if err == readline.ErrInterrupt {
+		if len(line) == 0 {
+			println("Empty line")
+			pauseToHitEnter(interactive)
+			return
+		}
+	} else if err == io.EOF {
+		println("Empty line")
+		pauseToHitEnter(interactive)
+		return
+	}
+	input = strings.TrimSpace(line)
+
 	switch strings.ToLower(input) {
 	case "1", "list":
 		listServiceAccounts(*serviceAccounts, *connectionString)

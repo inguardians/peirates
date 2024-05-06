@@ -2,10 +2,41 @@ package peirates
 
 import (
 	"fmt"
+	"io"
 	"strings"
+
+	"github.com/ergochat/readline"
 )
 
+func setUpCompletionCertMenu() *readline.PrefixCompleter {
+	completer := readline.NewPrefixCompleter(
+		readline.PcItem("list"),
+		readline.PcItem("switch"),
+	)
+	return completer
+}
+
 func certMenu(clientCertificates *[]ClientCertificateKeyPair, connectionString *ServerInfo, interactive bool) {
+
+	// Set up main menu tab completion
+	var completer *readline.PrefixCompleter = setUpCompletionCertMenu()
+
+	l, err := readline.NewEx(&readline.Config{
+		Prompt:          "\033[31m»\033[0m ",
+		HistoryFile:     "/tmp/peirates.tmp",
+		AutoComplete:    completer,
+		InterruptPrompt: "^C",
+		EOFPrompt:       "exit",
+
+		HistorySearchFold: true,
+		// FuncFilterInputRune: filterInput,
+	})
+	if err != nil {
+		panic(err)
+	}
+	defer l.Close()
+	// l.CaptureExitSignal()
+
 	println("Current certificate-based authentication: ", connectionString.ClientCertName)
 	println("\n")
 	println("[1] List client certificates [list]")
@@ -19,12 +50,31 @@ func certMenu(clientCertificates *[]ClientCertificateKeyPair, connectionString *
 
 	var input string
 
-	_, err := fmt.Scanln(&input)
-	if err != nil {
-		fmt.Printf("Error reading input: %s\n", err.Error())
+	// _, err = fmt.Scanln(&input)
+	// if err != nil {
+	// 	fmt.Printf("Error reading input: %s\n", err.Error())
+	// 	pauseToHitEnter(interactive)
+	// 	return
+	// }
+
+	line, err := l.Readline()
+	if err == readline.ErrInterrupt {
+		if len(line) == 0 {
+			println("Empty line")
+			pauseToHitEnter(interactive)
+			return
+		}
+	} else if err == io.EOF {
+		println("Empty line")
 		pauseToHitEnter(interactive)
 		return
 	}
+	input = strings.TrimSpace(line)
+
+	if err != nil {
+		return
+	}
+
 	switch strings.ToLower(input) {
 	case "1", "list":
 		println("\nAvailable Client Certificate/Key Pairs:")
