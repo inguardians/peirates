@@ -148,7 +148,7 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 		}
 
 		// Create a temp file for the client cert
-		certTmpFile, err := ioutil.TempFile("/tmp", "peirates-")
+		certTmpFile, err := os.CreateTemp("/tmp", "peirates-")
 		if err != nil {
 			println("ERROR: Could not create a temp file for the client cert requested")
 			return errors.New("could not create a temp file for the client cert requested")
