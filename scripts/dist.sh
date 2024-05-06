@@ -30,10 +30,22 @@ function compress() {
   rmdir peirates-${OS}-${ARCH}
 }
 
-function build() {
+function build-dynamic() {
   echo "Building for arch: ${ARCH}"
   GOOS=${OS} GOARCH=${ARCH} go build -ldflags="-s -w" $(realpath ../cmd/peirates)
   if [ ! -d peirates-${OS}-${ARCH} ] ; then 
+    mkdir peirates-${OS}-${ARCH}
+  fi
+  mv peirates peirates-${OS}-${ARCH}
+  if [ $COMPRESS == "yes" ] ; then
+    compress ${ARCH}
+  fi
+}
+
+function build() {
+  echo "Building for arch: ${ARCH}"
+  GOOS=${OS} GOARCH=${ARCH} go build -ldflags="-s -w" $(realpath ../cmd/peirates)
+  if [ ! -d peirates-${OS}-${ARCH} ] ; then
     mkdir peirates-${OS}-${ARCH}
   fi
   mv peirates peirates-${OS}-${ARCH}
