@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -169,7 +168,7 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 		}
 
 		// Create a temp file for the client key
-		keyTmpFile, err := ioutil.TempFile("/tmp", "peirates-")
+		keyTmpFile, err := os.CreateTemp("/tmp", "peirates-")
 		if err != nil {
 			println("DEBUG: Could not create a temp file for the client key requested")
 			return errors.New("could not create a temp file for the client key requested")
