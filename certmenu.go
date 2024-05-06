@@ -50,13 +50,6 @@ func certMenu(clientCertificates *[]ClientCertificateKeyPair, connectionString *
 
 	var input string
 
-	// _, err = fmt.Scanln(&input)
-	// if err != nil {
-	// 	fmt.Printf("Error reading input: %s\n", err.Error())
-	// 	pauseToHitEnter(interactive)
-	// 	return
-	// }
-
 	line, err := l.Readline()
 	if err == readline.ErrInterrupt {
 		if len(line) == 0 {
