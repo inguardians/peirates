@@ -188,6 +188,9 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 		connArgs = append(connArgs, "--client-key="+keyTmpFile.Name())
 	}
 
+	if Verbose {
+		println("DEBUG: Running kubectl with the following arguments: ", connArgs)
+	}
 	return runKubectl(stdin, stdout, stderr, append(connArgs, cmdArgs...)...)
 }
 

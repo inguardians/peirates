@@ -182,7 +182,9 @@ func PullIamCredentialsFromAWSWithIMDSv2() (AWSCredentials, error) {
 		return credentials, err
 	}
 
-	// println("DEBUG: Got IMDSv2 token: " + string(token))
+	if Verbose {
+		println("DEBUG: Got IMDSv2 token: " + string(token))
+	}
 
 	//  REQUEST 2: Get the account/role name
 	accountURL := "http://169.254.169.254/latest/meta-data/iam/security-credentials/"
@@ -208,7 +210,9 @@ func PullIamCredentialsFromAWSWithIMDSv2() (AWSCredentials, error) {
 		fmt.Println("Error reading security credentials:", err)
 		return credentials, err
 	}
-	// fmt.Println("DEBUG: Role Name:", string(accountName))
+	if Verbose {
+		fmt.Println("DEBUG: Role Name:", string(accountName))
+	}
 
 	// REQUEST 3: Get the security credentials
 	credURL := accountURL + string(accountName)
@@ -233,8 +237,9 @@ func PullIamCredentialsFromAWSWithIMDSv2() (AWSCredentials, error) {
 		fmt.Println("Error reading security credentials:", err)
 		return credentials, err
 	}
-	// fmt.Println("DEBUG Credentials:", string(temporaryCredentials))
-
+	if Verbose {
+		fmt.Println("DEBUG Credentials:", string(temporaryCredentials))
+	}
 	// Parse result as an account, then construct a request asking for that account's credentials
 
 	err = json.Unmarshal(temporaryCredentials, &credentials)

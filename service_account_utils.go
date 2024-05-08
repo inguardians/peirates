@@ -135,6 +135,9 @@ func assignAuthenticationCertificateAndKeyToConnection(keypair ClientCertificate
 	info.ClientKeyData = keypair.ClientKeyData
 	info.ClientCertName = keypair.Name
 	info.APIServer = keypair.APIServer
+	if Verbose {
+		println("DEBUG: Switching API server to: " + info.APIServer)
+	}
 	info.Namespace = "default"
 
 	// Zero out any service account token, so it's clear what to authenticate with.
