@@ -189,7 +189,10 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 	}
 
 	if Verbose {
-		println("DEBUG: Running kubectl with the following arguments: ", connArgs)
+		println("DEBUG: Running kubectl with the following arguments: ")
+		for _, arg := range connArgs {
+			println("DEBUG: " + arg)
+		}
 	}
 	return runKubectl(stdin, stdout, stderr, append(connArgs, cmdArgs...)...)
 }
