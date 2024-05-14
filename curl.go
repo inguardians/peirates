@@ -111,7 +111,7 @@ func curl(interactive bool) {
 	params := map[string]string{}
 
 	fmt.Printf("[+] Now enter parameters which will be placed into the query string or request body.\n\n")
-	fmt.Printf("    If you set a Content-Type manually to something besides application/x-www-form-urlencoded, use the parameter name a line of text and leave the value blank.\n\n")
+	fmt.Printf("    If you set a Content-Type manually to something besides application/x-www-form-urlencoded, use the parameter name as the complete key=value pair and leave the value blank.\n\n")
 
 	for inputParameter != "" {
 		// Request a parameter name
