@@ -213,7 +213,7 @@ func runKubectlSimple(cfg ServerInfo, cmdArgs ...string) ([]byte, []byte, error)
 }
 
 // Try this kubectl command as every single service account, with option to stop when we find one that works.
-func attemptEveryAccount(stopOnFirstSuccess bool, connectionStringPointer *ServerInfo, serviceAccounts *[]ServiceAccount, clientCertificates *[]ClientCertificateKeyPair, cmdArgs ...string) ([]byte, []byte, error) {
+func attemptEveryAccount(stopOnFirstSuccess bool, connectionStringPointer *ServerInfo, serviceAccounts *[]ServiceAccount, clientCertificates *[]ClientCertificateKeyPair, logToFile bool, outputFileName string, cmdArgs ...string) ([]byte, []byte, error) {
 
 	// Try all service accounts first.
 	// Store the current service account or client certificate auth method.
@@ -240,7 +240,8 @@ func attemptEveryAccount(stopOnFirstSuccess bool, connectionStringPointer *Serve
 			// ...tally another success...
 			successes += 1
 			// ...display the output...
-			println(string(kubectlOutput))
+			outputToUser(string(kubectlOutput), logToFile, outputFileName)
+
 			println(string(stderr))
 
 			// ...and stop if we were told to stop on first success.
@@ -272,7 +273,7 @@ func attemptEveryAccount(stopOnFirstSuccess bool, connectionStringPointer *Serve
 			successes += 1
 
 			// ...display the output...
-			println(string(kubectlOutput))
+			outputToUser(string(kubectlOutput), logToFile, outputFileName)
 			println(string(stderr))
 
 			// ...and stop if we were told to stop on first success.

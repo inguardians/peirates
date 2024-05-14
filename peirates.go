@@ -56,6 +56,11 @@ func Main() {
 
 	interactive := true
 
+	// Output file logging - new stealth feature
+	var logToFile = false
+	var outputFileName string
+
+	// Struct for some functions
 	var podInfo PodDetails
 
 	// Run the option parser to initialize connectionStrings
@@ -169,7 +174,8 @@ func Main() {
 			arguments := strings.Fields(argumentsLine)
 
 			kubectlOutput, _, err := runKubectlSimple(connectionString, arguments...)
-			println(string(kubectlOutput))
+			kubectlOutputString := string(kubectlOutput)
+			outputToUser(kubectlOutputString, logToFile, outputFileName)
 
 			// Note that we got an error code, in case it's the only output.
 			if err != nil {
@@ -189,7 +195,7 @@ func Main() {
 			argumentsLine := strings.TrimPrefix(input, kubectlTryAllSpace)
 			arguments := strings.Fields(argumentsLine)
 
-			_, _, err := attemptEveryAccount(false, &connectionString, &serviceAccounts, &clientCertificates, arguments...)
+			_, _, err := attemptEveryAccount(false, &connectionString, &serviceAccounts, &clientCertificates, logToFile, outputFileName, arguments...)
 
 			// Note that we got an error code, in case it's the only output.
 			if err != nil {
@@ -209,7 +215,7 @@ func Main() {
 			argumentsLine := strings.TrimPrefix(input, kubectlTryAllUntilSuccessSpace)
 			arguments := strings.Fields(argumentsLine)
 
-			_, _, err := attemptEveryAccount(true, &connectionString, &serviceAccounts, &clientCertificates, arguments...)
+			_, _, err := attemptEveryAccount(true, &connectionString, &serviceAccounts, &clientCertificates, logToFile, outputFileName, arguments...)
 
 			// Note that we got an error code, in case it's the only output.
 			if err != nil {
@@ -250,7 +256,8 @@ func Main() {
 				/* #gosec G204 - this code is intended to run arbitrary commands for the user */
 				cmd := exec.Command(command, arguments...)
 				out, err := cmd.CombinedOutput()
-				fmt.Printf("\n%s\n", string(out))
+				outputToUser(string(out), logToFile, outputFileName)
+
 				if err != nil {
 					println("running command failed with " + err.Error())
 				}
@@ -280,12 +287,46 @@ func Main() {
 				continue
 			}
 			responseBody, err := DoHTTPRequestAndGetBody(request, https, ignoreTLSErrors, caCertPath)
-			responseBodyString := string(responseBody)
-			println(responseBodyString + "\n")
-
 			if err != nil {
 				println("Request produced an error.")
 			}
+
+			outputToUser(string(responseBody), logToFile, outputFileName)
+
+			pauseToHitEnter(interactive)
+			continue
+		}
+
+		// Handle outputfile commands before the switch menu
+
+		// Activate via "outputfile <filename>"
+		const outputFile = "outputfile "
+		if strings.HasPrefix(input, outputFile) {
+			// remove the outputfile prefix, then get a filename from the rest
+			input = strings.TrimPrefix(input, outputFile)
+
+			// confirm that outputfile only has one argument.
+			if strings.Contains(input, " ") {
+				println("Output file name must not contain spaces.")
+				pauseToHitEnter(interactive)
+				continue
+			}
+
+			// Set the output file to that argument and set logToFile to true.
+			logToFile = true
+			outputFileName = input
+			println("Output file set to: " + outputFileName)
+
+			// If there is no argument, set logToFile to false.
+			pauseToHitEnter(interactive)
+			continue
+		}
+
+		// Deactivate via "outputfile"
+		const outputFileBare = "outputfile"
+		if strings.HasPrefix(input, outputFileBare) {
+			println("Output file name is empty - deactivating output to file.")
+			logToFile = false
 			pauseToHitEnter(interactive)
 			continue
 		}
@@ -448,7 +489,7 @@ func Main() {
 		// Here's the interactive.
 		case "91", "curl":
 
-			curl(interactive)
+			curl(interactive, logToFile, outputFileName)
 
 		// [92] Deactivate "auth can-i" checking before attempting actions [set-auth-can-i]
 		case "92", "set-auth-can-i":

@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func curl(interactive bool) {
+func curl(interactive bool, logToFile bool, outputFileName string) {
 
 	println("[+] Enter a URL, including http:// or https:// - if parameters are required, you must provide them as part of the URL: ")
 	fullURL, err := ReadLineStripWhitespace()
@@ -167,7 +167,6 @@ func curl(interactive bool) {
 		pauseToHitEnter(interactive)
 		return
 	}
-	responseBodyString := string(responseBody)
-	println(responseBodyString + "\n")
+	outputToUser(string(responseBody), logToFile, outputFileName)
 	pauseToHitEnter(interactive)
 }
