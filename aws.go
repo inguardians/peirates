@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"regexp"
@@ -130,23 +129,34 @@ func PullIamCredentialsFromAWS() (AWSCredentials, error) {
 	}
 	// Parse result as an account, then construct a request asking for that account's credentials
 	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		println("[-] Error - could not read list of security credentials.")
+		return credentials, errors.New("error - could not read list of security credentials.")
+	}
 	account := string(body)
 	credentials.accountName = account
 
 	request := "http://169.254.169.254/latest/meta-data/iam/security-credentials/" + account
 	response2, err := http.Get(request)
 	if err != nil {
-		problem := "[-] Error - could not perform HTTP GET request : " + request
+		problem := "[-] error - could not perform HTTP GET request : " + request
 		println(problem)
 		return credentials, errors.New(problem)
 	}
 	defer response2.Body.Close()
-	body2, err := ioutil.ReadAll(response2.Body)
+	body2, err := io.ReadAll(response2.Body)
+	if err != nil {
+		problem := "[-] error - could not read security credentials"
+		println(problem)
+		return credentials, errors.New(problem)
+	}
 
 	err = json.Unmarshal(body2, &credentials)
 	if err != nil {
-		println("[-] Error - problem with JSON unmarshal")
+		problem := "[-] error - problem with JSON unmarshal"
+		println(problem)
+		return credentials, errors.New(problem)
 	}
 	return credentials, nil
 
@@ -176,7 +186,7 @@ func PullIamCredentialsFromAWSWithIMDSv2() (AWSCredentials, error) {
 	defer resp.Body.Close()
 
 	// Use the token
-	token, err := ioutil.ReadAll(resp.Body)
+	token, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println("Error reading token:", err)
 		return credentials, err
@@ -323,7 +333,7 @@ func GetAWSRegionAndZone() (region string, zone string, err error) {
 	}
 	// Parse result as a region.
 	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := io.ReadAll(response.Body)
 	zone = string(body)
 
 	// Strip the last character off the region to get the zone.
