@@ -105,13 +105,15 @@ func getKubeletKubeconfigPath() (string, error) {
 		if strings.Contains(args[0], "kubelet") {
 			kubeConfig := findFlagValue(args, "--kubeconfig")
 			if kubeConfig != "" {
-				fmt.Printf("DEBUG: Kubelet is running with PID %s and uses kubeconfig: %s\n", pid, kubeConfig)
+				if Verbose {
+					fmt.Printf("DEBUG: Kubelet is running with PID %s and uses kubeconfig: %s\n", pid, kubeConfig)
+				}
 				return kubeConfig, nil
 			}
 		}
 	}
 
-	return "", errors.New("Kubelet not found")
+	return "", errors.New("kubelet not found")
 }
 
 func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) error {
@@ -125,14 +127,14 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 	// Determine if one of the paths above exists and use it to get kubelet keypairs
 	kubeletKubeconfigFilePaths := make([]string, 0)
 
-	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/var/lib/kubelet/kubeconfig")
-	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/etc/kubernetes/kubeconfig")
-	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/etc/kubernetes/kubelet.conf")
-
 	psDiscoveredPath, err := getKubeletKubeconfigPath()
 	if err != nil {
 		kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, psDiscoveredPath)
 	}
+
+	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/var/lib/kubelet/kubeconfig")
+	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/etc/kubernetes/kubeconfig")
+	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/etc/kubernetes/kubelet.conf")
 
 	for _, path := range kubeletKubeconfigFilePaths {
 		// On each path, check for existence of the file.
