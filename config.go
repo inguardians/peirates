@@ -300,8 +300,6 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 // Add the service account tokens for any pods found in /var/lib/kubelet/pods/. Also, harvest secrets.
 func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, runFromMenu bool) {
 
-	// func gatherPodCredentials(serviceAccounts *[]ServiceAccount, certificateSecrets *[]CertSecret, nonTokenNonCertSecrets *[]nonTokenNonCertSecrets,interactive bool) {
-
 	// Exit if /var/lib/kubelet/pods does not exist
 	const kubeletPodsDir = "/var/lib/kubelet/pods/"
 	if _, err := os.Stat(kubeletPodsDir); os.IsNotExist(err) {
