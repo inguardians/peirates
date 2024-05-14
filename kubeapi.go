@@ -7,7 +7,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 )
 
@@ -55,7 +54,7 @@ func newKubeRequest(path string, cfg RequestConfig) (*http.Request, error) {
 //	        cfg.Port = port
 //	    })
 //	}
-func Request(path string, cfgs ...func(*RequestConfig)) string {
+func Request(path string, cfgs ...func(*RequestConfig)) (string, error) {
 	cfg := RequestConfig{
 		Host:              "127.0.0.1",
 		Port:              6443, // The default Kubernetes port
@@ -72,8 +71,7 @@ func Request(path string, cfgs ...func(*RequestConfig)) string {
 	// Build an HTTP request from our configuration
 	req, err := newKubeRequest(path, cfg)
 	if err != nil {
-		// TODO should we return the error instead?
-		log.Fatal(err)
+		return "", err
 	}
 
 	// Make a copy of the default transport configuration
@@ -92,25 +90,29 @@ func Request(path string, cfgs ...func(*RequestConfig)) string {
 	// Actually perform the request
 	res, err := client.Do(req)
 	if err != nil {
-		// TODO should we return the error instead?
-		log.Fatal(err)
+		return "", err
 	}
 
 	// Read and return the response
 	contents, err := io.ReadAll(res.Body)
 	if err != nil {
-		// TODO should we return the error instead?
-		log.Fatal(err)
+		return "", err
 	}
 
-	return string(contents)
+	return string(contents), nil
 }
 
-func RequestSimple(path string, host string, port int) string {
+func RequestSimple(path string, host string, port int) (string, error) {
 	// This passes a function literal (also known as a lambda or anonymous function)
 	// to RequestPath to configure the host and port.
-	return Request(path, func(cfg *RequestConfig) {
+
+	output, err := Request(path, func(cfg *RequestConfig) {
 		cfg.Host = host
 		cfg.Port = port
 	})
+	if err != nil {
+		return err.Error(), err
+	}
+
+	return output, nil
 }
