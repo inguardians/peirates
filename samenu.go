@@ -51,9 +51,11 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, int
 	defer l.Close()
 	// l.CaptureExitSignal()
 
-	println("Current primary service account: ", connectionString.TokenName)
+	if len(connectionString.TokenName) != 0 {
+		println("Current primary service account: ", connectionString.TokenName)
+	}
+
 	println(`
-	
 	[1] List service accounts [list]
 	[2] Switch primary service account [switch]
 	[3] Enter new service account JWT [add]
@@ -86,7 +88,12 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, int
 	case "2", "switch":
 		switchServiceAccounts(*serviceAccounts, connectionString)
 	case "3", "add":
-		serviceAccount := acceptServiceAccountFromUser()
+		serviceAccount, err := acceptServiceAccountFromUser()
+		if err != nil {
+			fmt.Printf("Error accepting service account - encountered error: %s\n", err.Error())
+			pauseToHitEnter(interactive)
+			return
+		}
 		*serviceAccounts = append(*serviceAccounts, serviceAccount)
 
 		println(`

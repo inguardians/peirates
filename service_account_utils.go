@@ -3,6 +3,7 @@ package peirates
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -69,7 +70,7 @@ func MakeClientCertificateKeyPair(name, clientCertificateData, clientKeyData, AP
 	}
 }
 
-func acceptServiceAccountFromUser() ServiceAccount {
+func acceptServiceAccountFromUser() (ServiceAccount, error) {
 	var err error
 	println("\nPlease paste in a new service account token or hit ENTER to maintain current token.")
 	serviceAccount := ServiceAccount{
@@ -78,18 +79,24 @@ func acceptServiceAccountFromUser() ServiceAccount {
 		DiscoveryTime:   time.Now(),
 		DiscoveryMethod: "User Input",
 	}
-	println("\nWhat do you want to name this service account?")
-	serviceAccount.Name, err = ReadLineStripWhitespace()
-	if err != nil {
-		println("Problem with white space: %v", err)
-	}
 	println("\nPaste the service account token and hit ENTER:")
 	serviceAccount.Token, err = ReadLineStripWhitespace()
 	if err != nil {
 		println("Problem with white space: %v", err)
+		return serviceAccount, err
+	}
+	if serviceAccount.Token == "" {
+		return serviceAccount, errors.New("No token provided")
 	}
 
-	return serviceAccount
+	println("\nWhat do you want to name this service account?")
+	serviceAccount.Name, err = ReadLineStripWhitespace()
+	if err != nil {
+		println("Problem with reading in name: %v", err)
+		serviceAccount.Name = "Unnamed"
+	}
+
+	return serviceAccount, nil
 }
 
 func assignServiceAccountToConnection(account ServiceAccount, info *ServerInfo) {
