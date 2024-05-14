@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -134,7 +135,7 @@ func GetRequest(url string, headers []HeaderLine, ignoreTLSErrors bool) (string,
 
 	if err != nil {
 		fmt.Printf("[-] GetRequest failed to construct an HTTP request from URL %s : %s\n", url, err.Error())
-		return "", req.Response.StatusCode
+		return "", 999
 	}
 
 	for _, header := range headers {
@@ -147,7 +148,7 @@ func GetRequest(url string, headers []HeaderLine, ignoreTLSErrors bool) (string,
 		return "", response.StatusCode
 	}
 	defer response.Body.Close()
-	body, _ := ioutil.ReadAll(response.Body)
+	body, _ := io.ReadAll(response.Body)
 
 	return string(body), response.StatusCode
 }
