@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"regexp"
@@ -317,7 +316,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 	pauseOnExit := false
 
 	// Read the directory for a list of subdirs (pods)
-	dirs, err := ioutil.ReadDir(kubeletPodsDir)
+	dirs, err := os.ReadDir(kubeletPodsDir)
 	if err != nil {
 		if runFromMenu {
 			println("Attack fails - cannot read ", kubeletPodsDir)
@@ -345,7 +344,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 		if _, err := os.Stat(secretPath); os.IsNotExist(err) {
 			continue
 		}
-		secrets, err := ioutil.ReadDir(secretPath)
+		secrets, err := os.ReadDir(secretPath)
 		if err != nil {
 			continue
 		}
@@ -497,7 +496,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 		if _, err := os.Stat(serviceAccountPath); os.IsNotExist(err) {
 			continue
 		}
-		serviceAccountDirs, err := ioutil.ReadDir(serviceAccountPath)
+		serviceAccountDirs, err := os.ReadDir(serviceAccountPath)
 		if err != nil {
 			continue
 		}
