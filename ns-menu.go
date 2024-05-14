@@ -25,7 +25,7 @@ func interactiveNSMenu(connectionString *ServerInfo) {
 
 	l, err := readline.NewEx(&readline.Config{
 		Prompt:          "\033[31m»\033[0m ",
-		HistoryFile:     "/tmp/peirates.tmp",
+		HistoryFile:     "/tmp/peirates.history",
 		AutoComplete:    completer,
 		InterruptPrompt: "^C",
 		EOFPrompt:       "exit",
