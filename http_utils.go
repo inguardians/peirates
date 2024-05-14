@@ -10,10 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -251,15 +251,46 @@ func curlNonWizard(arguments ...string) (request *http.Request, https bool, igno
 	// Scan through the arguments for a method
 	method := "GET"
 	var fullURL string
+	params := make(map[string]string)
+
+	var skipArgument bool
+
 	for i, argument := range arguments {
+		if skipArgument {
+			skipArgument = false
+			continue
+		}
+
 		if argument == "-X" {
 			// Method is being set
 			method = arguments[i+1]
-			println("DEBUG: found argument -X " + method)
+			if Verbose {
+				println("DEBUG: found argument -X " + method)
+			}
+
+			// Skip the next argument, since we've captured it here already
+			skipArgument = true
+
 		} else if argument == "-k" {
 			ignoreTLSErrors = true
 		} else if argument == "-d" {
-			// TODO: parse out next argument as POST data
+			data := arguments[i+1]
+			if Verbose {
+				println("DEBUG: found argument -d " + data)
+			}
+
+			// Parse the argument
+			if strings.Contains(data, "=") {
+				keyValuePair := strings.Split(data, "=")
+				params[keyValuePair[0]] = url.QueryEscape(keyValuePair[1])
+			} else {
+				fmt.Printf("ERROR - parameter %s does not contain an = sign - please resubmit this with any -d arguments followed by key=value\n", data)
+				return nil, false, false, "", errors.New("parameter did not contain key=value pairs")
+			}
+
+			// Skip the next argument, since we've captured it here already
+			skipArgument = true
+
 		} else if strings.HasPrefix(argument, "http://") {
 			fullURL = argument
 		} else if strings.HasPrefix(argument, "https://") {
@@ -268,13 +299,14 @@ func curlNonWizard(arguments ...string) (request *http.Request, https bool, igno
 			// TODO: Allow user to enter a caCertPath?
 			caCertPath = ""
 		}
-		// TODO: Implement headers
 
 	}
 
 	var headers []HeaderLine
 	paramLocation := "url"
-	var params map[string]string
+	if method == "POST" {
+		paramLocation = "body"
+	}
 
 	// Make the request and get the response.
 	request, err = createHTTPrequest(method, fullURL, headers, paramLocation, params)

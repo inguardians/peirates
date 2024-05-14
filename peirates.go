@@ -276,7 +276,8 @@ func Main() {
 			request, https, ignoreTLSErrors, caCertPath, err := curlNonWizard(arguments...)
 			if err != nil {
 				println("Could not create request.")
-				break
+				pauseToHitEnter(interactive)
+				continue
 			}
 			responseBody, err := DoHTTPRequestAndGetBody(request, https, ignoreTLSErrors, caCertPath)
 			responseBodyString := string(responseBody)
@@ -284,7 +285,6 @@ func Main() {
 
 			if err != nil {
 				println("Request produced an error.")
-				break
 			}
 			pauseToHitEnter(interactive)
 			continue
