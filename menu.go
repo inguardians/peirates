@@ -36,7 +36,7 @@ Menu |
 [ shell <command> ]                   Run a shell command 
 
 [ full ]                              Switch to full (classic menu) with a longer list of commands
-[ outputfile ] 						  Write all kubectl output to a file [outputfile [filename]]
+[ outputfile ] 						  Write all kubectl output to a file **ALPHA** [outputfile [filename]]
 [ exit ]                              Exit Peirates 
 ---------------------------------------------------------------------`)
 	fmt.Printf("\nPeirates:># ")
@@ -94,7 +94,7 @@ Off-Menu         +
 []  Run a shell command [shell <command and arguments>]
 
 [short] Reduce the set of visible commands in this menu
-[ outputfile ] Write all kubectl output to a file [outputfile [filename]]
+[ outputfile ] Write all kubectl output to a file **ALPHA** [outputfile [filename]]
 
 [exit] Exit Peirates 
 ---------------------------------------------------------------------`)
