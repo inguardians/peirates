@@ -3,7 +3,6 @@ package peirates
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
@@ -127,7 +126,6 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 	randomString := randSeq(6)
 
 	// Create pod manifest in YAML
-	// TODO: The file creation should use mktemp() or similar.
 	MountInfoVars.yamlBuild = fmt.Sprintf(`apiVersion: v1
 kind: Pod
 metadata:
@@ -151,8 +149,13 @@ spec:
        path: /
 `, randomString, connectionString.Namespace, MountInfoVars.image)
 
-	// Write yaml file out to current directory
-	error := ioutil.WriteFile("attack-pod.yaml", []byte(MountInfoVars.yamlBuild), 0600)
+	// Write yaml file out to temp file
+	manifestTmpFile, err := os.CreateTemp("/tmp", "attack-pod-manifest-*.yaml")
+	if err != nil {
+		println("[-] Unable to create temporary file to write a manifest.")
+		return
+	}
+	_, error := manifestTmpFile.Write([]byte(MountInfoVars.yamlBuild))
 	if error != nil {
 		println("[-] Unable to write file: attack-pod.yaml")
 		return
