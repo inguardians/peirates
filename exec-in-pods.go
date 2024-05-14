@@ -6,8 +6,12 @@ func execInPodMenu(connectionString ServerInfo, interactive bool) {
 
 	var input string
 
-	println("[1] Run command on a specific pod")
-	println("[2] Run command on all pods")
+	println(`
+	[1] Run command on a specific pod
+	[2] Run command on all pods
+	`)
+	fmt.Printf("\nPeirates (execInPods):># ")
+
 	_, err := fmt.Scanln(&input)
 	if err != nil {
 		println("Problem with reading input: %v", err)

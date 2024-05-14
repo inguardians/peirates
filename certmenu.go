@@ -38,9 +38,12 @@ func certMenu(clientCertificates *[]ClientCertificateKeyPair, connectionString *
 	// l.CaptureExitSignal()
 
 	println("Current certificate-based authentication: ", connectionString.ClientCertName)
-	println("\n")
-	println("[1] List client certificates [list]")
-	println("[2] Switch active client certificates [switch]")
+	println(` 
+
+	[1] List client certificates [list]
+	[2] Switch active client certificates [switch]
+
+	Peirates (certmenu):>#`)
 	// println("[3] Enter new client certificate and key [add]")
 	// println("[4] Export service accounts to JSON [export]")
 	// println("[5] Import service accounts from JSON [import]")

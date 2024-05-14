@@ -52,16 +52,17 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, int
 	// l.CaptureExitSignal()
 
 	println("Current primary service account: ", connectionString.TokenName)
-	println("\n")
-	println("[1] List service accounts [list]")
-	println("[2] Switch primary service account [switch]")
-	println("[3] Enter new service account JWT [add]")
-	println("[4] Export service accounts to JSON [export]")
-	println("[5] Import service accounts from JSON [import]")
-	println("[6] Decode a stored or entered service account token (JWT) [decode]")
-	println("[7] Display a stored service account token in its raw form [display]")
-
-	println("\n")
+	println(`
+	
+	[1] List service accounts [list]
+	[2] Switch primary service account [switch]
+	[3] Enter new service account JWT [add]
+	[4] Export service accounts to JSON [export]
+	[5] Import service accounts from JSON [import]
+	[6] Decode a stored or entered service account token (JWT) [decode]
+	[7] Display a stored service account token in its raw form [display]
+	`)
+	fmt.Printf("\nPeirates (service account menu):># ")
 
 	var input string
 
@@ -88,9 +89,12 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, int
 		serviceAccount := acceptServiceAccountFromUser()
 		*serviceAccounts = append(*serviceAccounts, serviceAccount)
 
-		println()
-		println("[1] Switch to this service account")
-		println("[2] Maintain current service account")
+		println(`
+		[1] Switch to this service account
+		[2] Maintain current service account
+		`)
+		fmt.Printf("\nPeirates (add svc acct):># ")
+
 		_, err = fmt.Scanln(&input)
 		if err != nil {
 			fmt.Printf("Error reading input: %s\n", err.Error())
@@ -132,9 +136,13 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, int
 		}
 	case "6", "decode":
 		var token string
-		println("\n1) Decode a JWT entered via a string.")
-		println("2) Decode a service account token stored here.")
-		println("Peirates:># ")
+		println(`
+		1) Decode a JWT entered via a string.
+		2) Decode a service account token stored here.
+
+		`)
+		fmt.Printf("\nPeirates (decode):># ")
+
 		_, err = fmt.Scanln(&input)
 
 		if err != nil {

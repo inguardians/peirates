@@ -435,8 +435,12 @@ func KopsAttackAWS(serviceAccounts *[]ServiceAccount, awsCredentials AWSCredenti
 	var storeTokens string
 	placeTokensInStore := false
 
-	println("[1] Store all tokens found in Peirates data store")
-	println("[2] Retrieve all tokens - I will copy and paste")
+	println(`
+	[1] Store all tokens found in Peirates data store
+	[2] Retrieve all tokens - I will copy and paste
+	`)
+	fmt.Printf("\nPeirates (AWS):># ")
+
 	_, err := fmt.Scanln(&storeTokens)
 	if err != nil {
 		println("[-] Error reading input")

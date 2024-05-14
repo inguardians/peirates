@@ -40,9 +40,10 @@ func interactiveNSMenu(connectionString *ServerInfo) {
 	// l.CaptureExitSignal()
 
 	println(`
-			[1] List namespaces [list]
-			[2] Switch namespace [switch]
-			`)
+	[1] List namespaces [list]
+	[2] Switch namespace [switch]
+	`)
+	fmt.Printf("\nPeirates (ns-menu):># ")
 
 	var input string
 

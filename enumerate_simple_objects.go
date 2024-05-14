@@ -172,9 +172,12 @@ func printListOfPods(connectionString ServerInfo) {
 }
 
 func findVolumeMounts(connectionString ServerInfo, podInfo *PodDetails) {
-	println("[1] Get all host mount points [all]")
-	println("[2] Get volume mount points for a specific pod [single]")
-	println("\nPeirates:># ")
+	println(`
+	[1] Get all host mount points [all]")
+	[2] Get volume mount points for a specific pod [single]")
+	`)
+	fmt.Printf("\nPeirates (volMounts):># ")
+
 	var input string
 	_, err := fmt.Scanln(&input)
 	if err != nil {
