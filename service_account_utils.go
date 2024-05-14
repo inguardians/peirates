@@ -153,20 +153,23 @@ func assignAuthenticationCertificateAndKeyToConnection(keypair ClientCertificate
 
 }
 
-func listServiceAccounts(serviceAccounts []ServiceAccount, connectionString ServerInfo) {
+func listServiceAccounts(serviceAccounts []ServiceAccount, connectionString ServerInfo, logToFile bool, outputFileName string) {
 	println("\nAvailable Service Accounts:")
+	// Build a string of the service accounts, with the current one marked.
+	var output string
 	for i, account := range serviceAccounts {
 		if account.Name == connectionString.TokenName {
-			fmt.Printf("> [%d] %s\n", i, account.Name)
+			output += fmt.Sprintf("> [%d] %s\n", i, account.Name)
 		} else {
-			fmt.Printf("  [%d] %s\n", i, account.Name)
+			output += fmt.Sprintf("  [%d] %s\n", i, account.Name)
 		}
 	}
+	outputToUser(output, logToFile, outputFileName)
 }
 
-func switchServiceAccounts(serviceAccounts []ServiceAccount, connectionString *ServerInfo) {
+func switchServiceAccounts(serviceAccounts []ServiceAccount, connectionString *ServerInfo, logToFile bool, outputFileName string) {
 	var err error
-	listServiceAccounts(serviceAccounts, *connectionString)
+	listServiceAccounts(serviceAccounts, *connectionString, logToFile, outputFileName)
 	println("\nEnter service account number or exit to abort: ")
 	var tokNum int
 	var input string
@@ -187,9 +190,10 @@ func switchServiceAccounts(serviceAccounts []ServiceAccount, connectionString *S
 	return
 }
 
-func displayServiceAccountTokenInteractive(serviceAccounts []ServiceAccount, connectionString *ServerInfo) {
+func displayServiceAccountTokenInteractive(serviceAccounts []ServiceAccount, connectionString *ServerInfo, logToFile bool, outputFileName string) {
 	var err error
-	listServiceAccounts(serviceAccounts, *connectionString)
+	listServiceAccounts(serviceAccounts, *connectionString, false, outputFileName)
+
 	println("\nEnter service account number or exit to abort: ")
 	var tokNum int
 	var input string

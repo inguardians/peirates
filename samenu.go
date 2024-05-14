@@ -30,7 +30,7 @@ func setUpCompletionSaMenu() *readline.PrefixCompleter {
 	return completer
 }
 
-func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, interactive bool) {
+func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, interactive bool, logToFile bool, outputFileName string) {
 
 	// Set up main menu tab completion
 	var completer *readline.PrefixCompleter = setUpCompletionSaMenu()
@@ -84,9 +84,9 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, int
 
 	switch strings.ToLower(input) {
 	case "1", "list":
-		listServiceAccounts(*serviceAccounts, *connectionString)
+		listServiceAccounts(*serviceAccounts, *connectionString, logToFile, outputFileName)
 	case "2", "switch":
-		switchServiceAccounts(*serviceAccounts, connectionString)
+		switchServiceAccounts(*serviceAccounts, connectionString, logToFile, outputFileName)
 	case "3", "add":
 		serviceAccount, err := acceptServiceAccountFromUser()
 		if err != nil {
@@ -198,7 +198,7 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, int
 			}
 		}
 	case "7", "display":
-		displayServiceAccountTokenInteractive(*serviceAccounts, connectionString)
+		displayServiceAccountTokenInteractive(*serviceAccounts, connectionString, logToFile, outputFileName)
 
 	}
 }

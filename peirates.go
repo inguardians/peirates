@@ -27,7 +27,7 @@ var UseAuthCanI bool = true
 // Main starts Peirates[]
 func Main() {
 	// Peirates version string
-	var version = "1.1.21"
+	var version = "1.1.22a"
 
 	var err error
 
@@ -356,11 +356,11 @@ func Main() {
 
 		//	[1] List, maintain, or switch service account contexts [sa-menu]  (try: list-sa *, switch-sa, get-sa)
 		case "switchsa", "saswitch", "switch-sa", "sa-switch":
-			switchServiceAccounts(serviceAccounts, &connectionString)
+			switchServiceAccounts(serviceAccounts, &connectionString, logToFile, outputFileName)
 		case "listsa", "list-sa", "salist", "sa-list", "get-sa":
-			listServiceAccounts(serviceAccounts, connectionString)
+			listServiceAccounts(serviceAccounts, connectionString, logToFile, outputFileName)
 		case "1", "sa-menu", "service-account-menu", "sa", "service-account":
-			saMenu(&serviceAccounts, &connectionString, interactive)
+			saMenu(&serviceAccounts, &connectionString, interactive, logToFile, outputFileName)
 
 		// [2] List and/or change namespaces [ns-menu] (try: list-ns, switch-ns, get-ns)
 		case "list-ns", "listns", "nslist", "ns-list", "get-ns", "getns":
