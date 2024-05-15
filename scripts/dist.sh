@@ -22,6 +22,7 @@ function usage() {
   echo "-r     Build for arm64"
   echo "-t     Build for 386"
   echo "-x     Build all architectures"
+  echo "-s     Build statically-linked"
 }
 
 function compress() {
@@ -30,21 +31,15 @@ function compress() {
   rmdir peirates-${OS}-${ARCH}
 }
 
-function build-dynamic() {
-  echo "Building for arch: ${ARCH}"
-  GOOS=${OS} GOARCH=${ARCH} go build -ldflags="-s -w" $(realpath ../cmd/peirates)
-  if [ ! -d peirates-${OS}-${ARCH} ] ; then 
-    mkdir peirates-${OS}-${ARCH}
-  fi
-  mv peirates peirates-${OS}-${ARCH}
-  if [ $COMPRESS == "yes" ] ; then
-    compress ${ARCH}
-  fi
-}
-
 function build() {
   echo "Building for arch: ${ARCH}"
-  GOOS=${OS} GOARCH=${ARCH} go build -ldflags="-s -w" $(realpath ../cmd/peirates)
+
+  if [ $STATIC == "static" ] ; then
+     GOOS=${OS} GOARCH=${ARCH} go build -tags netgo,osusergo --ldflags '-extldflags "-static"' $(realpath ../cmd/peirates)
+  else
+     GOOS=${OS} GOARCH=${ARCH} go build -ldflags="-s -w" $(realpath ../cmd/peirates)
+  fi
+
   if [ ! -d peirates-${OS}-${ARCH} ] ; then
     mkdir peirates-${OS}-${ARCH}
   fi
@@ -63,11 +58,14 @@ function main() {
   for xx in ${ARCHITECTURES[@]};
   do
     ARCH="${xx}"
+    #build-dynamic ${ARCH}
     build ${ARCH}
   done
 }
 
-while getopts "haCmrtx" option; do
+STATIC="dynamic"
+
+while getopts "haCmrstx" option; do
   case $option in
     h)
       usage
@@ -84,6 +82,9 @@ while getopts "haCmrtx" option; do
     ;;
     r)
       ARCHITECTURES=( "arm64" )
+    ;;
+    s)
+      STATIC="static"
     ;;
     t)
       ARCHITECTURES=( "386" )
