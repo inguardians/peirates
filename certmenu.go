@@ -45,9 +45,9 @@ func certMenu(clientCertificates *[]ClientCertificateKeyPair, connectionString *
 
 	Peirates (certmenu):>#`)
 	// println("[3] Enter new client certificate and key [add]")
-	// println("[4] Export service accounts to JSON [export]")
-	// println("[5] Import service accounts from JSON [import]")
-	// println("[6] Decode a stored or entered service account token (JWT) [decode]")
+	// println("[4] Export client certificate and key to text [export]")
+	// println("[5] Import client certificate and key to text [import]")
+	// println("[6] Decode a stored certificate [decode]")
 
 	println("\n")
 
