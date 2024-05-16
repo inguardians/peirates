@@ -13,9 +13,9 @@ import (
 func setUpCompletionSaMenu() *readline.PrefixCompleter {
 	completer := readline.NewPrefixCompleter(
 		// [1] List service accounts [list]
-		readline.PcItem("list"),
+		readline.PcItem("listsa"),
 		// [2] Switch primary service account [switch]
-		readline.PcItem("switch"),
+		readline.PcItem("switchsa"),
 		// [3] Enter new service account JWT [add]
 		readline.PcItem("add"),
 		// [4] Export service accounts to JSON [export]
@@ -56,8 +56,8 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, int
 	}
 
 	println(`
-	[1] List service accounts [list]
-	[2] Switch primary service account [switch]
+	[1] List service accounts [listsa]
+	[2] Switch primary service account [switchsa]
 	[3] Enter new service account JWT [add]
 	[4] Export service accounts to JSON [export]
 	[5] Import service accounts from JSON [import]
@@ -83,9 +83,9 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, int
 	input = strings.TrimSpace(line)
 
 	switch strings.ToLower(input) {
-	case "1", "list":
+	case "1", "list", "listsa":
 		listServiceAccounts(*serviceAccounts, *connectionString, logToFile, outputFileName)
-	case "2", "switch":
+	case "2", "switch", "switchsa":
 		switchServiceAccounts(*serviceAccounts, connectionString, logToFile, outputFileName)
 	case "3", "add":
 		serviceAccount, err := acceptServiceAccountFromUser()
@@ -120,16 +120,16 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, int
 			println("Input not understood - adding service account but not switching context")
 		}
 		println("")
-	case "4", "export":
+	case "4", "export", "exportsa":
 		serviceAccountJSON, err := json.Marshal(serviceAccounts)
 		if err != nil {
 			fmt.Printf("[-] Error exporting service accounts: %s\n", err.Error())
 			pauseToHitEnter(interactive)
 			return
 		} else {
-			println(string(serviceAccountJSON))
+			outputToUser(string(serviceAccountJSON), logToFile, outputFileName)
 		}
-	case "5", "import":
+	case "5", "import", "importsa":
 		var newserviceAccounts []ServiceAccount
 		println("Please enter service account token")
 		err := json.NewDecoder(os.Stdin).Decode(&newserviceAccounts)
