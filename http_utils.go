@@ -205,7 +205,9 @@ func createHTTPrequest(method string, urlWithoutValues string, headers []HeaderL
 
 				data := url.Values{}
 				for key, value := range params {
-					fmt.Printf("key[%s] value[%s]\n", key, value)
+					if Verbose {
+						fmt.Printf("key[%s] value[%s]\n", key, value)
+					}
 					data.Set(key, value)
 				}
 				encodedData := data.Encode()
@@ -266,7 +268,7 @@ func curlNonWizard(arguments ...string) (request *http.Request, https bool, igno
 			// Method is being set
 			method = arguments[i+1]
 			if Verbose {
-				println("DEBUG: found argument -X " + method)
+				println("DEBUG: found argument to set method: -X " + method)
 			}
 
 			// Skip the next argument, since we've captured it here already
@@ -276,6 +278,16 @@ func curlNonWizard(arguments ...string) (request *http.Request, https bool, igno
 			ignoreTLSErrors = true
 		} else if argument == "-d" {
 			data := arguments[i+1]
+
+			// Strip quotation marks if present
+			if strings.HasPrefix(data, "\"") && strings.HasSuffix(data, "\"") {
+				data = data[1 : len(data)-1]
+			}
+			// Strip single quotation marks if present
+			if strings.HasPrefix(data, "'") && strings.HasSuffix(data, "'") {
+				data = data[1 : len(data)-1]
+			}
+
 			if Verbose {
 				println("DEBUG: found argument -d " + data)
 			}
