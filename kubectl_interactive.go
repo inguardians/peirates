@@ -27,9 +27,6 @@ Leave off the "kubectl" part of the command.  For example:
 
 `)
 
-	// FEATURE IDEA/TODO: allow any output to be saved into raw text and/or structured objects (YAML/JSON)
-        //                    save this output in a named object that the user can recall, parse with jq-type stuff.
-
 	fmt.Printf("Please enter a kubectl command: ")
 	input, err := ReadLineStripWhitespace()
 
