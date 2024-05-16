@@ -7,7 +7,9 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"time"
 )
 
 type RequestConfig struct {
@@ -74,8 +76,19 @@ func Request(path string, cfgs ...func(*RequestConfig)) (string, error) {
 		return "", err
 	}
 
-	// Make a copy of the default transport configuration
-	transport := *http.DefaultTransport.(*http.Transport)
+	// Create a transport configuration
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
 
 	if cfg.IgnoreHttpsErrors {
 		// Set up our copy to ignore HTTPS errors
@@ -84,7 +97,7 @@ func Request(path string, cfgs ...func(*RequestConfig)) (string, error) {
 
 	// HTTP client with transport configuration
 	client := http.Client{
-		Transport: &transport,
+		Transport: transport,
 	}
 
 	// Actually perform the request
