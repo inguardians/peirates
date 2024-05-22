@@ -226,6 +226,44 @@ func printJWT(tokenString string) {
 	err = display.PrintJSON(claims)
 }
 
+func parseServiceAccountJWT_return_sub(tokenString string) (int64, string, error) {
+
+	// Split the JWT into its three components
+	parts := strings.Split(tokenString, ".")
+	if len(parts) != 3 {
+		errorMsg := fmt.Sprintf("Invalid token: %s", tokenString)
+		println(errorMsg)
+		return 0, "", errors.New(errorMsg)
+	}
+
+	// Decode the payload (second part)
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		errorMsg := fmt.Sprintf("Error decoding payload: %v", err)
+		println(errorMsg)
+		return 0, "", errors.New(errorMsg)
+	}
+
+	// Parse the JSON payload
+	var claims map[string]interface{}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		errorMsg := fmt.Sprintf("Error parsing JSON: %v", err)
+		println(errorMsg)
+		return 0, "", errors.New(errorMsg)
+	}
+
+	// Extract the "sub" field
+	if sub, ok := claims["sub"].(string); ok {
+		fmt.Printf("%s\n", sub)
+		return 0, sub, nil
+	} else {
+		errorMsg := "Error: 'sub' field not found or not a string"
+		println(errorMsg)
+		return 0, "", errors.New(errorMsg)
+	}
+
+}
+
 // parseServiceAccountJWT() takes in a service account JWT and returns its expiration date and name.
 func parseServiceAccountJWT(tokenString string) (int64, string) {
 
