@@ -140,6 +140,8 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 	psDiscoveredPath, err := getKubeletKubeconfigPath()
 	if err != nil {
 		kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, psDiscoveredPath)
+	} else {
+		printIfVerbose("DEBUG: Kubelet config file command line parameter not found.", Verbose)
 	}
 
 	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/var/lib/kubelet/kubeconfig")
@@ -148,6 +150,7 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 
 	for _, path := range kubeletKubeconfigFilePaths {
 		// On each path, check for existence of the file.
+		printIfVerbose("DEBUG: Checking for kubelet's kubeconfig at "+path, Verbose)
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			printIfVerbose("checkForNodeCredentials() - path does not exist: "+path, Verbose)
 			continue
