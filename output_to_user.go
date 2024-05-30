@@ -28,3 +28,9 @@ func outputToUser(kubectlOutputString string, logToFile bool, outputFileName str
 	}
 
 }
+
+func printIfVerbose(message string, verbose bool) {
+	if verbose {
+		println(message)
+	}
+}

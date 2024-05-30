@@ -78,15 +78,21 @@ func ImportPodServiceAccountToken() ServerInfo {
 }
 
 func getKubeletKubeconfigPath() (string, error) {
+
 	// Open the /proc directory
+	printIfVerbose("DEBUG: Reading /proc to determine if a kubelet is visible.", Verbose)
+	printIfVerbose("DEBUG: Opening /proc directory for reading...", Verbose)
+
 	dir, err := os.Open("/proc")
 	if err != nil {
-		fmt.Println("DEBUG: Error opening /proc:", err)
+		printIfVerbose("DEBUG: Error opening /proc: "+err.Error(), Verbose)
 		return "", err
 	}
 	defer dir.Close()
 
 	// List all entries in the /proc directory
+	printIfVerbose("DEBUG: Reading directory contents from /proc.", Verbose)
+
 	procs, err := dir.Readdirnames(-1)
 	if err != nil {
 		fmt.Println("DEBUG: Error reading /proc:", err)
@@ -95,6 +101,8 @@ func getKubeletKubeconfigPath() (string, error) {
 
 	// Look for the kubelet process by checking cmdline for each process
 	for _, pid := range procs {
+		printIfVerbose("DEBUG: Checking PID "+pid+" for kubelet.", Verbose)
+
 		args, err := getCmdLine(pid)
 		if err != nil || len(args) == 0 {
 			continue
@@ -102,16 +110,19 @@ func getKubeletKubeconfigPath() (string, error) {
 
 		// Find the "kubelet" process and return its kubeconfig path
 		if strings.Contains(args[0], "kubelet") {
+			printIfVerbose("DEBUG: Found kubelet process with PID "+pid, Verbose)
+
 			kubeConfig := findFlagValue(args, "--kubeconfig")
 			if kubeConfig != "" {
-				if Verbose {
-					fmt.Printf("DEBUG: Kubelet is running with PID %s and uses kubeconfig: %s\n", pid, kubeConfig)
-				}
+				printIfVerbose(fmt.Sprintf("DEBUG: Kubelet is running with PID %s and uses kubeconfig: %s\n", pid, kubeConfig), Verbose)
 				return kubeConfig, nil
+			} else {
+				printIfVerbose("DEBUG: Kubelet is running with PID "+pid+" but no kubeconfig found.", Verbose)
 			}
 		}
 	}
 
+	printIfVerbose("DEBUG: Kubelet config file command line parameter not found.", Verbose)
 	return "", errors.New("kubelet not found")
 }
 
@@ -415,14 +426,10 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 							out, err := cmd.CombinedOutput()
 
 							if err != nil {
-								if Verbose {
-									println("DEBUG: running command failed with " + err.Error())
-								}
+								printIfVerbose("DEBUG: running command failed with "+err.Error(), Verbose)
 								continue
 							}
-							if Verbose {
-								fmt.Printf("DEBUG: Certificate is \n%s\n", string(out))
-							}
+							printIfVerbose(fmt.Sprintf("DEBUG: Certificate is \n%s\n", string(out)), Verbose)
 
 							// Now find a Subject line:
 
@@ -433,9 +440,9 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 								line := strings.TrimSpace(line)
 								subjectValue := strings.TrimPrefix(line, "Subject: ")
 								certNameFound = strings.TrimSpace(subjectValue)
-								if Verbose {
-									println("DEBUG: subject value was : " + subjectValue)
-								}
+
+								printIfVerbose("DEBUG: subject value was : "+subjectValue, Verbose)
+
 								break
 
 							}
@@ -588,9 +595,7 @@ func getPodName(kubeletPodsDir, podDirName string) string {
 				podName = strings.Fields(line)[1]
 				break
 			} else {
-				if Verbose {
-					println("DEBUG: unexpected line type: " + line)
-				}
+				printIfVerbose("DEBUG: unexpected line type: "+line, Verbose)
 			}
 
 		}
@@ -698,13 +703,22 @@ func getCmdLine(pid string) ([]string, error) {
 
 // Function to find the value for a specific flag in the command line arguments
 func findFlagValue(args []string, flag string) string {
+	printIfVerbose("DEBUG: Checking a process' arguments, looking for flag "+flag, Verbose)
 	for _, arg := range args {
+
+		printIfVerbose("DEBUG: Checking argument: "+arg, Verbose)
+
 		if strings.HasPrefix(arg, flag) {
+			printIfVerbose("DEBUG: Found flag in: "+arg, Verbose)
 			// Split the argument on "=" to separate the flag from its value
 			parts := strings.SplitN(arg, "=", 2)
 			if len(parts) == 2 {
+				printIfVerbose("Found value for flag of "+parts[1], Verbose)
 				return parts[1]
+			} else {
+				printIfVerbose("ERROR: incorrect number of = signs", Verbose)
 			}
+
 		}
 	}
 	return ""
