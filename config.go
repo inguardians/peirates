@@ -131,17 +131,17 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 	// Paths to explore:
 	// /var/lib/kubelet/kubeconfig
 	// /etc/kubernetes/kubeconfig
-	// <whatever path you get from checking the kubeconfig command line argument>
+	// /etc/kubernetes/kubelet.conf
 	// <whatever path you get from checking the kubeconfig command line argument>
 
 	// Determine if one of the paths above exists and use it to get kubelet keypairs
 	kubeletKubeconfigFilePaths := make([]string, 0)
 
 	psDiscoveredPath, err := getKubeletKubeconfigPath()
-	if err != nil {
+	if err == nil {
 		kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, psDiscoveredPath)
 	} else {
-		printIfVerbose("DEBUG: Kubelet config file command line parameter not found.", Verbose)
+		printIfVerbose("DEBUG: Kubelet config file command line parameter not found - error message was "+err.Error(), Verbose)
 	}
 
 	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/var/lib/kubelet/kubeconfig")
