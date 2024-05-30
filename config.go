@@ -149,16 +149,18 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 	for _, path := range kubeletKubeconfigFilePaths {
 		// On each path, check for existence of the file.
 		if _, err := os.Stat(path); os.IsNotExist(err) {
+			printIfVerbose("checkForNodeCredentials() - path does not exist: "+path, Verbose)
 			continue
 		}
 
+		printIfVerbose("checkForNodeCredentials() - Reading kubelet's kubeconfig from "+path, Verbose)
 		kubeconfigFile, err := os.ReadFile(path)
 		if err != nil {
 			println("ERROR: could not open file " + path)
 			continue
 		}
 
-		println("Reading kubelet's kubeconfig from " + path)
+		printIfVerbose("Reading kubelet's kubeconfig from "+path, Verbose)
 
 		config := make(map[interface{}]interface{})
 		err = yaml.Unmarshal(kubeconfigFile, &config)
@@ -183,17 +185,22 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 		// First, parse the API server URL and CA Cert from the "clusters" top-level data structure.
 		clustersSection := config["clusters"].([]interface{})
 		if clustersSection == nil {
+			printIfVerbose("DEBUG: no clusters section found in kubelet's kubeconfig file", Verbose)
 			continue
 		}
 		firstCluster := clustersSection[0].(map[string]interface{})
 		if firstCluster == nil {
+			printIfVerbose("DEBUG: no first cluster found in kubelet's kubeconfig file", Verbose)
 			continue
 		}
 		clusterSection := firstCluster["cluster"].(map[string]interface{})
 		if clusterSection == nil {
+			printIfVerbose("DEBUG: no cluster item found in first cluster's item", Verbose)
 			continue
 		}
 		APIServer := clusterSection["server"].(string)
+		printIfVerbose("DEBUG: API Server found in kubelet's kubeconfig file: "+APIServer, Verbose)
+
 		CACertBase64Encoded := clusterSection["certificate-authority-data"].(string)
 
 		// Decode the CA cert
@@ -203,6 +210,7 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 			continue
 		}
 		CACert := string(CACertBytes)
+		printIfVerbose(("DEBUG: CA Cert found and decoded from kubelet's kubeconfig file"), Verbose)
 
 		// Next, parse the "users" top-level data structure to get the kubelet's credentials
 		// This could either be data encoded straight into this file or can be a file path to find the data in.
@@ -300,6 +308,8 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 			*clientCertificates = append(*clientCertificates, thisClientCertKeyPair)
 
 			break
+		} else {
+			printIfVerbose("DEBUG: No client key or cert found in kubelet's kubeconfig file", Verbose)
 		}
 
 	}
