@@ -33,6 +33,7 @@ Menu |
 [ curl ]                              Make an HTTP request (GET or POST) to a user-specified URL 
 [ tcpscan ]                           Run a simple all-ports TCP port scan against an IP address 
 [ enumerate-dns ]                     Enumerate services via DNS  *
+[ cd , pwd , ls , cat ]				  Manipulate the filesystem via Golang-native commands
 [ shell <command> ]                   Run a shell command 
 
 [ full ]                              Switch to full (classic menu) with a longer list of commands
@@ -91,6 +92,7 @@ Off-Menu         +
 [92] Deactivate "auth can-i" checking before attempting actions [set-auth-can-i] 
 [93] Run a simple all-ports TCP port scan against an IP address [tcpscan]
 [94] Enumerate services via DNS [enumerate-dns] *
+[] Manipulate the filesystem [ cd , pwd , ls , cat ]
 []  Run a shell command [shell <command and arguments>]
 
 [short] Reduce the set of visible commands in this menu
@@ -270,6 +272,11 @@ func setUpCompletionMainMenu() *readline.PrefixCompleter {
 		readline.PcItem("tcpscan"),
 		// [94] Enumerate services via DNS [enumerate-dns] *
 		readline.PcItem("enumerate-dns"),
+		// [ cd __ , pwd , ls ___ , cat ___ ] Manipulate the filesystem via Golang-native commands
+		readline.PcItem("cd"),
+		readline.PcItem("pwd"),
+		readline.PcItem("ls"),
+		readline.PcItem("cat"),
 		// []  Run a shell command [shell <command and arguments>]
 		readline.PcItem("shell"),
 		// [short] Reduce the set of visible commands in this menu

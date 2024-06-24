@@ -27,7 +27,7 @@ var UseAuthCanI bool = true
 // Main starts Peirates[]
 func Main() {
 	// Peirates version string
-	var version = "1.1.22"
+	var version = "1.1.23"
 
 	var err error
 
@@ -223,6 +223,101 @@ func Main() {
 			}
 
 			// Make sure not to go into the switch-case
+			pauseToHitEnter(interactive)
+			continue
+		}
+
+		//
+		// Handle built-in filesystem commands before the switch menu
+		//
+
+		const pwd = "pwd"
+		if input == pwd {
+			// Print the current working directory
+			cwd, error := getCurrentDirectory()
+			if error != nil {
+				println("Error getting current directory: " + error.Error())
+				continue
+			}
+			println(cwd)
+			pauseToHitEnter(interactive)
+			continue
+		}
+
+		const cdSpace = "cd "
+		if strings.HasPrefix(input, cdSpace) {
+
+			// Trim off the newline - should we do this for all input anyway?
+			input = strings.TrimSuffix(input, "\n")
+			// Trim off the cd, then grab the argument.
+			// This will fail if there are spaces in the directory name - TODO: improve this.
+			argumentsLine := strings.TrimPrefix(input, cdSpace)
+			arguments := strings.Fields(argumentsLine)
+			directory := arguments[0]
+			// remove the cd, then try to change to that directory
+			changeDirectory(directory)
+
+			// Get the new directory and print its name
+			cwd, error := getCurrentDirectory()
+			if error != nil {
+				println("Error getting current directory: " + error.Error())
+				continue
+			}
+			println(cwd)
+
+			pauseToHitEnter(interactive)
+			continue
+		}
+
+		// cat to display files
+		const catSpace = "cat "
+		if strings.HasPrefix(input, catSpace) {
+			// Trim off the newline - should we do this for all input anyway?
+			input = strings.TrimSuffix(input, "\n")
+			// remove the cat, then split the rest on whitespace
+			argumentsLine := strings.TrimPrefix(input, catSpace)
+			spaceDelimitedSet := strings.Fields(argumentsLine)
+			for _, file := range spaceDelimitedSet {
+				err := displayFile(file)
+				if err != nil {
+					println("Error displaying file: " + file + " due to " + err.Error())
+				}
+			}
+			pauseToHitEnter(interactive)
+			continue
+		}
+
+		// ls to list directories - treat this differently if it has no arguments
+
+		const lsSpace = "ls "
+		if strings.HasPrefix(input, lsSpace) {
+			// Trim off the newline - should we do this for all input anyway?
+			input = strings.TrimSuffix(input, "\n")
+			// remove the ls, then split the rest on whitespace
+			argumentsLine := strings.TrimPrefix(input, lsSpace)
+			spaceDelimitedSet := strings.Fields(argumentsLine)
+			for _, dir := range spaceDelimitedSet {
+				// Check for flags - reject them
+				if strings.HasPrefix(dir, "-") {
+					println("ERROR: Flags are not supported in this version of ls.")
+					continue
+				}
+				err := listDirectory(dir)
+				if err != nil {
+					println("Error listing directory: " + dir + " due to " + err.Error())
+				}
+			}
+			pauseToHitEnter(interactive)
+			continue
+		}
+
+		// ls with no arguments means list the current directory
+		const ls = "ls"
+		if strings.HasPrefix(input, ls) {
+			error := listDirectory(".")
+			if error != nil {
+				println("Error listing directory: " + error.Error())
+			}
 			pauseToHitEnter(interactive)
 			continue
 		}
