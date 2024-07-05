@@ -142,63 +142,71 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, int
 			fmt.Printf("[+] Successfully imported service accounts\n")
 		}
 	case "6", "decode":
-		var token string
-		println(`
+		decodeTokenInteractive(*serviceAccounts, connectionString, logToFile, outputFileName, interactive)
+	case "7", "display":
+		displayServiceAccountTokenInteractive(*serviceAccounts, connectionString, logToFile, outputFileName)
+
+	}
+}
+
+func decodeTokenInteractive(serviceAccounts []ServiceAccount, connectionString *ServerInfo, logToFile bool, outputFileName string, interactive bool) {
+	var token string
+	println(`
 		1) Decode a JWT entered via a string.
 		2) Decode a service account token stored here.
 
 		`)
-		fmt.Printf("\nPeirates (decode):># ")
+	fmt.Printf("\nPeirates (decode):># ")
 
-		_, err = fmt.Scanln(&input)
+	var input string
+	_, err := fmt.Scanln(&input)
 
+	if err != nil {
+		fmt.Printf("[-] Error reading input: %s\n", err.Error())
+		pauseToHitEnter(interactive)
+		return
+	}
+
+	switch input {
+	case "1":
+		println("\nEnter a JWT: ")
+		_, err = fmt.Scanln(&token)
 		if err != nil {
-			fmt.Printf("[-] Error reading input: %s\n", err.Error())
+			print("Error reading input: %s\n", err.Error())
 			pauseToHitEnter(interactive)
 			return
 		}
+		jwt := decodeJWT(token)
+		fmt.Printf("\nHeader: %s\nPayload: %s\nSignature: %s\n", jwt.Header, jwt.PrettyPrintPayload(), jwt.Signature)
 
-		switch input {
-		case "1":
-			println("\nEnter a JWT: ")
-			_, err = fmt.Scanln(&token)
-			if err != nil {
-				print("Error reading input: %s\n", err.Error())
-				pauseToHitEnter(interactive)
-				return
-			}
-			printJWT(token)
-		case "2":
-			println("\nAvailable Service Accounts:")
-			for i, account := range *serviceAccounts {
-				if account.Name == connectionString.TokenName {
-					fmt.Printf("> [%d] %s\n", i, account.Name)
-				} else {
-					fmt.Printf("  [%d] %s\n", i, account.Name)
-				}
-			}
-			println("\nEnter service account number or exit to abort: ")
-			var tokNum int
-			_, err = fmt.Scanln(&input)
-			if input == "exit" {
-				pauseToHitEnter(interactive)
-				return
-			}
-			_, err := fmt.Sscan(input, &tokNum)
-			if err != nil {
-				fmt.Printf("Error parsing service account selection: %s\n", err.Error())
-				pauseToHitEnter(interactive)
-				return
-			} else if tokNum < 0 || tokNum >= len(*serviceAccounts) {
-				fmt.Printf("Service account %d does not exist!\n", tokNum)
-				pauseToHitEnter(interactive)
-				return
+	case "2":
+		println("\nAvailable Service Accounts:")
+		for i, account := range serviceAccounts {
+			if account.Name == connectionString.TokenName {
+				fmt.Printf("> [%d] %s\n", i, account.Name)
 			} else {
-				printJWT((*serviceAccounts)[tokNum].Token)
+				fmt.Printf("  [%d] %s\n", i, account.Name)
 			}
 		}
-	case "7", "display":
-		displayServiceAccountTokenInteractive(*serviceAccounts, connectionString, logToFile, outputFileName)
-
+		println("\nEnter service account number or exit to abort: ")
+		var tokNum int
+		_, err = fmt.Scanln(&input)
+		if input == "exit" {
+			pauseToHitEnter(interactive)
+			return
+		}
+		_, err := fmt.Sscan(input, &tokNum)
+		if err != nil {
+			fmt.Printf("Error parsing service account selection: %s\n", err.Error())
+			pauseToHitEnter(interactive)
+			return
+		} else if tokNum < 0 || tokNum >= len(serviceAccounts) {
+			fmt.Printf("Service account %d does not exist!\n", tokNum)
+			pauseToHitEnter(interactive)
+			return
+		} else {
+			jwt := decodeJWT((serviceAccounts)[tokNum].Token)
+			fmt.Printf("\nHeader: %s\nPayload: %s\nSignature: %s\n", jwt.Header, jwt.PrettyPrintPayload(), jwt.Signature)
+		}
 	}
 }
