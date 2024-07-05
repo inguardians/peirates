@@ -204,14 +204,32 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 		APIServer := clusterSection["server"].(string)
 		printIfVerbose("DEBUG: API Server found in kubelet's kubeconfig file: "+APIServer, Verbose)
 
-		CACertBase64Encoded := clusterSection["certificate-authority-data"].(string)
+		// Check for either a certificate-authority key or a certificate-authority-data key.
+		CACertFilepathBytes, CACertFileFound := clusterSection["certificate-authority"]
+		CACertBase64EncodedBytes, CACertContentsFound := clusterSection["certificate-authority-data"]
 
-		// Decode the CA cert
-		CACertBytes, err := base64.StdEncoding.DecodeString(CACertBase64Encoded)
-		if err != nil {
-			println("[-] ERROR: couldn't decode the CA cert found in the kubelet's kubeconfig file")
+		var CACertBytes []byte
+		if CACertFileFound {
+			CACertBytes, err = os.ReadFile(CACertFilepathBytes.(string))
+			if err != nil {
+				println("[-] ERROR: couldn't decode the CA cert from the file path in the kubelet's kubeconfig file")
+				continue
+			}
+
+		} else if CACertContentsFound {
+			CACertBase64Encoded := CACertBase64EncodedBytes.(string)
+
+			// Decode the CA cert
+			CACertBytes, err = base64.StdEncoding.DecodeString(CACertBase64Encoded)
+			if err != nil {
+				println("[-] ERROR: couldn't decode the CA cert found in the kubelet's kubeconfig file")
+				continue
+			}
+		} else {
+			println("[-] ERROR: could not find a CA cert in the kubelet's kubeconfig file")
 			continue
 		}
+
 		CACert := string(CACertBytes)
 		printIfVerbose(("DEBUG: CA Cert found and decoded from kubelet's kubeconfig file"), Verbose)
 
