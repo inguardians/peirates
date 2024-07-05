@@ -210,6 +210,7 @@ func setUpCompletionMainMenu() *readline.PrefixCompleter {
 		readline.PcItem("sa-list"),
 		readline.PcItem("get-sa"),
 		readline.PcItem("list-sa"),
+		readline.PcItem("decode-jwt"),
 		// [2] List and/or change namespaces [ns-menu] (try: listns, switchns)
 		readline.PcItem("ns-menu"),
 		readline.PcItem("list-ns"),

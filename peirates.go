@@ -456,6 +456,8 @@ func Main() {
 			listServiceAccounts(serviceAccounts, connectionString, logToFile, outputFileName)
 		case "1", "sa-menu", "service-account-menu", "sa", "service-account":
 			saMenu(&serviceAccounts, &connectionString, interactive, logToFile, outputFileName)
+		case "decode-jwt", "decode-sa", "decodejwt", "decodesa":
+			decodeTokenInteractive(serviceAccounts, &connectionString, logToFile, outputFileName, interactive)
 
 		// [2] List and/or change namespaces [ns-menu] (try: list-ns, switch-ns, get-ns)
 		case "list-ns", "listns", "nslist", "ns-list", "get-ns", "getns":
