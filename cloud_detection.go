@@ -31,20 +31,12 @@ func populateAndCheckCloudProviders() string {
 			ResultString:      "meta-data",
 		},
 		{
-			Name:              "AWS (IMDSv2)",
-			URL:               "http://169.254.169.254/latest/api/token",
-			HTTPMethod:        "PUT",
-			CustomHeader:      "X-aws-ec2-metadata-token-ttl-seconds",
-			CustomHeaderValue: "21600",
-			ResultString:      "",
-		},
-		{
 			Name:              "Azure",
-			URL:               "http://169.254.169.254/metadata/v1/InstanceInfo",
+			URL:               "http://169.254.169.254/metadata/instance?api-version=2024-03-15",
 			HTTPMethod:        "GET",
-			CustomHeader:      "",
-			CustomHeaderValue: "",
-			ResultString:      "Microsoft Azure",
+			CustomHeader:      "Metadata",
+			CustomHeaderValue: "true",
+			ResultString:      "AzurePublicCloud",
 		},
 		{
 			Name:              "Google Cloud",
@@ -61,6 +53,14 @@ func populateAndCheckCloudProviders() string {
 			CustomHeader:      "",
 			CustomHeaderValue: "",
 			ResultString:      "nameservers",
+		},
+		{
+			Name:              "AWS (IMDSv2)",
+			URL:               "http://169.254.169.254/latest/api/token",
+			HTTPMethod:        "PUT",
+			CustomHeader:      "X-aws-ec2-metadata-token-ttl-seconds",
+			CustomHeaderValue: "21600",
+			ResultString:      "",
 		},
 	}
 
