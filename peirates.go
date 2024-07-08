@@ -81,6 +81,9 @@ func Main() {
 	// List of current client cert/key pairs
 	clientCertificates := []ClientCertificateKeyPair{}
 
+	// FEATURE to Write:  store discovered namespaces, using multiple methods for gathering them.
+	// namespaces := []string
+
 	// print the banner, so that any node credentials pulled are not out of place.
 	printBanner(interactive, version)
 
