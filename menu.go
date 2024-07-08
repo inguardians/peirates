@@ -32,12 +32,11 @@ Menu |
 [ set-auth-can-i ]                    Deactivate "auth can-i" checking before attempting actions 
 [ curl ]                              Make an HTTP request (GET or POST) to a user-specified URL 
 [ tcpscan ]                           Run a simple all-ports TCP port scan against an IP address 
-[ enumerate-dns ]                     Enumerate services via DNS  *
-[ cd , pwd , ls , cat ]				  Manipulate the filesystem via Golang-native commands
+[ cd , pwd , ls , cat ]               Manipulate the filesystem via Golang-native commands
 [ shell <command> ]                   Run a shell command 
 
 [ full ]                              Switch to full (classic menu) with a longer list of commands
-[ outputfile ] 						  Write all kubectl output to a file **ALPHA** [outputfile [filename]]
+[ outputfile ]                        Write all kubectl output to a file **ALPHA** [outputfile [filename]]
 [ exit ]                              Exit Peirates 
 ---------------------------------------------------------------------`)
 	fmt.Printf("\nPeirates:># ")
