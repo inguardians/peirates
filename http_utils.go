@@ -128,14 +128,14 @@ func DoHTTPRequestAndGetBody(req *http.Request, https bool, ignoreTLSErrors bool
 // GetRequest is a simple helper function for making HTTP GET requests to the
 // provided URL with custom headers, and the option to ignore TLS errors.
 // For a more advanced helper, see DoHTTPRequestAndGetBody.
-func GetRequest(url string, headers []HeaderLine, ignoreTLSErrors bool) (string, int) {
+func GetRequest(url string, headers []HeaderLine, ignoreTLSErrors bool) (string, int, error) {
 
 	req, err := http.NewRequest("GET", url, nil)
 	client := &http.Client{}
 
 	if err != nil {
 		fmt.Printf("[-] GetRequest failed to construct an HTTP request from URL %s : %s\n", url, err.Error())
-		return "", 999
+		return "", 999, err
 	}
 
 	for _, header := range headers {
@@ -145,12 +145,12 @@ func GetRequest(url string, headers []HeaderLine, ignoreTLSErrors bool) (string,
 	response, err := client.Do(req)
 	if err != nil {
 		fmt.Printf("[-] GetRequest could not perform request to %s : %s\n", url, err.Error())
-		return "", response.StatusCode
+		return "", 998, err
 	}
 	defer response.Body.Close()
 	body, _ := io.ReadAll(response.Body)
 
-	return string(body), response.StatusCode
+	return string(body), response.StatusCode, nil
 }
 
 func createHTTPrequest(method string, urlWithoutValues string, headers []HeaderLine, paramLocation string, params map[string]string) (*http.Request, error) {

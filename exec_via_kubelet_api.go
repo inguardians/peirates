@@ -49,7 +49,11 @@ func ExecuteCodeOnKubelet(connectionString ServerInfo, serviceAccounts *[]Servic
 					println("[+] Kubelet Pod Listing URL: " + nodeName + " - " + unauthKubeletPortURL)
 					println("[+] Grabbing Pods from node: " + nodeName)
 
-					runningPodsBody, _ := GetRequest(unauthKubeletPortURL, headers, false)
+					runningPodsBody, _, err := GetRequest(unauthKubeletPortURL, headers, false)
+					if err != nil {
+						fmt.Println("Error encountered on GetRequest to", unauthKubeletPortURL, "was", err)
+						continue nodeLoop
+					}
 					if (runningPodsBody == "") || (strings.HasPrefix(runningPodsBody, "ERROR:")) {
 						println("[-] Kubelet request for running pods failed - using this URL:", unauthKubeletPortURL)
 						continue nodeLoop

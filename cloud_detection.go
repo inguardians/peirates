@@ -83,14 +83,18 @@ func populateAndCheckCloudProviders() string {
 		var statusCode int
 
 		var lines []HeaderLine
+
 		if provider.CustomHeader != "" {
 			line := HeaderLine{LHS: provider.CustomHeader, RHS: provider.CustomHeaderValue}
 			lines = append(lines, line)
-			response, statusCode = GetRequest(provider.URL, lines, true)
+			response, statusCode, err = GetRequest(provider.URL, lines, true)
 		} else {
-			response, statusCode = GetRequest(provider.URL, nil, true)
+			response, statusCode, err = GetRequest(provider.URL, nil, true)
 		}
 
+		if err != nil {
+			continue
+		}
 		if provider.Name == "AWS (IMDSv2)" {
 			if statusCode == http.StatusOK {
 				return provider.Name
