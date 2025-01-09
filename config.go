@@ -147,6 +147,7 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/var/lib/kubelet/kubeconfig")
 	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/etc/kubernetes/kubeconfig")
 	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/etc/kubernetes/kubelet.conf")
+	kubeletKubeconfigFilePaths = append(kubeletKubeconfigFilePaths, "/var/snap/microk8s/current/credentials/kubelet.config")
 
 	for _, path := range kubeletKubeconfigFilePaths {
 		// On each path, check for existence of the file.
