@@ -25,6 +25,7 @@ type ServerInfo struct {
 	ClientKeyData  string // client key, if present
 	ClientCertName string // name of the client cert, if present
 	CAPath         string // path to Certificate Authority's certificate (public key)
+	CACertData     string // contents of the Certificate Authority's certificate, if we've read one at any point.
 	Namespace      string // namespace that this pod's service account is tied to
 	UseAuthCanI    bool
 }
@@ -69,9 +70,10 @@ func ImportPodServiceAccountToken() ServerInfo {
 
 	// Attempt to read a ca.crt file from the normal pod location - store if found.
 	expectedCACertPath := ServiceAccountPath + "ca.crt"
-	_, err := os.ReadFile(expectedCACertPath)
+	CACertBytes, err := os.ReadFile(expectedCACertPath)
 	if err == nil {
 		configInfoVars.CAPath = expectedCACertPath
+		configInfoVars.CACertData = string(CACertBytes)
 	}
 
 	return configInfoVars
@@ -126,7 +128,7 @@ func getKubeletKubeconfigPath() (string, error) {
 	return "", errors.New("kubelet not found")
 }
 
-func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) error {
+func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair, configInfoVars *ServerInfo) error {
 
 	// Paths to explore:
 	// /var/lib/kubelet/kubeconfig
@@ -174,7 +176,9 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 		}
 
 		// Get the CA cert from
-		// clusters[0].cluster.certificate-authority-data
+		// clusters[0].cluster.certificate-authority-data (actual cert)
+		// OR
+		// clusters[0].cluster.certificate-authority (path to cert)
 
 		// Get the server IP from:
 		// clusters[0].cluster.server
@@ -211,11 +215,14 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 
 		var CACertBytes []byte
 		if CACertFileFound {
-			CACertBytes, err = os.ReadFile(CACertFilepathBytes.(string))
+			CACertFilepath := CACertFilepathBytes.(string)
+			printIfVerbose("DEBUG: Reading CA cert from "+CACertFilepath, Verbose)
+			CACertBytes, err = os.ReadFile(CACertFilepath)
 			if err != nil {
-				println("[-] ERROR: couldn't decode the CA cert from the file path in the kubelet's kubeconfig file")
+				println("[-] ERROR: couldn't decode the CA cert from the file path (" + CACertFilepath + ") in the kubelet's kubeconfig file")
 				continue
 			}
+			configInfoVars.CAPath = CACertFilepath
 
 		} else if CACertContentsFound {
 			CACertBase64Encoded := CACertBase64EncodedBytes.(string)
@@ -232,6 +239,10 @@ func checkForNodeCredentials(clientCertificates *[]ClientCertificateKeyPair) err
 		}
 
 		CACert := string(CACertBytes)
+		// Store the CACert in the configInfoVars structure in case this kubelet's kubeconfig file isn't fully parsed - we can still
+		// get the CA cert.
+		configInfoVars.CACertData = CACert
+
 		printIfVerbose(("DEBUG: CA Cert found and decoded from kubelet's kubeconfig file"), Verbose)
 
 		// Next, parse the "users" top-level data structure to get the kubelet's credentials

@@ -27,7 +27,7 @@ var UseAuthCanI bool = true
 // Main starts Peirates[]
 func Main() {
 	// Peirates version string
-	var version = "1.1.26b"
+	var version = "1.1.26"
 
 	var err error
 
@@ -88,7 +88,7 @@ func Main() {
 	printBanner(interactive, version)
 
 	// Add the kubelet kubeconfig and authentication information if available.
-	err = checkForNodeCredentials(&clientCertificates)
+	err = checkForNodeCredentials(&clientCertificates, &connectionString)
 	if err != nil {
 		println("Problem with credentials: %v", err)
 	}
@@ -99,6 +99,12 @@ func Main() {
 
 	// Add the service account tokens for any pods found in /var/lib/kubelet/pods/.
 	gatherPodCredentials(&serviceAccounts, interactive, false)
+
+	// If there are no client certs, and if our current context does not name a service account, switch
+	// to the first service account.
+	if (len(clientCertificates) == 0) && (len(serviceAccounts) > 0) {
+		assignServiceAccountToConnection(serviceAccounts[0], &connectionString)
+	}
 
 	// Check environment variables - see KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT
 	// Watch the documentation on these variables for changes:
