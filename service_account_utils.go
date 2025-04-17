@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-jose/go-jose/jwt"
 	"github.com/trung/jwt-tools/display"
-	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 // SERVICE ACCOUNT MANAGEMENT functions
@@ -33,6 +33,12 @@ type ClientCertificateKeyPair struct {
 	ClientCertificateData string // Client cert data
 	APIServer             string // URL like https://10.96.0.1:443
 	CACert                string // Content of a CA cert
+}
+
+type JWTComponents struct {
+	Header    map[string]interface{}
+	Payload   map[string]interface{}
+	Signature string
 }
 
 // AddNewServiceAccount adds a new service account to the existing slice, but only if the the new one is unique
@@ -213,6 +219,15 @@ func displayServiceAccountTokenInteractive(serviceAccounts []ServiceAccount, con
 	return
 }
 
+// decodeJWTBase64urlSegment decodes a JWT base64url segment into JSON
+func decodeJWTBase64urlSegment(seg string) ([]byte, error) {
+	// Pad the base64 string if needed
+	if l := len(seg) % 4; l > 0 {
+		seg += strings.Repeat("=", 4-l)
+	}
+	return base64.URLEncoding.DecodeString(seg)
+}
+
 func printJWT(tokenString string) {
 	var err error
 	var claims map[string]interface{}
@@ -227,6 +242,30 @@ func printJWT(tokenString string) {
 }
 
 func parseServiceAccountJWT_return_sub(tokenString string) (int64, string, error) {
+
+	// Parse out the name of the service account via the "sub" field.
+
+	// Here's what a sample JWT looks like:
+	// {
+	//   "aud": ["https://kubernetes.default.svc.cluster.local"],
+	//   "exp": 1725391365,
+	//   "iat": 1693855365,
+	//   "iss": "https://kubernetes.default.svc.cluster.local",
+	//   "kubernetes.io": {
+	//     "namespace": "default",
+	//     "pod": {
+	//       "name": "web",
+	//       "uid": "..."
+	//     },
+	//     "serviceaccount": {
+	//       "name": "default",
+	//       "uid": "..."
+	//     },
+	//     "warnafter": 1693858972
+	//   },
+	//   "nbf": 1693855365,
+	//   "sub": "system:serviceaccount:default:default"
+	// }
 
 	// Split the JWT into its three components
 	parts := strings.Split(tokenString, ".")
@@ -262,50 +301,6 @@ func parseServiceAccountJWT_return_sub(tokenString string) (int64, string, error
 		return 0, "", errors.New(errorMsg)
 	}
 
-}
-
-// parseServiceAccountJWT() takes in a service account JWT and returns its expiration date and name.
-func parseServiceAccountJWT(tokenString string) (int64, string) {
-
-	var claims map[string]interface{}
-
-	token, err := jwt.ParseSigned(tokenString)
-	err = token.UnsafeClaimsWithoutVerification(&claims)
-	if err != nil {
-		println("Problem with token thingy: %v", err)
-	}
-	expiration := int64(claims["exp"].(float64))
-
-	// Parse out the name of the service account.
-	// Here's what a sample JWT looks like:
-	// {
-	//   "aud": ["https://kubernetes.default.svc.cluster.local"],
-	//   "exp": 1725391365,
-	//   "iat": 1693855365,
-	//   "iss": "https://kubernetes.default.svc.cluster.local",
-	//   "kubernetes.io": {
-	//     "namespace": "default",
-	//     "pod": {
-	//       "name": "web",
-	//       "uid": "..."
-	//     },
-	//     "serviceaccount": {
-	//       "name": "default",
-	//       "uid": "..."
-	//     },
-	//     "warnafter": 1693858972
-	//   },
-	//   "nbf": 1693855365,
-	//   "sub": "system:serviceaccount:default:default"
-	// }
-
-	kubernetesIOstruct := claims["kubernetes.io"].(map[string]interface{})
-	namespace := kubernetesIOstruct["namespace"].(string)
-
-	saStruct := kubernetesIOstruct["serviceaccount"].(map[string]interface{})
-	name := saStruct["name"].(string)
-
-	return expiration, namespace + ":" + name
 }
 
 func getServiceAccountTokenFromSecret(connectionString ServerInfo, serviceAccounts *[]ServiceAccount, interactive bool) {

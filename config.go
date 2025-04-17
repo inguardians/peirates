@@ -53,7 +53,17 @@ func ImportPodServiceAccountToken() ServerInfo {
 		fmt.Println("Read a service account token from " + tokenFile)
 
 		// Try naming the service account token with its JWT name
-		_, name := parseServiceAccountJWT(configInfoVars.Token)
+		name := ""
+		_, tokenSubField, err := parseServiceAccountJWT_return_sub(configInfoVars.Token)
+		if err != nil {
+			printIfVerbose("DEBUG: ImportPodServiceAccountToken() found a service account JWT that didn't parse properly.", Verbose)
+		} else if !strings.HasPrefix(tokenSubField, "system:serviceaccount:") {
+			printIfVerbose("DEBUG: ImportPodServiceAccountToken() found a service account JWT that where the sub didn't start with system:serviceaccount:", Verbose)
+		} else {
+			lenPrefix := len("system:serviceaccount:")
+			name = tokenSubField[lenPrefix:]
+		}
+
 		if name != "" {
 			configInfoVars.TokenName = name
 		} else {
@@ -567,8 +577,19 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 				}
 				token := string(tokenBytes)
 
-				_, tokenName := parseServiceAccountJWT(token)
-				fullSAName := "short-lived-sa/" + tokenName
+				//				func parseServiceAccountJWT_return_sub(tokenString string) (int64, string, error) {
+
+				_, tokenSubField, err := parseServiceAccountJWT_return_sub(token)
+				if err != nil {
+					printIfVerbose("DEBUG: gatherPodCredentials() found a service account JWT that didn't parse properly.", Verbose)
+					continue
+				}
+				if !strings.HasPrefix(tokenSubField, "system:serviceaccount:") {
+					printIfVerbose("DEBUG: gatherPodCredentials() found a service account JWT that where the sub didn't start with system:serviceaccount:", Verbose)
+					continue
+				}
+				lenPrefix := len("system:serviceaccount:")
+				fullSAName := "short-lived-sa/" + tokenSubField[lenPrefix:]
 
 				// FEATURE REQUEST: spell out which node this was found on in the last arg.
 				if AddNewServiceAccount(fullSAName, string(token), "pod service account token harvested from node ", serviceAccounts) {
