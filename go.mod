@@ -7,8 +7,6 @@ toolchain go1.23.8
 require (
 	github.com/aws/aws-sdk-go v1.42.4
 	github.com/ergochat/readline v0.1.0
-	github.com/trung/jwt-tools v0.0.0-20191029184913-432ee57a2445
-	gopkg.in/square/go-jose.v2 v2.6.0
 	gopkg.in/yaml.v3 v3.0.0
 	k8s.io/kubectl v0.22.3
 )
@@ -64,10 +62,8 @@ require (
 	github.com/spf13/cobra v1.1.3 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/testify v1.7.0 // indirect
-	github.com/tidwall/pretty v1.0.0 // indirect
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
-	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	golang.org/x/sys v0.31.0 // indirect
