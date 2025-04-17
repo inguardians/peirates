@@ -9,9 +9,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/go-jose/go-jose/jwt"
-	"github.com/trung/jwt-tools/display"
 )
 
 // SERVICE ACCOUNT MANAGEMENT functions
@@ -228,17 +225,51 @@ func decodeJWTBase64urlSegment(seg string) ([]byte, error) {
 	return base64.URLEncoding.DecodeString(seg)
 }
 
-func printJWT(tokenString string) {
-	var err error
-	var claims map[string]interface{}
-
-	token, err := jwt.ParseSigned(tokenString)
-	err = token.UnsafeClaimsWithoutVerification(&claims)
-	if err != nil {
-		println("Problem with token thingy: %v", err)
+// ParseJWT takes a JWT string and decodes it into header, payload, and signature
+func ParseJWT(token string) (*JWTComponents, error) {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return nil, fmt.Errorf("invalid JWT: expected 3 parts, got %d", len(parts))
 	}
 
-	err = display.PrintJSON(claims)
+	headerBytes, err := decodeJWTBase64urlSegment(parts[0])
+	if err != nil {
+		return nil, fmt.Errorf("error decoding header: %v", err)
+	}
+
+	payloadBytes, err := decodeJWTBase64urlSegment(parts[1])
+	if err != nil {
+		return nil, fmt.Errorf("error decoding payload: %v", err)
+	}
+
+	var header, payload map[string]interface{}
+	if err := json.Unmarshal(headerBytes, &header); err != nil {
+		return nil, fmt.Errorf("invalid JSON in header: %v", err)
+	}
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		return nil, fmt.Errorf("invalid JSON in payload: %v", err)
+	}
+
+	return &JWTComponents{
+		Header:    header,
+		Payload:   payload,
+		Signature: parts[2],
+	}, nil
+}
+
+func printJWT(tokenString string) error {
+	var err error
+
+	parts, err := ParseJWT(tokenString)
+	if err != nil {
+		println("Problem with token thingy: %v", err)
+		return err
+	}
+
+	fmt.Println("JWT Header: ", parts.Header)
+	fmt.Println("JWT Header: ", parts.Payload)
+
+	return nil
 }
 
 func parseServiceAccountJWT_return_sub(tokenString string) (int64, string, error) {
