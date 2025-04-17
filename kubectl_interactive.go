@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func kubectl_interactive(connectionString ServerInfo) error {
+func kubectl_interactive(connectionString ServerInfo, logToFile bool, outputFileName string) error {
 	println(`
 This function allows you to run a kubectl command, with only a few restrictions.
 
@@ -33,8 +33,11 @@ Leave off the "kubectl" part of the command.  For example:
 	arguments := strings.Fields(input)
 
 	kubectlOutput, _, err := runKubectlSimple(connectionString, arguments...)
+	kubectlOutputString := string(kubectlOutput)
+	outputToUser(kubectlOutputString, logToFile, outputFileName)
+
 	if err != nil {
-		println("[-] Could not perform action: kubectl ", input)
+		println("[-] error returned running: ", input)
 		return err
 	}
 	kubectlOutputLines := strings.Split(string(kubectlOutput), "\n")

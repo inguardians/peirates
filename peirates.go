@@ -453,10 +453,7 @@ func Main() {
 
 		//	[0] Run a kubectl command in the current namespace, API server and service account context
 		case "0", "90", "kubectl":
-			err = kubectl_interactive(connectionString)
-			if err != nil {
-				println("[-] Error running kubectl: ", err)
-			}
+			_ = kubectl_interactive(connectionString, logToFile, outputFileName)
 
 		//	[1] List, maintain, or switch service account contexts [sa-menu]  (try: list-sa *, switch-sa, get-sa)
 		case "switchsa", "saswitch", "switch-sa", "sa-switch":

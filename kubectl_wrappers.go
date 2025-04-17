@@ -379,7 +379,7 @@ func kubectlAuthCanI(cfg ServerInfo, verb, resource string) bool {
 // ExecKubectlAndExit runs the internally compiled `kubectl` code as if this was the `kubectl` binary. stdin/stdout/stderr are process streams. args are process args.
 func ExecKubectlAndExit() {
 	// Based on code from https://github.com/kubernetes/kubernetes/blob/2e0e1681a6ca7fe795f3bd5ec8696fb14687b9aa/cmd/kubectl/kubectl.go#L44
-	cmd := kubectl.NewKubectlCommand(os.Stdin, os.Stdout, os.Stderr)
+	cmd := kubectl.NewDefaultKubectlCommand()
 	if err := cmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
