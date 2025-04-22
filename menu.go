@@ -93,6 +93,7 @@ Off-Menu         +
 [94] Enumerate services via DNS [enumerate-dns] *
 [] Manipulate the filesystem [ cd , pwd , ls , cat ]
 []  Run a shell command [shell <command and arguments>]
+[]  Run a Bash or Bourne shell [bash or sh]
 
 [short] Reduce the set of visible commands in this menu
 [ outputfile ] Write all kubectl output to a file **ALPHA** [outputfile [filename]]

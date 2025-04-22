@@ -27,7 +27,7 @@ var UseAuthCanI bool = true
 // Main starts Peirates[]
 func Main() {
 	// Peirates version string
-	var version = "1.1.26"
+	var version = "1.1.27a"
 
 	var err error
 
@@ -604,8 +604,13 @@ func Main() {
 			tcpScan(interactive)
 
 		case "94", "enumerate-dns":
-
 			_ = enumerateDNS()
+
+		case "bash":
+			_ = runBash()
+
+		case "sh":
+			_ = runSH()
 
 		case "full", "help":
 			fullMenu = true
