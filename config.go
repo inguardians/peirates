@@ -669,6 +669,7 @@ func getPodName(kubeletPodsDir, podDirName string) string {
 
 }
 
+// listNamespaces() prints a list of namespaces via a call to GetNamespaces()
 func listNamespaces(connectionString ServerInfo) {
 	var err error
 	Namespaces, err := GetNamespaces(connectionString)
@@ -684,11 +685,15 @@ func listNamespaces(connectionString ServerInfo) {
 // SwitchNamespace switches the current ServerInfo.Namespace to one entered by the user.
 func menuSwitchNamespaces(connectionString *ServerInfo) bool {
 	var err error
+
+	// Print the list of namespaces
 	listNamespaces(*connectionString)
 
+	// Pull in a list to validate the user's choice.
+	// FEATURE REQUEST: allow tab completion for user to pick one.
 	namespacesList, err := GetNamespaces(*connectionString)
 	if err != nil {
-		errorString := "[-] error while listing namespaces"
+		errorString := "[-] was not able to list namespaces"
 		println(errorString)
 	}
 
