@@ -24,6 +24,9 @@ func parseOptions(opts *CommandLineOptions) {
 	flagset := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
 	flagset.StringVar(&opts.connectionConfig.APIServer, "u", opts.connectionConfig.APIServer, "API Server URL: ex. https://10.96.0.1:6443")
+	flagset.StringVar(&opts.connectionConfig.CAPath, "c", opts.connectionConfig.CAPath, "CA Cert Path for API Server: ex. /etc/kubernetes/pki/ca.crt (ALPHA - use -k for now)")
+	flagset.BoolVar(&opts.connectionConfig.ignoreTLS, "k", false, "Ignore TLS checking on API server requests?")
+
 	flagset.StringVar(&opts.connectionConfig.Token, "t", opts.connectionConfig.Token, "Token (JWT)")
 	flagset.StringVar(&opts.moduleToRun, "m", "", "module to run from menu - items on main menu with an * support this.")
 	flagset.BoolVar(&opts.verbose, "v", false, "verbose mode - display debug messages")
@@ -51,7 +54,17 @@ func parseOptions(opts *CommandLineOptions) {
 
 		opts.connectionConfig.APIServer = APIServer
 
+		log.Println("API server URL provided on the command line: " + opts.connectionConfig.APIServer)
+
 	}
+
+	// If a certificate authority path is passed in, normalize it.
+	if len(opts.connectionConfig.CAPath) > 0 {
+		CAPath := strings.TrimSpace(opts.connectionConfig.CAPath)
+		opts.connectionConfig.CAPath = CAPath
+		log.Println("Certificate authority path provided on the command line: " + opts.connectionConfig.CAPath)
+	}
+
 	if opts.connectionConfig.Token != "" {
 		log.Println("JWT provided on the command line.")
 	}

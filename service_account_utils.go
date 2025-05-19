@@ -324,7 +324,6 @@ func parseServiceAccountJWT_return_sub(tokenString string) (int64, string, error
 
 	// Extract the "sub" field
 	if sub, ok := claims["sub"].(string); ok {
-		fmt.Printf("%s\n", sub)
 		return 0, sub, nil
 	} else {
 		errorMsg := "Error: 'sub' field not found or not a string"

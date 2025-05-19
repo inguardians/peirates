@@ -107,16 +107,25 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 		return errors.New("api server not set")
 	}
 
-	// Confirm that we have a certificate authority path entry.
-	if len(cfg.CAPath) == 0 {
-		println("ERROR: certificate authority path not defined - will not communicate with api server")
-		return errors.New("certificate authority path not defined - will not communicate with api server")
-	}
-
 	connArgs := []string{
-		"--certificate-authority=" + cfg.CAPath,
 		"--server=" + cfg.APIServer,
 	}
+
+	// Confirm that we have a certificate authority path entry.
+	if !cfg.ignoreTLS {
+		if len(cfg.CAPath) == 0 {
+			println("ERROR: certificate authority path not defined - will not communicate with api server")
+			return errors.New("certificate authority path not defined - will not communicate with api server")
+		} else {
+			connArgs = append(connArgs, "--certificate-authority="+cfg.CAPath)
+		}
+	}
+
+	// If we've been told to ignore TLS cert checking via -k, make sure to set --insecure-skip-tls-verify=true
+	if cfg.ignoreTLS {
+		connArgs = append(connArgs, "--insecure-skip-tls-verify=true")
+	}
+
 	// If cmdArgs contains "--all-namespaces" or ["-n","namespace"], make sure not to add a -n namespace to this.
 	appendNamespace := true
 	for _, arg := range cmdArgs {

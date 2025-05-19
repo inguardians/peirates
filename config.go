@@ -28,6 +28,7 @@ type ServerInfo struct {
 	CACertData     string // contents of the Certificate Authority's certificate, if we've read one at any point.
 	Namespace      string // namespace that this pod's service account is tied to
 	UseAuthCanI    bool
+	ignoreTLS      bool // Should we ignore TLS checking on API server requests?
 }
 
 func ImportPodServiceAccountToken() ServerInfo {
