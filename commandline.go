@@ -24,7 +24,6 @@ func parseOptions(opts *CommandLineOptions) {
 	flagset := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
 	flagset.StringVar(&opts.connectionConfig.APIServer, "u", opts.connectionConfig.APIServer, "API Server URL: ex. https://10.96.0.1:6443")
-	flagset.StringVar(&opts.connectionConfig.CAPath, "c", opts.connectionConfig.CAPath, "CA Cert Path for API Server: ex. /etc/kubernetes/pki/ca.crt (ALPHA - use -k for now)")
 	flagset.BoolVar(&opts.connectionConfig.ignoreTLS, "k", false, "Ignore TLS checking on API server requests?")
 
 	flagset.StringVar(&opts.connectionConfig.Token, "t", opts.connectionConfig.Token, "Token (JWT)")

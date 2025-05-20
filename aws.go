@@ -123,12 +123,19 @@ func PullIamCredentialsFromAWS() (AWSCredentials, error) {
 
 	response, err := http.Get("http://169.254.169.254/latest/meta-data/iam/security-credentials/")
 	if err != nil {
+
 		problem := "[-] Error - could not perform request http://169.254.169.254/latest/meta-data/iam/security-credentials/"
 		println(problem)
 		return credentials, errors.New(problem)
 	}
 	// Parse result as an account, then construct a request asking for that account's credentials
 	defer response.Body.Close()
+	if response.StatusCode != 200 {
+		problem := "Error: AWS IMDS Metadata API responded with " + response.Status
+		fmt.Println(problem)
+		return credentials, errors.New(problem)
+	}
+
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		println("[-] Error - could not read list of security credentials.")
@@ -145,6 +152,12 @@ func PullIamCredentialsFromAWS() (AWSCredentials, error) {
 		return credentials, errors.New(problem)
 	}
 	defer response2.Body.Close()
+
+	if response2.StatusCode != 200 {
+		fmt.Println("Error: requested " + request + " AWS IMDS Metadata API responded with " + response.Status)
+		return credentials, nil
+	}
+
 	body2, err := io.ReadAll(response2.Body)
 	if err != nil {
 		problem := "[-] error - could not read security credentials"
@@ -162,16 +175,14 @@ func PullIamCredentialsFromAWS() (AWSCredentials, error) {
 
 }
 
-func PullIamCredentialsFromAWSWithIMDSv2() (AWSCredentials, error) {
+func RequestAWSIMDSv2Token() (token string, err error) {
 
-	var credentials AWSCredentials
-
-	//  REQUEST 1: Get a token to interact with the Metadata API
+	//  Get a token to interact with AWS IMDSv2 Metadata API
 	tokenURL := "http://169.254.169.254/latest/api/token"
 	req, err := http.NewRequest("PUT", tokenURL, nil)
 	if err != nil {
 		fmt.Println("Error creating request for token:", err)
-		return credentials, err
+		return "", err
 	}
 	// Set necessary headers for token request
 	req.Header.Set("X-aws-ec2-metadata-token-ttl-seconds", "21600") // 6 hours
@@ -180,21 +191,44 @@ func PullIamCredentialsFromAWSWithIMDSv2() (AWSCredentials, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Error fetching token:", err)
-		return credentials, err
+		fmt.Println("Error creating HTTP client to fetch token:", err)
+		return "", err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		problem := "PUT request to IMDSv2 URL " + tokenURL + " failed with HTTP status code " + resp.Status
+		fmt.Println(problem)
+		return "", errors.New(problem)
+	}
 
 	// Use the token
-	token, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println("Error reading token:", err)
+		return "", err
+	}
+
+	token = string(body)
+	if Verbose {
+		println("DEBUG: Got IMDSv2 token: " + token)
+	}
+
+	return token, nil
+
+}
+
+func PullIamCredentialsFromAWSWithIMDSv2() (AWSCredentials, error) {
+
+	var credentials AWSCredentials
+
+	//  REQUEST 1: Get a token to interact with the Metadata API
+	token, err := RequestAWSIMDSv2Token()
+	if err != nil {
 		return credentials, err
 	}
 
-	if Verbose {
-		println("DEBUG: Got IMDSv2 token: " + string(token))
-	}
+	// Create an HTTP client
+	client := &http.Client{}
 
 	//  REQUEST 2: Get the account/role name
 	accountURL := "http://169.254.169.254/latest/meta-data/iam/security-credentials/"
@@ -208,12 +242,13 @@ func PullIamCredentialsFromAWSWithIMDSv2() (AWSCredentials, error) {
 	// Attach the token to the new request
 	req2.Header.Set("X-aws-ec2-metadata-token", string(token))
 	// Send the request to get the security credentials
-	resp, err = client.Do(req2)
+	resp, err := client.Do(req2)
 	if err != nil {
 		fmt.Println("Error fetching security credentials:", err)
 		return credentials, err
 	}
 	defer resp.Body.Close()
+
 	// Parse the response to get the account name
 	accountName, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -255,6 +290,11 @@ func PullIamCredentialsFromAWSWithIMDSv2() (AWSCredentials, error) {
 	err = json.Unmarshal(temporaryCredentials, &credentials)
 	if err != nil {
 		println("[-] Error - problem with JSON unmarshal")
+	}
+	if Verbose {
+		println("AccessKeyID: " + credentials.AccessKeyId)
+		println("SecretAccessKey: " + credentials.SecretAccessKey)
+		println("Token: " + credentials.SessionToken)
 	}
 	return credentials, nil
 
@@ -334,6 +374,44 @@ func GetAWSRegionAndZone() (region string, zone string, err error) {
 	// Parse result as a region.
 	defer response.Body.Close()
 	body, err := io.ReadAll(response.Body)
+
+	if response.StatusCode != 200 {
+		fmt.Println("Got HTTP status " + response.Status + " - this AWS account may require IMDSv2 - trying that...")
+
+		token, err := RequestAWSIMDSv2Token()
+		if err != nil {
+			return "", "", err
+		}
+
+		// Create an HTTP client
+		client := &http.Client{}
+
+		accountURL := "http://169.254.169.254/latest/meta-data/placement/availability-zone"
+
+		// Set up the request object
+		req, err := http.NewRequest("GET", accountURL, nil)
+		if err != nil {
+			fmt.Println("Error creating request for region:", err)
+			return "", "", err
+		}
+		// Attach the token to the new request
+		req.Header.Set("X-aws-ec2-metadata-token", string(token))
+		// Send the request to get the region
+		resp, err := client.Do(req)
+		if err != nil {
+			fmt.Println("Error fetching region:", err)
+			return "", "", err
+		}
+		defer resp.Body.Close()
+
+		// Parse the response to get the region and zone
+		body, err = io.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Println("Error reading region from response body:", err)
+			return "", "", err
+		}
+
+	}
 	zone = string(body)
 
 	// Strip the last character off the region to get the zone.
@@ -619,8 +697,13 @@ func getAWSToken(interactive bool) (awsCredentials AWSCredentials, err error) {
 
 	awsCredentials, err = PullIamCredentialsFromAWS()
 	if err != nil {
-		println("[-] Operation failed.")
-		return awsCredentials, err
+		println("[-] Did not work with IMDSv1, trying IMDSv2.")
+		awsCredentials, err = PullIamCredentialsFromAWSWithIMDSv2()
+		if err != nil {
+			println("[-] Could not get AWS credentials from metadata API.")
+			return awsCredentials, err
+		}
+		println("[+] Got AWS credentials from IMDSv2")
 	}
 
 	DisplayAWSIAMCredentials(awsCredentials)
