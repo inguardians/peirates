@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/ergochat/readline"
 	"gopkg.in/yaml.v3"
 )
 
@@ -672,33 +673,55 @@ func getPodName(kubeletPodsDir, podDirName string) string {
 // listNamespaces() prints a list of namespaces via a call to GetNamespaces()
 func listNamespaces(connectionString ServerInfo) {
 	var err error
+
 	Namespaces, err := GetNamespaces(connectionString)
 	if err != nil {
 		errorString := "[-] error while listing namespaces"
 		println(errorString)
+		return
 	}
-	for namespace := range Namespaces {
+
+	for _, namespace := range Namespaces {
 		fmt.Println(namespace)
 	}
+
 }
 
 // SwitchNamespace switches the current ServerInfo.Namespace to one entered by the user.
 func menuSwitchNamespaces(connectionString *ServerInfo) bool {
 	var err error
 
-	// Print the list of namespaces
-	listNamespaces(*connectionString)
-
-	// Pull in a list to validate the user's choice.
-	// FEATURE REQUEST: allow tab completion for user to pick one.
 	namespacesList, err := GetNamespaces(*connectionString)
 	if err != nil {
-		errorString := "[-] was not able to list namespaces"
+		errorString := "Was not able to list namespaces - you can still enter one."
 		println(errorString)
+	} else {
+		for _, namespace := range namespacesList {
+			fmt.Println(namespace)
+		}
 	}
 
+	// Use the list to set up tab completion
+	completer := readline.NewPrefixCompleter()
+
+	// Add each item from our list to the completer
+	for _, ns := range namespacesList {
+		completer.Children = append(completer.Children, readline.PcItem(ns))
+	}
+
+	l, err := readline.NewEx(&readline.Config{
+		Prompt:       "\033[31m»\033[0m ",
+		AutoComplete: completer,
+	})
+	if err != nil {
+		println("Namespace list problem")
+		return false
+	}
+	defer l.Close()
+
 	println("\nEnter namespace to switch to or hit enter to maintain current namespace: ")
-	input, err := ReadLineStripWhitespace()
+	input, err := l.Readline()
+	input = strings.TrimSpace(input)
 
 	if input != "" {
 		// Warn user if namespace is not in the existing namespace list.
