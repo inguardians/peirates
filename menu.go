@@ -51,7 +51,7 @@ Namespaces, Service Accounts and Roles |
 [3] Get list of pods in current namespace [list-pods, get-pods] 
 [4] Get complete info on all pods (json) [dump-pod-info] 
 [5] Check all pods for volume mounts [find-volume-mounts] 
-[6] Enter AWS IAM credentials manually [enter-aws-credentials]
+[6] Enter AWS IAM credentials manually [aws-enter-credentials]
 [7] Attempt to Assume a Different AWS Role [aws-assume-role]
 [8] Deactivate assumed AWS role [aws-empty-assumed-role]
 [9] Switch certificate-based authentication (kubelet or manually-entered) [cert-menu]
@@ -60,16 +60,16 @@ Steal Service Accounts   |
 -------------------------+
 [10] List secrets in this namespace from API server [list-secrets, get-secrets] 
 [11] Get a service account token from a secret [secret-to-sa]
-[12] Request IAM credentials from AWS Metadata API [get-aws-token] *
-[13] Request IAM credentials from GCP Metadata API [get-gcp-token] *
-[14] Request kube-env from GCP Metadata API [attack-kube-env-gcp] 
-[15] Pull Kubernetes service account tokens from kops' GCS bucket (Google Cloud only) [attack-kops-gcs-1]  *
+[12] Request IAM credentials from AWS Metadata API [aws-get-token] *
+[13] Request IAM credentials from GCP Metadata API [gcp-get-token] *
+[14] Request kube-env from GCP Metadata API [gcp-attack-kube-env] 
+[15] Pull Kubernetes service account tokens from kops' GCS bucket (Google Cloud only) [gcp-attack-kops-gcs-1]  *
 [16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [attack-kops-aws-1] 
 --------------------------------+
 Interrogate/Abuse Cloud API's   |
 --------------------------------+
-[17] List AWS S3 Buckets accessible (Make sure to get credentials via get-aws-token or enter manually) [aws-s3-ls] 
-[18] List contents of an AWS S3 Bucket (Make sure to get credentials via get-aws-token or enter manually) [aws-s3-ls-objects]
+[17] List AWS S3 Buckets accessible [aws-s3-ls] 
+[18] List contents of an AWS S3 Bucket [aws-s3-ls-objects]
 -----------+
 Compromise |
 -----------+
@@ -222,8 +222,9 @@ func setUpCompletionMainMenu() *readline.PrefixCompleter {
 		readline.PcItem("dump-pod-info"),
 		// [5] Check all pods for volume mounts [find-volume-mounts]
 		readline.PcItem("find-volume-mounts"),
-		// [6] Enter AWS IAM credentials manually [enter-aws-credentials]
+		// [6] Enter AWS IAM credentials manually [aws-enter-credentials]
 		readline.PcItem("enter-aws-credentials"),
+		readline.PcItem("aws-enter-credentials"),
 		// [7] Attempt to Assume a Different AWS Role [aws-assume-role]
 		readline.PcItem("aws-assume-role"),
 		// [8] Deactivate assumed AWS role [aws-empty-assumed-role]
@@ -237,14 +238,19 @@ func setUpCompletionMainMenu() *readline.PrefixCompleter {
 		readline.PcItem("secret-to-sa"),
 		// [12] Request IAM credentials from AWS Metadata API [get-aws-token] *
 		readline.PcItem("get-aws-token"),
-		// [13] Request IAM credentials from GCP Metadata API [get-gcp-token] *
+		readline.PcItem("aws-get-token"),
+		// [13] Request IAM credentials from GCP Metadata API [gcp-get-token] *
 		readline.PcItem("get-gcp-token"),
-		// [14] Request kube-env from GCP Metadata API [attack-kube-env-gcp]
+		readline.PcItem("gcp-get-token"),
+		// [14] Request kube-env from GCP Metadata API [gcp-attack-kube-env]
 		readline.PcItem("attack-kube-env-gcp"),
-		// [15] Pull Kubernetes service account tokens from kops' GCS bucket (Google Cloud only) [attack-kops-gcs-1]  *
+		readline.PcItem("gcp-attack-kube-env"),
+		// [15] Pull Kubernetes service account tokens from kops' GCS bucket (Google Cloud only) [gcp-attack-kops-1]  *
 		readline.PcItem("attack-kops-gcs-1"),
-		// [16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [attack-kops-aws-1]
+		readline.PcItem("gcp-attack-kops-1"),
+		// [16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [aws-attack-kops-1]
 		readline.PcItem("attack-kops-aws-1"),
+		readline.PcItem("aws-attack-kops-1"),
 		// [17] List AWS S3 Buckets accessible (Make sure to get credentials via get-aws-token or enter manually) [aws-s3-ls]
 		readline.PcItem("aws-s3-ls"),
 		// [18] List contents of an AWS S3 Bucket (Make sure to get credentials via get-aws-token or enter manually) [aws-s3-ls-objects]

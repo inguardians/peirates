@@ -27,7 +27,7 @@ var UseAuthCanI bool = true
 // Main starts Peirates[]
 func Main() {
 	// Peirates version string
-	var version = "1.1.27"
+	var version = "1.1.28-a"
 
 	var err error
 
@@ -481,8 +481,8 @@ func Main() {
 		case "4", "dump-podinfo", "dump-pod-info":
 			GetPodsInfo(connectionString, &podInfo)
 
-		//	[6] Enter AWS IAM credentials manually [enter-aws-credentials]
-		case "6", "enter-aws-credentials", "aws-creds":
+		//	[6] Enter AWS IAM credentials manually [aws-enter-credentials]
+		case "6", "enter-aws-credentials", "aws-enter-credentials", "aws-creds":
 			credentials, err := EnterIamCredentialsForAWS()
 			if err != nil {
 				println("[-] Error entering AWS credentials: ", err)
@@ -523,31 +523,31 @@ func Main() {
 			attackHostPathMount(connectionString, interactive)
 
 		// [12] Request IAM credentials from AWS Metadata API [AWS only]
-		case "12", "get-aws-token":
+		case "12", "get-aws-token", "aws-get-token":
 			result, err := getAWSToken(interactive)
 			if err != nil {
 				awsCredentials = result
 			}
 
 		// [13] Request IAM credentials from GCP Metadata API [GCP only]
-		case "13", "get-gcp-token":
+		case "13", "get-gcp-token", "gcp-get-token":
 
 			getGCPToken(interactive)
 
 		// [14] Request kube-env from GCP Metadata API [GCP only]
-		case "14", "attack-kube-env-gcp":
+		case "14", "attack-kube-env-gcp", "gcp-attack-kube-env":
 			attackKubeEnvGCP(interactive)
 
 		// [15] Pull Kubernetes service account tokens from Kop's bucket in GCS [GCP only]
-		case "15", "attack-kops-gcs-1":
+		case "15", "attack-kops-gcs-1", "gcp-attack-kops-1":
 			err := KopsAttackGCP(&serviceAccounts)
 			if err != nil {
 				println("Kops attack failed on GCP.")
 			}
 			pauseToHitEnter(interactive)
 
-		// [16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [attack-kops-aws-1]
-		case "16":
+		// [16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [aws-attack-kops-1]
+		case "16", "attack-aws-kops-1", "aws-attack-kops-1":
 			KopsAttackAWS(&serviceAccounts, awsCredentials, assumedAWSrole, interactive)
 
 		case "17", "aws-s3-ls", "aws-ls-s3", "ls-s3", "s3-ls":
