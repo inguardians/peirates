@@ -595,7 +595,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 
 				// FEATURE REQUEST: spell out which node this was found on in the last arg.
 				if AddNewServiceAccount(fullSAName, string(token), "pod service account token harvested from node ", serviceAccounts) {
-					fmt.Println("[+] Found a short-lived service account token in pod " + podName + " on this node: " + fullSAName)
+					fmt.Println("[+] Found a short-lived service account token on this node - in pod " + podName + " service account: " + fullSAName)
 				}
 			}
 		}
