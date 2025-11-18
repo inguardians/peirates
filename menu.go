@@ -137,7 +137,7 @@ func printBanner(interactive bool, version string) {
 ,,,,,,,,,,,,:.............,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,`)
 	}
-	credit := fmt.Sprintf(`________________________________________
+	credit := fmt.Sprintf(`---------------------------------------------------------------------
   Peirates v%s by InGuardians and Peirates Open Source Developers
   https://www.inguardians.com/peirates
 ---------------------------------------------------------------------`, version)

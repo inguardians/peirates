@@ -4,7 +4,6 @@ package peirates
 
 import (
 	"flag" // Command line flag parsing
-	"log"
 	"os"
 	"strings"
 )
@@ -37,6 +36,12 @@ func parseOptions(opts *CommandLineOptions) {
 		println("Problem with args: %v", err)
 	}
 
+	// Parse Verbose flag first, since it is used below.
+	Verbose = opts.verbose
+	if Verbose {
+		println("DEBUG: verbose mode on")
+	}
+
 	// If the API Server URL is passed in, normalize it.
 	if len(opts.connectionConfig.APIServer) > 0 {
 
@@ -52,8 +57,7 @@ func parseOptions(opts *CommandLineOptions) {
 		}
 
 		opts.connectionConfig.APIServer = APIServer
-
-		log.Println("API server URL provided on the command line: " + opts.connectionConfig.APIServer)
+		printIfVerbose("API server URL provided on the command line: "+opts.connectionConfig.APIServer, Verbose)
 
 	}
 
@@ -61,15 +65,11 @@ func parseOptions(opts *CommandLineOptions) {
 	if len(opts.connectionConfig.CAPath) > 0 {
 		CAPath := strings.TrimSpace(opts.connectionConfig.CAPath)
 		opts.connectionConfig.CAPath = CAPath
-		log.Println("Certificate authority path provided on the command line: " + opts.connectionConfig.CAPath)
+		printIfVerbose("Certificate authority path provided on the command line: "+opts.connectionConfig.CAPath, Verbose)
 	}
 
 	if opts.connectionConfig.Token != "" {
-		log.Println("JWT provided on the command line.")
+		printIfVerbose("JWT provided on the command line.", Verbose)
 	}
 
-	Verbose = opts.verbose
-	if Verbose {
-		println("DEBUG: verbose mode on")
-	}
 }

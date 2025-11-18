@@ -52,7 +52,7 @@ func ImportPodServiceAccountToken() ServerInfo {
 	// Only return output if a JWT was found.
 	if errRead == nil {
 		configInfoVars.Token = string(token)
-		fmt.Println("Read a service account token from " + tokenFile)
+		printIfVerbose("Read a service account token from "+tokenFile, Verbose)
 
 		// Try naming the service account token with its JWT name
 		name := ""

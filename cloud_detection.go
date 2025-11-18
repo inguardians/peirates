@@ -77,7 +77,8 @@ func populateAndCheckCloudProviders() string {
 
 	// Now check each cloud provider's metadata API.
 	for _, provider := range providers {
-		fmt.Printf("Checking %s...\n", provider.Name)
+		checking := fmt.Sprintf("Checking if we are on %s...", provider.Name)
+		printIfVerbose(checking, Verbose)
 
 		var response string
 		var statusCode int
