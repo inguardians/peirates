@@ -9,6 +9,7 @@ import (
 )
 
 type CommandLineOptions struct {
+	noCloudDetection bool
 	connectionConfig *ServerInfo
 	moduleToRun      string
 	verbose          bool
@@ -24,6 +25,7 @@ func parseOptions(opts *CommandLineOptions) {
 
 	flagset.StringVar(&opts.connectionConfig.APIServer, "u", opts.connectionConfig.APIServer, "API Server URL: ex. https://10.96.0.1:6443")
 	flagset.BoolVar(&opts.connectionConfig.ignoreTLS, "k", false, "Ignore TLS checking on API server requests?")
+	flagset.BoolVar(&opts.noCloudDetection, "c", false, "Skip checking what cloud we are on.")
 
 	flagset.StringVar(&opts.connectionConfig.Token, "t", opts.connectionConfig.Token, "Token (JWT)")
 	flagset.StringVar(&opts.moduleToRun, "m", "", "module to run from menu - items on main menu with an * support this.")

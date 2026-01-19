@@ -552,6 +552,7 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 	for _, pod := range dirs {
 
 		podName := getPodName(kubeletPodsDir, pod.Name())
+		// TODO: make sure this says <node> otherwise
 
 		serviceAccountPath := kubeletPodsDir + pod.Name() + podVolumeSADir
 
@@ -642,7 +643,7 @@ func getPodName(kubeletPodsDir, podDirName string) string {
 		// if the etc-hosts file is there, parse it to find this pod's name
 		file, err := os.Open(etcHostPath)
 		if err != nil {
-			return ""
+			return "<not detected - cno>"
 		}
 		scanner := bufio.NewScanner(file)
 		scanner.Split(bufio.ScanLines)
@@ -665,6 +666,8 @@ func getPodName(kubeletPodsDir, podDirName string) string {
 			}
 
 		}
+	} else {
+		podName = "<not detected - ne>"
 	}
 	return podName
 

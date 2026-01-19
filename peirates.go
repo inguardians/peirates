@@ -45,8 +45,6 @@ func Main() {
 	// Make room for an assumed role.
 	var assumedAWSrole AWSCredentials
 
-	detectCloud := populateAndCheckCloudProviders()
-
 	// Create a global variable named "connectionString" initialized to default values
 	connectionString := ImportPodServiceAccountToken()
 	cmdOpts := CommandLineOptions{connectionConfig: &connectionString}
@@ -65,6 +63,14 @@ func Main() {
 
 	// Run the option parser to initialize connectionStrings
 	parseOptions(&cmdOpts)
+
+	// Skip cloud detection if -c is passed on the command line.
+	var detectCloud string
+	if cmdOpts.noCloudDetection {
+		detectCloud = "<not checked>"
+	} else {
+		detectCloud = populateAndCheckCloudProviders()
+	}
 
 	// Check whether the -m / --module flag has been used to run just a specific module instead
 	// of the menu.
