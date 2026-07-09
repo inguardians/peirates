@@ -179,7 +179,7 @@ spec:
 			println("[-] Exec into that pod failed. If your privileges do permit this, the pod may have needed more time.  Use this main menu option to try again: Run command in one or all pods in this namespace.")
 			return
 		} else {
-			println("[+] Netcat callback added sucessfully.")
+			println("[+] Netcat callback added successfully.")
 			println("[+] Removing attack pod.")
 			err := runKubectlWithConfig(connectionString, stdin, &stdout, &stderr, "delete", "pod", attackPodName)
 			if err != nil {
