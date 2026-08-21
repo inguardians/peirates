@@ -5,16 +5,23 @@ import (
 	"fmt"
 )
 
+// These package-level delegates keep Kubernetes enumeration deterministic in
+// unit tests while preserving the production call path.
+var (
+	enumerateAuthCanI      = kubectlAuthCanI
+	enumerateKubectlSimple = runKubectlSimple
+)
+
 // GetPodsInfo gets details for all pods in json output and stores in PodDetails struct
 func GetPodsInfo(connectionString ServerInfo, podDetails *PodDetails) {
 
-	if !kubectlAuthCanI(connectionString, "get", "pods") {
+	if !enumerateAuthCanI(connectionString, "get", "pods") {
 		println("[-] Permission Denied: your service account isn't allowed to get pods")
 		return
 	}
 
 	println("[+] Getting details for all pods")
-	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
+	podDetailOut, _, err := enumerateKubectlSimple(connectionString, "get", "pods", "-o", "json")
 	println(string(podDetailOut))
 	if err != nil {
 		println("[-] Unable to retrieve details from this pod: ", err)
@@ -58,7 +65,7 @@ func PrintHostMountPointsForPod(podInfo PodDetails, pod string) {
 // It parses all roles into a KubeRoles object.
 func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
 	println("[+] Getting all Roles")
-	rolesOut, _, err := runKubectlSimple(connectionString, "get", "role", "-o", "json")
+	rolesOut, _, err := enumerateKubectlSimple(connectionString, "get", "role", "-o", "json")
 	if err != nil {
 		println("[-] Unable to retrieve roles from this pod: ", err)
 	} else {
@@ -74,7 +81,7 @@ func GetRoles(connectionString ServerInfo, kubeRoles *KubeRoles) {
 // GetNodesInfo runs kubectl get nodes -o json.
 func GetNodesInfo(connectionString ServerInfo) {
 	println("[+] Getting details for all pods")
-	podDetailOut, _, err := runKubectlSimple(connectionString, "get", "nodes", "-o", "json")
+	podDetailOut, _, err := enumerateKubectlSimple(connectionString, "get", "nodes", "-o", "json")
 	println(string(podDetailOut))
 	if err != nil {
 		println("[-] Unable to retrieve node details: ", err)
@@ -84,12 +91,12 @@ func GetNodesInfo(connectionString ServerInfo) {
 // getPodList returns an array of running pod information, parsed from "kubectl -n namespace get pods -o json"
 func getPodList(connectionString ServerInfo) []string {
 
-	if !kubectlAuthCanI(connectionString, "get", "pods") {
+	if !enumerateAuthCanI(connectionString, "get", "pods") {
 		println("[-] Permission Denied: your service account isn't allowed to get pods")
 		return []string{}
 	}
 
-	responseJSON, _, err := runKubectlSimple(connectionString, "get", "pods", "-o", "json")
+	responseJSON, _, err := enumerateKubectlSimple(connectionString, "get", "pods", "-o", "json")
 	if err != nil {
 		fmt.Printf("[-] Error while getting pods: %s\n", err.Error())
 		return []string{}
@@ -122,7 +129,7 @@ func getPodList(connectionString ServerInfo) []string {
 // Get the names of the available Secrets from the current namespace and a list of service account tokens
 func getSecretList(connectionString ServerInfo) ([]string, []string) {
 
-	if !kubectlAuthCanI(connectionString, "get", "secrets") {
+	if !enumerateAuthCanI(connectionString, "get", "secrets") {
 		println("[-] Permission Denied: your service account isn't allowed to list secrets")
 		return []string{}, []string{}
 	}
@@ -136,7 +143,7 @@ func getSecretList(connectionString ServerInfo) ([]string, []string) {
 		} `json:"items"`
 	}
 
-	secretsJSON, _, err := runKubectlSimple(connectionString, "get", "secrets", "-o", "json")
+	secretsJSON, _, err := enumerateKubectlSimple(connectionString, "get", "secrets", "-o", "json")
 	if err != nil {
 		fmt.Printf("[-] Error while getting secrets: %s\n", err.Error())
 		return []string{}, []string{}
