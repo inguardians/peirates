@@ -266,6 +266,9 @@ func curlNonWizard(arguments ...string) (request *http.Request, https bool, igno
 
 		if argument == "-X" {
 			// Method is being set
+			if i+1 >= len(arguments) {
+				return nil, false, false, "", errors.New("-X requires an HTTP method")
+			}
 			method = arguments[i+1]
 			if Verbose {
 				println("DEBUG: found argument to set method: -X " + method)
@@ -277,6 +280,9 @@ func curlNonWizard(arguments ...string) (request *http.Request, https bool, igno
 		} else if argument == "-k" {
 			ignoreTLSErrors = true
 		} else if argument == "-d" {
+			if i+1 >= len(arguments) {
+				return nil, false, false, "", errors.New("-d requires key=value data")
+			}
 			data := arguments[i+1]
 
 			// Strip quotation marks if present
