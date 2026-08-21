@@ -228,7 +228,7 @@ func setUpCompletionMainMenu() *readline.PrefixCompleter {
 		// [7] Attempt to Assume a Different AWS Role [aws-assume-role]
 		readline.PcItem("aws-assume-role"),
 		// [8] Deactivate assumed AWS role [aws-empty-assumed-role]
-		readline.PcItem("aws-empty-assumed-rol"),
+		readline.PcItem("aws-empty-assumed-role"),
 		// [9] Switch authentication contexts: certificate-based authentication (kubelet, kubeproxy, manually-entered) [cert-menu]
 		readline.PcItem("cert-menu"),
 		// [10] List secrets in this namespace from API server [list-secrets, get-secrets]
@@ -265,6 +265,10 @@ func setUpCompletionMainMenu() *readline.PrefixCompleter {
 		readline.PcItem("leakyvessels"),
 		// [30] Steal secrets from the node filesystem [nodefs-steal-secrets]
 		readline.PcItem("nodefs-steal-secrets"),
+		// [31] List secrets already gathered from the node filesystem
+		readline.PcItem("nodefs-secrets-list"),
+		// [89] Inject peirates into another pod via the API server
+		readline.PcItem("inject-and-exec"),
 		// [90] Run a kubectl command using the current authorization context [kubectl [arguments]]
 		readline.PcItem("kubectl"),
 		// [] Run a kubectl command using EVERY authorization context until one works [kubectl-try-all-until-success [arguments]]
