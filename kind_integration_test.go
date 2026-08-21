@@ -22,7 +22,7 @@ func TestKindListsNamespaces(t *testing.T) {
 		} `json:"items"`
 	}
 	cfg := ServerInfo{APIServer: apiServer, Token: token, ignoreTLS: true}
-	if err := DoKubernetesAPIRequest(cfg, "GET", "/api/v1/namespaces", nil, &response); err != nil {
+	if err := DoKubernetesAPIRequest(cfg, "GET", "api/v1/namespaces", nil, &response); err != nil {
 		t.Fatalf("list namespaces through Peirates API client: %v", err)
 	}
 	for _, item := range response.Items {

@@ -188,7 +188,7 @@ func TestDoKubernetesAPIRequest(t *testing.T) {
 	var response struct {
 		Answer string `json:"answer"`
 	}
-	if err := DoKubernetesAPIRequest(cfg, http.MethodPost, "apis/test", map[string]string{"name": "value"}, &response); err != nil || response.Answer != "yes" {
+	if err := DoKubernetesAPIRequest(cfg, http.MethodPost, "/apis/test", map[string]string{"name": "value"}, &response); err != nil || response.Answer != "yes" {
 		t.Fatalf("response %#v, error %v", response, err)
 	}
 	if err := DoKubernetesAPIRequest(cfg, http.MethodPost, "apis/test", func() {}, &response); err == nil {
