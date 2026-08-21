@@ -4,7 +4,7 @@ GOCACHE ?= /tmp/peirates-go-build
 GOMODCACHE ?= /tmp/peirates-go-mod
 PACKAGES := $(shell GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) go list ./... | grep -v /vendor/)
 
-.PHONY: default gofmt lint test test-quiet update-deps
+.PHONY: default gofmt lint test test-quiet kind-test update-deps
 
 default: lint
 
@@ -21,6 +21,9 @@ test:
 
 test-quiet:
 	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) go test ./...
+
+kind-test:
+	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) ./test/kind-integration.sh
 	
 update-deps:
 	go clean -modcache

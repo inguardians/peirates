@@ -36,6 +36,16 @@ make dev
 make push-dev
 ```
 
+## Kind integration test
+
+This opt-in test creates a disposable Kind cluster, grants a temporary service
+account read access, and verifies Peirates can list namespaces through the
+live Kubernetes API. It requires Docker, Kind, kubectl, and Go.
+
+```sh
+make kind-test
+```
+
 ## Security
 
 ```sh
