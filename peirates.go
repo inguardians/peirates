@@ -199,6 +199,9 @@ func Main() {
 
 			// Make sure not to go into the switch-case
 			pauseToHitEnter(interactive)
+			if !interactive {
+				return
+			}
 			continue
 		}
 
@@ -219,6 +222,9 @@ func Main() {
 
 			// Make sure not to go into the switch-case
 			pauseToHitEnter(interactive)
+			if !interactive {
+				return
+			}
 			continue
 		}
 
@@ -239,6 +245,9 @@ func Main() {
 
 			// Make sure not to go into the switch-case
 			pauseToHitEnter(interactive)
+			if !interactive {
+				return
+			}
 			continue
 		}
 
@@ -252,10 +261,16 @@ func Main() {
 			cwd, error := getCurrentDirectory()
 			if error != nil {
 				println("Error getting current directory: " + error.Error())
+				if !interactive {
+					return
+				}
 				continue
 			}
 			println(cwd)
 			pauseToHitEnter(interactive)
+			if !interactive {
+				return
+			}
 			continue
 		}
 
@@ -276,11 +291,17 @@ func Main() {
 			cwd, error := getCurrentDirectory()
 			if error != nil {
 				println("Error getting current directory: " + error.Error())
+				if !interactive {
+					return
+				}
 				continue
 			}
 			println(cwd)
 
 			pauseToHitEnter(interactive)
+			if !interactive {
+				return
+			}
 			continue
 		}
 
@@ -299,6 +320,9 @@ func Main() {
 				}
 			}
 			pauseToHitEnter(interactive)
+			if !interactive {
+				return
+			}
 			continue
 		}
 
@@ -323,6 +347,9 @@ func Main() {
 				}
 			}
 			pauseToHitEnter(interactive)
+			if !interactive {
+				return
+			}
 			continue
 		}
 
@@ -334,6 +361,9 @@ func Main() {
 				println("Error listing directory: " + error.Error())
 			}
 			pauseToHitEnter(interactive)
+			if !interactive {
+				return
+			}
 			continue
 		}
 
@@ -346,6 +376,9 @@ func Main() {
 			input, err = ReadLineStripWhitespace()
 			if err != nil {
 				println("error in reading input" + err.Error())
+				if !interactive {
+					return
+				}
 				continue
 			}
 			input = shellSpace + input
@@ -380,6 +413,9 @@ func Main() {
 			}
 
 			// Make sure not to go into the switch-case
+			if !interactive {
+				return
+			}
 			continue
 		}
 
@@ -394,6 +430,9 @@ func Main() {
 			if err != nil {
 				println("Could not create request.")
 				pauseToHitEnter(interactive)
+				if !interactive {
+					return
+				}
 				continue
 			}
 			responseBody, err := DoHTTPRequestAndGetBody(request, https, ignoreTLSErrors, caCertPath)
@@ -404,6 +443,9 @@ func Main() {
 			outputToUser(string(responseBody), logToFile, outputFileName)
 
 			pauseToHitEnter(interactive)
+			if !interactive {
+				return
+			}
 			continue
 		}
 
@@ -419,6 +461,9 @@ func Main() {
 			if strings.Contains(input, " ") {
 				println("Output file name must not contain spaces.")
 				pauseToHitEnter(interactive)
+				if !interactive {
+					return
+				}
 				continue
 			}
 
@@ -429,6 +474,9 @@ func Main() {
 
 			// If there is no argument, set logToFile to false.
 			pauseToHitEnter(interactive)
+			if !interactive {
+				return
+			}
 			continue
 		}
 
@@ -438,6 +486,9 @@ func Main() {
 			println("Output file name is empty - deactivating output to file.")
 			logToFile = false
 			pauseToHitEnter(interactive)
+			if !interactive {
+				return
+			}
 			continue
 		}
 
@@ -451,7 +502,7 @@ func Main() {
 		// }
 
 		// Peirates MAIN MENU
-		switch input {
+		switch canonicalModuleCommand(input) {
 
 		// exit
 		case "exit", "quit":
@@ -621,11 +672,17 @@ func Main() {
 		case "full", "help":
 			fullMenu = true
 			// Skip the "press enter to continue"
+			if !interactive {
+				return
+			}
 			continue
 
 		case "short", "minimal":
 			fullMenu = false
 			// Skip the "press enter to continue"
+			if !interactive {
+				return
+			}
 			continue
 
 		default:
