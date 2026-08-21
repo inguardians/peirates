@@ -10,6 +10,13 @@ import (
 	"time"
 )
 
+const defaultGCPMetadataBaseURL = "http://metadata.google.internal/computeMetadata/v1"
+
+var (
+	gcpMetadataBaseURL = defaultGCPMetadataBaseURL
+	gcpGetRequest      = GetRequest
+)
+
 // Tokens returned by the metadata API will look like this, unless error has occurred: {"access_token":"xxxxxxx","expires_in":2511,"token_type":"Bearer"}
 type GCPToken struct {
 	Token          string `json:"access_token"`
@@ -24,10 +31,10 @@ func GetGCPBearerTokenFromMetadataAPI(account string) (string, time.Time, error)
 	headers := []HeaderLine{
 		HeaderLine{"Metadata-Flavor", "Google"},
 	}
-	baseURL := "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/"
+	baseURL := gcpMetadataBaseURL + "/instance/service-accounts/"
 	urlSvcAccount := baseURL + account + "/token"
 
-	reqTokenRaw, statusCode, err := GetRequest(urlSvcAccount, headers, false)
+	reqTokenRaw, statusCode, err := gcpGetRequest(urlSvcAccount, headers, false)
 	if err != nil {
 		fmt.Println("GetRequest in GetGCPBearerTokenFromMetadataAPI() failed with error", err)
 		return "", time.Now(), err

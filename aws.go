@@ -20,6 +20,15 @@ import (
 	"github.com/aws/aws-sdk-go/service/sts"
 )
 
+const defaultAWSMetadataBaseURL = "http://169.254.169.254"
+
+// awsMetadataBaseURL and awsHTTPClient allow metadata interactions to be
+// exercised against a local server in tests.
+var (
+	awsMetadataBaseURL = defaultAWSMetadataBaseURL
+	awsHTTPClient      = http.DefaultClient
+)
+
 // AWSCredentials stores the credentials
 type AWSCredentials struct {
 	accountName string
@@ -121,7 +130,7 @@ func PullIamCredentialsFromAWS() (AWSCredentials, error) {
 
 	var credentials AWSCredentials
 
-	response, err := http.Get("http://169.254.169.254/latest/meta-data/iam/security-credentials/")
+	response, err := awsHTTPClient.Get(awsMetadataBaseURL + "/latest/meta-data/iam/security-credentials/")
 	if err != nil {
 
 		problem := "[-] Error - could not perform request http://169.254.169.254/latest/meta-data/iam/security-credentials/"
@@ -144,8 +153,8 @@ func PullIamCredentialsFromAWS() (AWSCredentials, error) {
 	account := string(body)
 	credentials.accountName = account
 
-	request := "http://169.254.169.254/latest/meta-data/iam/security-credentials/" + account
-	response2, err := http.Get(request)
+	request := awsMetadataBaseURL + "/latest/meta-data/iam/security-credentials/" + account
+	response2, err := awsHTTPClient.Get(request)
 	if err != nil {
 		problem := "[-] error - could not perform HTTP GET request : " + request
 		println(problem)
@@ -178,7 +187,7 @@ func PullIamCredentialsFromAWS() (AWSCredentials, error) {
 func RequestAWSIMDSv2Token() (token string, err error) {
 
 	//  Get a token to interact with AWS IMDSv2 Metadata API
-	tokenURL := "http://169.254.169.254/latest/api/token"
+	tokenURL := awsMetadataBaseURL + "/latest/api/token"
 	req, err := http.NewRequest("PUT", tokenURL, nil)
 	if err != nil {
 		fmt.Println("Error creating request for token:", err)
@@ -188,8 +197,7 @@ func RequestAWSIMDSv2Token() (token string, err error) {
 	req.Header.Set("X-aws-ec2-metadata-token-ttl-seconds", "21600") // 6 hours
 
 	// Send the request to get the token
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := awsHTTPClient.Do(req)
 	if err != nil {
 		fmt.Println("Error creating HTTP client to fetch token:", err)
 		return "", err
@@ -228,10 +236,8 @@ func PullIamCredentialsFromAWSWithIMDSv2() (AWSCredentials, error) {
 	}
 
 	// Create an HTTP client
-	client := &http.Client{}
-
 	//  REQUEST 2: Get the account/role name
-	accountURL := "http://169.254.169.254/latest/meta-data/iam/security-credentials/"
+	accountURL := awsMetadataBaseURL + "/latest/meta-data/iam/security-credentials/"
 
 	// Set up the request object
 	req2, err := http.NewRequest("GET", accountURL, nil)
@@ -242,7 +248,7 @@ func PullIamCredentialsFromAWSWithIMDSv2() (AWSCredentials, error) {
 	// Attach the token to the new request
 	req2.Header.Set("X-aws-ec2-metadata-token", string(token))
 	// Send the request to get the security credentials
-	resp, err := client.Do(req2)
+	resp, err := awsHTTPClient.Do(req2)
 	if err != nil {
 		fmt.Println("Error fetching security credentials:", err)
 		return credentials, err
@@ -270,7 +276,7 @@ func PullIamCredentialsFromAWSWithIMDSv2() (AWSCredentials, error) {
 	// Attach the token to the new request
 	req3.Header.Set("X-aws-ec2-metadata-token", string(token))
 	// Send the request to get the security credentials
-	resp, err = client.Do(req3)
+	resp, err = awsHTTPClient.Do(req3)
 	if err != nil {
 		fmt.Println("Error fetching security credentials:", err)
 		return credentials, err
@@ -365,8 +371,8 @@ func DisplayAWSIAMCredentials(IAMCredentials AWSCredentials) {
 
 func GetAWSRegionAndZone() (region string, zone string, err error) {
 
-	url := "http://169.254.169.254/latest/meta-data/placement/availability-zone"
-	response, err := http.Get(url)
+	url := awsMetadataBaseURL + "/latest/meta-data/placement/availability-zone"
+	response, err := awsHTTPClient.Get(url)
 	if err != nil {
 		println("[-] Error - could not perform request " + url + "\n")
 		return "", "", errors.New("Could not pull url " + url)
@@ -384,9 +390,7 @@ func GetAWSRegionAndZone() (region string, zone string, err error) {
 		}
 
 		// Create an HTTP client
-		client := &http.Client{}
-
-		accountURL := "http://169.254.169.254/latest/meta-data/placement/availability-zone"
+		accountURL := awsMetadataBaseURL + "/latest/meta-data/placement/availability-zone"
 
 		// Set up the request object
 		req, err := http.NewRequest("GET", accountURL, nil)
@@ -397,7 +401,7 @@ func GetAWSRegionAndZone() (region string, zone string, err error) {
 		// Attach the token to the new request
 		req.Header.Set("X-aws-ec2-metadata-token", string(token))
 		// Send the request to get the region
-		resp, err := client.Do(req)
+		resp, err := awsHTTPClient.Do(req)
 		if err != nil {
 			fmt.Println("Error fetching region:", err)
 			return "", "", err
