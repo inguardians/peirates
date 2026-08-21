@@ -35,7 +35,7 @@ function build() {
   echo "Building for arch: ${ARCH}"
 
   if [ $STATIC == "static" ] ; then
-     GOOS=${OS} GOARCH=${ARCH} go build -tags netgo,osusergo --ldflags '-extldflags "-static"' $(realpath ../cmd/peirates)
+     CGO_ENABLED=0 GOOS=${OS} GOARCH=${ARCH} go build -tags netgo,osusergo --ldflags '-extldflags "-static"' $(realpath ../cmd/peirates)
   else
      GOOS=${OS} GOARCH=${ARCH} go build -ldflags="-s -w" $(realpath ../cmd/peirates)
   fi
