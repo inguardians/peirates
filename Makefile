@@ -4,7 +4,7 @@ GOCACHE ?= /tmp/peirates-go-build
 GOMODCACHE ?= /tmp/peirates-go-mod
 PACKAGES := $(shell GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) go list ./... | grep -v /vendor/)
 
-.PHONY: default gofmt lint test update-deps
+.PHONY: default gofmt lint test test-quiet update-deps
 
 default: lint
 
@@ -17,6 +17,9 @@ lint: gofmt
 	$(GOPATH)/bin/golangci-lint run
 
 test:
+	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) go test -v ./...
+
+test-quiet:
 	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) go test ./...
 	
 update-deps:
