@@ -51,7 +51,7 @@ func DoKubernetesAPIRequest(cfg ServerInfo, httpVerb, apiPath string, query inte
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json")
 
-	responseJSON, err := DoHTTPRequestAndGetBody(req, true, false, cfg.CAPath)
+	responseJSON, err := DoHTTPRequestAndGetBody(req, true, cfg.ignoreTLS, cfg.CAPath)
 	if err != nil {
 		fmt.Printf("[-] KubernetesAPIRequest failed to access the kubernetes API: %s\n", err.Error())
 		return err
@@ -96,6 +96,7 @@ func DoHTTPRequestAndGetBody(req *http.Request, https bool, ignoreTLSErrors bool
 		}
 
 		client = &http.Client{
+			Timeout: 5 * time.Second,
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
 					RootCAs:            caCertPool,

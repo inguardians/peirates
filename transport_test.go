@@ -194,6 +194,11 @@ func TestDoKubernetesAPIRequest(t *testing.T) {
 	if err := DoKubernetesAPIRequest(cfg, http.MethodPost, "apis/test", func() {}, &response); err == nil {
 		t.Fatal("expected unmarshalable request query to fail")
 	}
+	cfg.CAPath = ""
+	cfg.ignoreTLS = true
+	if err := DoKubernetesAPIRequest(cfg, http.MethodPost, "apis/test", map[string]string{"name": "value"}, &response); err != nil || response.Answer != "yes" {
+		t.Fatalf("insecure response %#v, error %v", response, err)
+	}
 }
 
 func TestNewKubeRequest(t *testing.T) {
