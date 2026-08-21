@@ -36,8 +36,13 @@ func TestChangeAndGetCurrentDirectory(t *testing.T) {
 	if err := changeDirectory(dir); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := getCurrentDirectory(); err != nil || got != dir {
-		t.Fatalf("cwd = %q, %v", got, err)
+	if got, err := getCurrentDirectory(); err != nil {
+		t.Fatalf("getCurrentDirectory(): %v", err)
+	} else {
+		resolvedDir, resolveErr := filepath.EvalSymlinks(dir)
+		if resolveErr != nil || got != resolvedDir {
+			t.Fatalf("cwd = %q, want %q (resolve error: %v)", got, resolvedDir, resolveErr)
+		}
 	}
 	if err := changeDirectory(filepath.Join(dir, "missing")); err == nil {
 		t.Fatal("expected missing dir error")
