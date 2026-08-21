@@ -18,6 +18,11 @@ import (
 
 const ServiceAccountPath = "/var/run/secrets/kubernetes.io/serviceaccount/"
 
+var (
+	namespaceAuthCanI      = kubectlAuthCanI
+	namespaceKubectlSimple = runKubectlSimple
+)
+
 type ServerInfo struct {
 	APIServer      string // URL for the API server - this replaces RIPAddress and RPort
 	Token          string // service account token ASCII text, if present
@@ -748,7 +753,7 @@ func menuSwitchNamespaces(connectionString *ServerInfo) bool {
 // GetNamespaces returns the list of active namespaces, using kubectl get namespaces
 func GetNamespaces(connectionString ServerInfo) ([]string, error) {
 
-	if !kubectlAuthCanI(connectionString, "get", "namespaces") {
+	if !namespaceAuthCanI(connectionString, "get", "namespaces") {
 		errorString := "[-] Permission Denied: your service account isn't allowed to get namespaces"
 		println(errorString)
 		println("Consider trying kubectl-try-all get namespaces to see if any RBAC principals you have can do this.")
@@ -757,7 +762,7 @@ func GetNamespaces(connectionString ServerInfo) ([]string, error) {
 
 	var namespaces []string
 
-	NamespacesRaw, _, err := runKubectlSimple(connectionString, "get", "namespaces")
+	NamespacesRaw, _, err := namespaceKubectlSimple(connectionString, "get", "namespaces")
 	if err != nil {
 		errorString := "[-] error while running kubectl get namespaces"
 		println(errorString)
@@ -772,8 +777,12 @@ func GetNamespaces(connectionString ServerInfo) ([]string, error) {
 	for _, line := range lines {
 		if !emptyString.MatchString(line) {
 			// Get rid of blank lines
-			if strings.Fields(line)[1] == "Active" {
-				namespace := strings.Fields(line)[0]
+			fields := strings.Fields(line)
+			if len(fields) < 2 {
+				continue
+			}
+			if fields[1] == "Active" {
+				namespace := fields[0]
 				if namespace != "NAME" {
 					namespaces = append(namespaces, namespace)
 				}
@@ -804,7 +813,7 @@ func findFlagValue(args []string, flag string) string {
 
 		printIfVerbose("DEBUG: Checking argument: "+arg, Verbose)
 
-		if strings.HasPrefix(arg, flag) {
+		if arg == flag || strings.HasPrefix(arg, flag+"=") {
 			printIfVerbose("DEBUG: Found flag in: "+arg, Verbose)
 			// Split the argument on "=" to separate the flag from its value
 			parts := strings.SplitN(arg, "=", 2)
