@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// Provider describes a cloud metadata service and how to identify it.
 type Provider struct {
 	Name              string
 	URL               string
@@ -20,16 +21,19 @@ type Provider struct {
 	ResultString      string
 }
 
+// Detector detects the cloud provider available through a metadata service.
 type Detector struct {
 	Client  *http.Client
 	Verbose bool
 	Print   func(string)
 }
 
+// NewDetector returns a metadata service detector with the default timeout.
 func NewDetector(verbose bool) Detector {
 	return Detector{Client: &http.Client{Timeout: time.Second}, Verbose: verbose, Print: func(s string) { println(s) }}
 }
 
+// Providers returns the cloud metadata services that can be detected.
 func Providers() []Provider {
 	return []Provider{
 		{Name: "AWS", URL: "http://169.254.169.254/latest/", HTTPMethod: http.MethodGet, ResultString: "meta-data"},
@@ -40,6 +44,7 @@ func Providers() []Provider {
 	}
 }
 
+// DetectProvider returns the detected cloud provider or a not-detected message.
 func (d Detector) DetectProvider() string {
 	client := d.Client
 	if client == nil {
@@ -78,6 +83,7 @@ func (d Detector) DetectProvider() string {
 	return "-- Public Cloud Metadata API not detected --"
 }
 
+// DetectContainer returns the detected container environment, if any.
 func DetectContainer() string {
 	b, err := os.ReadFile("/proc/self/cgroup")
 	if err != nil {
@@ -93,6 +99,7 @@ func DetectContainer() string {
 	return ""
 }
 
+// DetectOpenStack returns OpenStack when the host vendor indicates OpenStack.
 func DetectOpenStack() string {
 	if runtime.GOOS == "windows" {
 		return ""

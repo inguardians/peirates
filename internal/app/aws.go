@@ -40,6 +40,7 @@ type AWSCredentials struct {
 	SessionToken    string `json:"Token"`
 }
 
+// PullIamCredentialsFromEnvironmentVariables loads AWS IAM credentials from the environment.
 func PullIamCredentialsFromEnvironmentVariables() AWSCredentials {
 	var credentials AWSCredentials
 
@@ -55,6 +56,7 @@ func PullIamCredentialsFromEnvironmentVariables() AWSCredentials {
 	return credentials
 }
 
+// EnterIamCredentialsForAWS prompts the user for AWS IAM credentials.
 func EnterIamCredentialsForAWS() (AWSCredentials, error) {
 
 	var credentials AWSCredentials
@@ -142,13 +144,13 @@ func PullIamCredentialsFromAWS() (AWSCredentials, error) {
 	if response.StatusCode != 200 {
 		problem := "Error: AWS IMDS Metadata API responded with " + response.Status
 		fmt.Println(problem)
-		return credentials, errors.New(problem)
+		return credentials, errors.New("aws IMDS metadata API responded with " + response.Status)
 	}
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		println("[-] Error - could not read list of security credentials.")
-		return credentials, errors.New("error - could not read list of security credentials.")
+		return credentials, errors.New("error - could not read list of security credentials")
 	}
 	account := string(body)
 	credentials.accountName = account
@@ -184,6 +186,7 @@ func PullIamCredentialsFromAWS() (AWSCredentials, error) {
 
 }
 
+// RequestAWSIMDSv2Token requests a token from the AWS IMDSv2 metadata API.
 func RequestAWSIMDSv2Token() (token string, err error) {
 
 	//  Get a token to interact with AWS IMDSv2 Metadata API
@@ -225,6 +228,7 @@ func RequestAWSIMDSv2Token() (token string, err error) {
 
 }
 
+// PullIamCredentialsFromAWSWithIMDSv2 requests AWS credentials using IMDSv2.
 func PullIamCredentialsFromAWSWithIMDSv2() (AWSCredentials, error) {
 
 	var credentials AWSCredentials
@@ -306,6 +310,7 @@ func PullIamCredentialsFromAWSWithIMDSv2() (AWSCredentials, error) {
 
 }
 
+// AWSSTSAssumeRole assumes an AWS IAM role using the supplied credentials.
 func AWSSTSAssumeRole(IAMCredentials AWSCredentials, roleToAssumeArn string) (AssumedCredentials AWSCredentials, err error) {
 
 	matched, err := regexp.MatchString(`arn:aws:iam::\d{12,}:\w+\/\w+`, roleToAssumeArn)
@@ -369,6 +374,7 @@ func DisplayAWSIAMCredentials(IAMCredentials AWSCredentials) {
 	println("aws_session_token = " + IAMCredentials.SessionToken)
 }
 
+// GetAWSRegionAndZone retrieves the current AWS region and availability zone.
 func GetAWSRegionAndZone() (region string, zone string, err error) {
 
 	url := awsMetadataBaseURL + "/latest/meta-data/placement/availability-zone"
@@ -487,7 +493,7 @@ func ListBucketObjects(IAMCredentials AWSCredentials, bucket string) error {
 	return nil
 }
 
-// ListBuckets lists the buckets accessible from this IAM account.
+// ListAWSBuckets lists the buckets accessible from this IAM account.
 func ListAWSBuckets(IAMCredentials AWSCredentials) (bucketNamesList []string, err error) {
 	// Initialize an S3 session in the current region.
 	svc := StartS3Session(IAMCredentials)
@@ -512,6 +518,7 @@ func nonexitErrorf(msg string, args ...interface{}) {
 
 }
 
+// KopsAttackAWS searches AWS S3 buckets for Kubernetes service account tokens.
 func KopsAttackAWS(serviceAccounts *[]ServiceAccount, awsCredentials AWSCredentials, assumedAWSrole AWSCredentials, interactive bool) {
 
 	var storeTokens string
@@ -601,12 +608,12 @@ func KopsAttackAWS(serviceAccounts *[]ServiceAccount, awsCredentials AWSCredenti
 				buf := new(bytes.Buffer)
 				_, err = buf.ReadFrom(result.Body)
 				jsonOutput := buf.String()
-				byteEncodedJsonOutput := []byte(jsonOutput)
+				byteEncodedJSONOutput := []byte(jsonOutput)
 				// Unmarshall the json into Data : encodedtoken
 
 				var structuredVersion AWSS3BucketObject
 
-				error = json.Unmarshal(byteEncodedJsonOutput, &structuredVersion)
+				error = json.Unmarshal(byteEncodedJSONOutput, &structuredVersion)
 				if error != nil {
 					continue
 				}
@@ -617,15 +624,14 @@ func KopsAttackAWS(serviceAccounts *[]ServiceAccount, awsCredentials AWSCredenti
 					println("[-] Could not decode token.")
 					pauseToHitEnter(interactive)
 					return
-				} else {
-					tokenString := string(token)
-					println(tokenString)
+				}
+				tokenString := string(token)
+				println(tokenString)
 
-					if placeTokensInStore {
-						tokenName := "AWS-acquired: " + string(*item.Key)
-						println("[+] Storing token as:", tokenName)
-						AddNewServiceAccount(tokenName, tokenString, "AWS Bucket", serviceAccounts)
-					}
+				if placeTokensInStore {
+					tokenName := "AWS-acquired: " + string(*item.Key)
+					println("[+] Storing token as:", tokenName)
+					AddNewServiceAccount(tokenName, tokenString, "AWS Bucket", serviceAccounts)
 				}
 
 			}

@@ -11,8 +11,10 @@ import (
 	"strings"
 )
 
+// DefaultMetadataBaseURL is the default endpoint for the AWS instance metadata service.
 const DefaultMetadataBaseURL = "http://169.254.169.254"
 
+// Credentials contains AWS access credentials and their source account name.
 type Credentials struct {
 	AccountName     string `json:"-"`
 	AccessKeyID     string `json:"AccessKeyId"`
@@ -20,6 +22,7 @@ type Credentials struct {
 	SessionToken    string `json:"Token"`
 }
 
+// CredentialsFromEnvironment returns AWS credentials read from environment variables.
 func CredentialsFromEnvironment() Credentials {
 	return Credentials{
 		AccountName:     "AWS Credentials from Environment Variables",
@@ -29,12 +32,14 @@ func CredentialsFromEnvironment() Credentials {
 	}
 }
 
+// MetadataClient retrieves AWS instance metadata and credentials.
 type MetadataClient struct {
 	BaseURL string
 	Client  *http.Client
 	Verbose bool
 }
 
+// NewMetadataClient returns a metadata client using the default AWS metadata URL and HTTP client.
 func NewMetadataClient() MetadataClient {
 	return MetadataClient{BaseURL: DefaultMetadataBaseURL, Client: http.DefaultClient}
 }
@@ -53,6 +58,7 @@ func (c MetadataClient) httpClient() *http.Client {
 	return c.Client
 }
 
+// Token retrieves an IMDSv2 session token.
 func (c MetadataClient) Token() (string, error) {
 	url := c.baseURL() + "/latest/api/token"
 	req, err := http.NewRequest(http.MethodPut, url, nil)
@@ -80,6 +86,7 @@ func (c MetadataClient) Token() (string, error) {
 	return string(body), nil
 }
 
+// CredentialsV1 retrieves AWS credentials using IMDSv1.
 func (c MetadataClient) CredentialsV1() (Credentials, error) {
 	var credentials Credentials
 	path := c.baseURL() + "/latest/meta-data/iam/security-credentials/"
@@ -89,11 +96,11 @@ func (c MetadataClient) CredentialsV1() (Credentials, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return credentials, errors.New("Error: AWS IMDS Metadata API responded with " + resp.Status)
+		return credentials, errors.New("AWS IMDS Metadata API responded with " + resp.Status)
 	}
 	role, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return credentials, errors.New("error - could not read list of security credentials.")
+		return credentials, errors.New("error - could not read list of security credentials")
 	}
 	credentials.AccountName = string(role)
 	resp, err = c.httpClient().Get(path + string(role))
@@ -114,6 +121,7 @@ func (c MetadataClient) CredentialsV1() (Credentials, error) {
 	return credentials, nil
 }
 
+// CredentialsV2 retrieves AWS credentials using IMDSv2.
 func (c MetadataClient) CredentialsV2() (Credentials, error) {
 	var credentials Credentials
 	token, err := c.Token()
@@ -136,6 +144,7 @@ func (c MetadataClient) CredentialsV2() (Credentials, error) {
 	return credentials, nil
 }
 
+// RegionAndZone returns the AWS region and availability zone reported by the metadata API.
 func (c MetadataClient) RegionAndZone() (string, string, error) {
 	path := c.baseURL() + "/latest/meta-data/placement/availability-zone"
 	resp, err := c.httpClient().Get(path)

@@ -4,7 +4,6 @@
 
 /peirates
 .DS_Store
-go.sum
 *.log
 peirates.gz
 

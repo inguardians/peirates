@@ -7,21 +7,25 @@ import (
 	"strconv"
 )
 
+// Service describes a Kubernetes service discovered through cluster DNS.
 type Service struct {
 	HostName string
 	IP       string
 	Port     uint16
 }
 
+// Resolver discovers Kubernetes services using DNS lookups.
 type Resolver struct {
 	LookupSRV  func(service, proto, name string) (string, []*net.SRV, error)
 	LookupHost func(host string) ([]string, error)
 }
 
+// NewResolver returns a Resolver backed by the standard network DNS lookups.
 func NewResolver() Resolver {
 	return Resolver{LookupSRV: net.LookupSRV, LookupHost: net.LookupHost}
 }
 
+// Services returns Kubernetes services discovered through cluster DNS.
 func (r Resolver) Services() ([]Service, error) {
 	_, records, err := r.LookupSRV("", "", "any.any.svc.cluster.local")
 	if err != nil {
@@ -38,6 +42,7 @@ func (r Resolver) Services() ([]Service, error) {
 	return services, nil
 }
 
+// Enumerate discovers services and prints commands for scanning their ports.
 func (r Resolver) Enumerate() error {
 	println("\nRequesting SRV record any.any.svc.cluster.local - thank @raesene:\n")
 	services, err := r.Services()

@@ -12,8 +12,10 @@ import (
 	"time"
 )
 
+// DefaultMetadataBaseURL is the default Google Compute Engine metadata API base URL.
 const DefaultMetadataBaseURL = "http://metadata.google.internal/computeMetadata/v1"
 
+// Token represents an OAuth access token returned by the metadata API.
 type Token struct {
 	Token          string `json:"access_token"`
 	Expires        int64  `json:"expires_in"`
@@ -21,16 +23,19 @@ type Token struct {
 	Type           string `json:"token_type"`
 }
 
+// MetadataClient retrieves credentials from the Google Compute Engine metadata API.
 type MetadataClient struct {
 	BaseURL string
 	Client  *http.Client
 	Now     func() time.Time
 }
 
+// NewMetadataClient returns a metadata client configured with the default endpoint and HTTP client.
 func NewMetadataClient() MetadataClient {
 	return MetadataClient{BaseURL: DefaultMetadataBaseURL, Client: http.DefaultClient, Now: time.Now}
 }
 
+// BearerToken retrieves a bearer token and its expiration time for account.
 func (c MetadataClient) BearerToken(account string) (string, time.Time, error) {
 	now := c.Now
 	if now == nil {

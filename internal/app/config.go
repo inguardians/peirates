@@ -18,6 +18,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// ServiceAccountPath is the default directory containing a pod's service account credentials.
 const ServiceAccountPath = "/var/run/secrets/kubernetes.io/serviceaccount/"
 
 var (
@@ -25,8 +26,10 @@ var (
 	namespaceKubectlSimple = runKubectlSimple
 )
 
+// ServerInfo describes the Kubernetes API server and credentials used to connect to it.
 type ServerInfo = model.ServerInfo
 
+// ImportPodServiceAccountToken imports Kubernetes API credentials mounted in the current pod.
 func ImportPodServiceAccountToken() ServerInfo {
 
 	// Creating an object of ServerInfo type, which we'll poppulate in this function.
@@ -125,9 +128,8 @@ func getKubeletKubeconfigPath() (string, error) {
 			if kubeConfig != "" {
 				printIfVerbose(fmt.Sprintf("DEBUG: Kubelet is running with PID %s and uses kubeconfig: %s\n", pid, kubeConfig), Verbose)
 				return kubeConfig, nil
-			} else {
-				printIfVerbose("DEBUG: Kubelet is running with PID "+pid+" but no kubeconfig found.", Verbose)
 			}
+			printIfVerbose("DEBUG: Kubelet is running with PID "+pid+" but no kubeconfig found.", Verbose)
 		}
 	}
 
@@ -810,9 +812,8 @@ func findFlagValue(args []string, flag string) string {
 			if len(parts) == 2 {
 				printIfVerbose("Found value for flag of "+parts[1], Verbose)
 				return parts[1]
-			} else {
-				printIfVerbose("ERROR: incorrect number of = signs", Verbose)
 			}
+			printIfVerbose("ERROR: incorrect number of = signs", Verbose)
 
 		}
 	}

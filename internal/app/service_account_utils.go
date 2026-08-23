@@ -21,6 +21,7 @@ type ServiceAccount = model.ServiceAccount
 // ClientCertificateKeyPair stores certificate and key information for one principal.
 type ClientCertificateKeyPair = model.ClientCertificateKeyPair
 
+// JWTComponents contains the decoded header, payload, and signature of a JWT.
 type JWTComponents struct {
 	Header    map[string]interface{}
 	Payload   map[string]interface{}
@@ -52,6 +53,7 @@ func AddNewServiceAccount(name, token, discoveryMethod string, serviceAccountLis
 	return true
 }
 
+// MakeClientCertificateKeyPair constructs a client certificate and key pair.
 func MakeClientCertificateKeyPair(name, clientCertificateData, clientKeyData, APIServer, CACert string) ClientCertificateKeyPair {
 	return ClientCertificateKeyPair{
 		Name:                  name,
@@ -314,11 +316,10 @@ func parseServiceAccountJWT_return_sub(tokenString string) (int64, string, error
 	// Extract the "sub" field
 	if sub, ok := claims["sub"].(string); ok {
 		return 0, sub, nil
-	} else {
-		errorMsg := "Error: 'sub' field not found or not a string"
-		println(errorMsg)
-		return 0, "", errors.New(errorMsg)
 	}
+	errorMsg := "Error: 'sub' field not found or not a string"
+	println(errorMsg)
+	return 0, "", errors.New(errorMsg)
 
 }
 
@@ -362,8 +363,7 @@ func getServiceAccountTokenFromSecret(connectionString ServerInfo, serviceAccoun
 		println("[-] ERROR: couldn't decode")
 		pauseToHitEnter(interactive)
 		return
-	} else {
-		fmt.Printf("[+] Saved %s // %s\n", secretName, token)
-		AddNewServiceAccount(secretName, string(token), "Cluster Secret", serviceAccounts)
 	}
+	fmt.Printf("[+] Saved %s // %s\n", secretName, token)
+	AddNewServiceAccount(secretName, string(token), "Cluster Secret", serviceAccounts)
 }
