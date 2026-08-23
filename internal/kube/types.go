@@ -23,5 +23,5 @@ type RequestConfig struct {
 // PodDetails aliases the shared Kubernetes pod details.
 type PodDetails = model.PodDetails
 
-// KubeRoles aliases the shared Kubernetes role collections.
-type KubeRoles = model.KubeRoles
+// Roles aliases the shared Kubernetes role collections.
+type Roles = model.KubeRoles

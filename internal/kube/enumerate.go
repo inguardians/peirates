@@ -81,7 +81,7 @@ func (c *Client) SecretList(cfg ServerInfo) ([]string, []string) {
 }
 
 // GetRoles retrieves roles in the active namespace.
-func (c *Client) GetRoles(cfg ServerInfo, roles *KubeRoles) {
+func (c *Client) GetRoles(cfg ServerInfo, roles *Roles) {
 	output, _, err := c.Run(cfg, "get", "role", "-o", "json")
 	if err == nil {
 		_ = json.Unmarshal(output, roles)

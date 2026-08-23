@@ -10,7 +10,7 @@ func newModuleRegistry(session *Session) *modules.Registry {
 	registry := modules.NewRegistry()
 	registry.Register(func() modules.Result { os.Exit(0); return modules.Continue }, "exit", "quit")
 	registry.Register(func() modules.Result {
-		_ = kubectl_interactive(session.Connection, session.LogToFile, session.OutputFileName)
+		_ = kubectlInteractive(session.Connection, session.LogToFile, session.OutputFileName)
 		return modules.Continue
 	}, "kubectl")
 	registry.Register(func() modules.Result {
@@ -50,7 +50,7 @@ func newModuleRegistry(session *Session) *modules.Registry {
 		return modules.Continue
 	}, "aws-assume-role")
 	registry.Register(func() modules.Result {
-		session.AssumedAWSRole.AccessKeyId = ""
+		session.AssumedAWSRole.AccessKeyID = ""
 		session.AssumedAWSRole.accountName = ""
 		return modules.Continue
 	}, "aws-empty-assumed-role")

@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// ScanWorker tests queued TCP ports for a host and reports open ports.
 func ScanWorker(ip string, ports, results chan int) {
 	for port := range ports {
 		address := net.JoinHostPort(ip, strconv.Itoa(port))
@@ -26,6 +27,7 @@ func ScanWorker(ip string, ports, results chan int) {
 	}
 }
 
+// Scan tests all TCP ports on an IP address and prints those that are open.
 func Scan(ip string) {
 	ports := make(chan int, 1000)
 	results := make(chan int)
@@ -51,6 +53,7 @@ func Scan(ip string) {
 	}
 }
 
+// CIDRHosts returns the usable IPv4 host addresses in a CIDR network.
 func CIDRHosts(network string) []string {
 	_, ipv4Net, err := net.ParseCIDR(network)
 	if err != nil {

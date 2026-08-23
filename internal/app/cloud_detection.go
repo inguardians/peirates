@@ -11,6 +11,7 @@ import (
 
 var hc = &http.Client{Timeout: 300 * time.Millisecond}
 
+// CloudProvider identifies the cloud platform detected for the current host.
 type CloudProvider struct {
 	Name              string
 	URL               string

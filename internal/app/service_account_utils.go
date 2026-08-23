@@ -263,7 +263,7 @@ func printJWT(tokenString string) error {
 	return nil
 }
 
-func parseServiceAccountJWT_return_sub(tokenString string) (int64, string, error) {
+func parseServiceAccountJWTReturnSub(tokenString string) (int64, string, error) {
 
 	// Parse out the name of the service account via the "sub" field.
 

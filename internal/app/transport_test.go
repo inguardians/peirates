@@ -202,7 +202,7 @@ func TestDoKubernetesAPIRequest(t *testing.T) {
 }
 
 func TestNewKubeRequest(t *testing.T) {
-	request, err := newKubeRequest("api/v1/pods", RequestConfig{Host: "127.0.0.1", Port: 8443, Method: http.MethodGet, Https: true})
+	request, err := newKubeRequest("api/v1/pods", RequestConfig{Host: "127.0.0.1", Port: 8443, Method: http.MethodGet, HTTPS: true})
 	if err != nil || request.URL.String() != "https://127.0.0.1:8443/api/v1/pods" {
 		t.Fatalf("request %v, error %v", request.URL, err)
 	}

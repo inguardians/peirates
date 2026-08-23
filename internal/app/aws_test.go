@@ -22,7 +22,7 @@ func TestPullIamCredentialsFromEnvironmentVariables(t *testing.T) {
 	t.Setenv("AWS_SESSION_TOKEN", "token")
 
 	got := PullIamCredentialsFromEnvironmentVariables()
-	if got.AccessKeyId != "key" || got.SecretAccessKey != "secret" || got.SessionToken != "token" {
+	if got.AccessKeyID != "key" || got.SecretAccessKey != "secret" || got.SessionToken != "token" {
 		t.Fatalf("credentials = %#v", got)
 	}
 	if got.accountName != "AWS Credentials from Environment Variables" {
@@ -49,7 +49,7 @@ func TestPullIamCredentialsFromAWS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PullIamCredentialsFromAWS() error = %v", err)
 	}
-	if got.AccessKeyId != "key" || got.SecretAccessKey != "secret" || got.SessionToken != "token" || got.accountName != "role-name" {
+	if got.AccessKeyID != "key" || got.SecretAccessKey != "secret" || got.SessionToken != "token" || got.accountName != "role-name" {
 		t.Fatalf("credentials = %#v", got)
 	}
 }
@@ -115,7 +115,7 @@ func TestPullIamCredentialsFromAWSWithIMDSv2(t *testing.T) {
 	useAWSMetadataServer(t, server)
 
 	got, err := PullIamCredentialsFromAWSWithIMDSv2()
-	if err != nil || got.AccessKeyId != "key" || got.SessionToken != "session" {
+	if err != nil || got.AccessKeyID != "key" || got.SessionToken != "session" {
 		t.Fatalf("PullIamCredentialsFromAWSWithIMDSv2() = %#v, %v", got, err)
 	}
 }
@@ -170,9 +170,9 @@ func TestGetAWSRegionAndZoneUsesIMDSv2AfterIMDSv1Failure(t *testing.T) {
 }
 
 func TestAWSSTSAssumeRoleRejectsInvalidARN(t *testing.T) {
-	input := AWSCredentials{AccessKeyId: "key"}
+	input := AWSCredentials{AccessKeyID: "key"}
 	got, err := AWSSTSAssumeRole(input, "not-an-arn")
-	if err == nil || !strings.Contains(err.Error(), "invalid role") || got.AccessKeyId != "" {
+	if err == nil || !strings.Contains(err.Error(), "invalid role") || got.AccessKeyID != "" {
 		t.Fatalf("AWSSTSAssumeRole() = %#v, %v", got, err)
 	}
 }

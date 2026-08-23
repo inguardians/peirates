@@ -42,8 +42,10 @@ type GetNodeDetails struct {
 	} `json:"items"`
 }
 
+// AWSS3BucketObject represents data returned for an AWS S3 object.
 type AWSS3BucketObject struct {
 	Data string `json:"Data"`
 }
 
+// PodNamespaceContainerTuple identifies a container within a namespaced pod.
 type PodNamespaceContainerTuple = model.PodNamespaceContainerTuple

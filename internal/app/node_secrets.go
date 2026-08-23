@@ -11,6 +11,7 @@ import (
 // need to track metadata of some sort to distinguish the path to read the data
 // or simply store the entire contents.
 
+// SecretFromPodViaNodeFS records a secret discovered through a node filesystem.
 type SecretFromPodViaNodeFS struct {
 	secretName      string
 	secretPath      string

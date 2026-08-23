@@ -7,6 +7,7 @@ import (
 	"github.com/inguardians/peirates/internal/token"
 )
 
+// JWT aliases the token package JSON Web Token representation.
 type JWT = token.JWT
 
 func decodeJWT(value string) JWT { return token.Decode(value) }

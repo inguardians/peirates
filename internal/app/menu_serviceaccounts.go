@@ -126,9 +126,8 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, int
 			fmt.Printf("[-] Error exporting service accounts: %s\n", err.Error())
 			pauseToHitEnter(interactive)
 			return
-		} else {
-			outputToUser(string(serviceAccountJSON), logToFile, outputFileName)
 		}
+		outputToUser(string(serviceAccountJSON), logToFile, outputFileName)
 	case "5", "import", "importsa":
 		var newserviceAccounts []ServiceAccount
 		println("Please enter service account token")
@@ -137,10 +136,9 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, int
 			fmt.Printf("[-] Error importing service accounts: %s\n", err.Error())
 			pauseToHitEnter(interactive)
 			return
-		} else {
-			*serviceAccounts = append(*serviceAccounts, newserviceAccounts...)
-			fmt.Printf("[+] Successfully imported service accounts\n")
 		}
+		*serviceAccounts = append(*serviceAccounts, newserviceAccounts...)
+		fmt.Printf("[+] Successfully imported service accounts\n")
 	case "6", "decode":
 		decodeTokenInteractive(*serviceAccounts, connectionString, logToFile, outputFileName, interactive)
 	case "7", "display":

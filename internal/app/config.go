@@ -54,7 +54,7 @@ func ImportPodServiceAccountToken() ServerInfo {
 
 		// Try naming the service account token with its JWT name
 		name := ""
-		_, tokenSubField, err := parseServiceAccountJWT_return_sub(configInfoVars.Token)
+		_, tokenSubField, err := parseServiceAccountJWTReturnSub(configInfoVars.Token)
 		if err != nil {
 			printIfVerbose("DEBUG: ImportPodServiceAccountToken() found a service account JWT that didn't parse properly.", Verbose)
 		} else if !strings.HasPrefix(tokenSubField, "system:serviceaccount:") {
@@ -577,9 +577,9 @@ func gatherPodCredentials(serviceAccounts *[]ServiceAccount, interactive bool, r
 				}
 				token := string(tokenBytes)
 
-				//				func parseServiceAccountJWT_return_sub(tokenString string) (int64, string, error) {
+				//				func parseServiceAccountJWTReturnSub(tokenString string) (int64, string, error) {
 
-				_, tokenSubField, err := parseServiceAccountJWT_return_sub(token)
+				_, tokenSubField, err := parseServiceAccountJWTReturnSub(token)
 				if err != nil {
 					printIfVerbose("DEBUG: gatherPodCredentials() found a service account JWT that didn't parse properly.", Verbose)
 					continue

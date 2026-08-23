@@ -1,5 +1,4 @@
-// commandline.go contains logic and data structures relevant to actually
-// running peirates as a command line tool. Mainly this is just flag handling.
+// Package app contains Peirates application orchestration and CLI behavior.
 package app
 
 import (
@@ -8,6 +7,7 @@ import (
 	"strings"
 )
 
+// CommandLineOptions contains parsed Peirates command-line configuration.
 type CommandLineOptions struct {
 	noCloudDetection bool
 	connectionConfig *ServerInfo

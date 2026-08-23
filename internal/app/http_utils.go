@@ -334,6 +334,7 @@ func curlNonWizard(arguments ...string) (request *http.Request, https bool, igno
 
 }
 
+// GetMyIPAddress discovers the current external IP address.
 func GetMyIPAddress(interfaceName string) (string, error) {
 
 	iface, err := net.InterfaceByName(interfaceName)

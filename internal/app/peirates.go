@@ -15,7 +15,7 @@ import (
 	"github.com/inguardians/peirates/internal/modules"
 )
 
-// Verbosity mode - if set to true, DEBUG messages will be printed to STDOUT.
+// Verbose enables debug messages on standard output.
 var Verbose bool
 
 //------------------------------------------------------------------------------------------------------------------------------------------------

@@ -51,7 +51,7 @@ func TestJWTServiceAccountParsing(t *testing.T) {
 	if err != nil || parts.Header["alg"] != "RS256" || parts.Payload["n"].(float64) != 1 || parts.Signature != "sig" {
 		t.Fatalf("ParseJWT() = %#v, %v", parts, err)
 	}
-	if _, sub, err := parseServiceAccountJWT_return_sub(good); err != nil || sub != "system:serviceaccount:ns:name" {
+	if _, sub, err := parseServiceAccountJWTReturnSub(good); err != nil || sub != "system:serviceaccount:ns:name" {
 		t.Fatalf("sub = %q, %v", sub, err)
 	}
 	if decoded, err := decodeJWTBase64urlSegment("eyJ4IjoieSJ9"); err != nil || string(decoded) != `{"x":"y"}` {
@@ -62,7 +62,7 @@ func TestJWTServiceAccountParsing(t *testing.T) {
 			t.Fatalf("ParseJWT(%q) unexpectedly succeeded", token)
 		}
 	}
-	if _, _, err := parseServiceAccountJWT_return_sub(jwtSegment(`{"x":1}`) + "." + jwtSegment(`{"no_sub":true}`) + ".sig"); err == nil || !strings.Contains(err.Error(), "sub") {
+	if _, _, err := parseServiceAccountJWTReturnSub(jwtSegment(`{"x":1}`) + "." + jwtSegment(`{"no_sub":true}`) + ".sig"); err == nil || !strings.Contains(err.Error(), "sub") {
 		t.Fatalf("missing sub error = %v", err)
 	}
 }

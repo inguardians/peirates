@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func kubectl_interactive(connectionString ServerInfo, logToFile bool, outputFileName string) error {
+func kubectlInteractive(connectionString ServerInfo, logToFile bool, outputFileName string) error {
 	println(`
 This function allows you to run a kubectl command, with only a few restrictions.
 

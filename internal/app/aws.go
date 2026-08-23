@@ -35,7 +35,7 @@ type AWSCredentials struct {
 	// InstanceProfileArn  string
 	// If we parse this, we can freshen this only as necessary
 	// Expiration			string `json:"Expiration"`
-	AccessKeyId     string `json:"AccessKeyId"`
+	AccessKeyID     string `json:"AccessKeyId"`
 	SecretAccessKey string `json:"SecretAccessKey"`
 	SessionToken    string `json:"Token"`
 }
@@ -44,12 +44,12 @@ type AWSCredentials struct {
 func PullIamCredentialsFromEnvironmentVariables() AWSCredentials {
 	var credentials AWSCredentials
 
-	credentials.AccessKeyId = os.Getenv("AWS_ACCESS_KEY_ID")
+	credentials.AccessKeyID = os.Getenv("AWS_ACCESS_KEY_ID")
 	credentials.SecretAccessKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
 	credentials.SessionToken = os.Getenv("AWS_SESSION_TOKEN")
 	credentials.accountName = "AWS Credentials from Environment Variables"
 
-	if len(credentials.AccessKeyId) > 0 {
+	if len(credentials.AccessKeyID) > 0 {
 		DisplayAWSIAMCredentials(credentials)
 	}
 
@@ -83,7 +83,7 @@ func EnterIamCredentialsForAWS() (AWSCredentials, error) {
 		return credentials, errors.New("invalid " + component)
 	}
 
-	credentials.AccessKeyId = strings.TrimSpace(strings.ToUpper(input))
+	credentials.AccessKeyID = strings.TrimSpace(strings.ToUpper(input))
 
 	component = "SecretAccessKey"
 	println("[+] Enter an AWS " + component + " or hit enter to exit: ")
@@ -302,7 +302,7 @@ func PullIamCredentialsFromAWSWithIMDSv2() (AWSCredentials, error) {
 		println("[-] Error - problem with JSON unmarshal")
 	}
 	if Verbose {
-		println("AccessKeyID: " + credentials.AccessKeyId)
+		println("AccessKeyID: " + credentials.AccessKeyID)
 		println("SecretAccessKey: " + credentials.SecretAccessKey)
 		println("Token: " + credentials.SessionToken)
 	}
@@ -328,7 +328,7 @@ func AWSSTSAssumeRole(IAMCredentials AWSCredentials, roleToAssumeArn string) (As
 	// Start a session
 	sess, err := session.NewSession(&aws.Config{
 		Region:      aws.String(region),
-		Credentials: credentials.NewStaticCredentials(IAMCredentials.AccessKeyId, IAMCredentials.SecretAccessKey, IAMCredentials.SessionToken),
+		Credentials: credentials.NewStaticCredentials(IAMCredentials.AccessKeyID, IAMCredentials.SecretAccessKey, IAMCredentials.SessionToken),
 	})
 
 	if err != nil {
@@ -355,7 +355,7 @@ func AWSSTSAssumeRole(IAMCredentials AWSCredentials, roleToAssumeArn string) (As
 	fmt.Println(result.Credentials)
 
 	// var AssumedCredentials AWSCredentials
-	AssumedCredentials.AccessKeyId = *result.Credentials.AccessKeyId
+	AssumedCredentials.AccessKeyID = *result.Credentials.AccessKeyId
 	AssumedCredentials.SecretAccessKey = *result.Credentials.SecretAccessKey
 	AssumedCredentials.SessionToken = *result.Credentials.SessionToken
 	AssumedCredentials.accountName = roleToAssumeArn
@@ -369,7 +369,7 @@ func AWSSTSAssumeRole(IAMCredentials AWSCredentials, roleToAssumeArn string) (As
 // DisplayAWSIAMCredentials prints the IAM credentials gathered out to stdout.
 func DisplayAWSIAMCredentials(IAMCredentials AWSCredentials) {
 	println("IAM Credentials for user " + IAMCredentials.accountName + " are: \n")
-	println("aws_access_key_id = " + IAMCredentials.AccessKeyId)
+	println("aws_access_key_id = " + IAMCredentials.AccessKeyID)
 	println("aws_secret_access_key = " + IAMCredentials.SecretAccessKey)
 	println("aws_session_token = " + IAMCredentials.SessionToken)
 }
@@ -450,7 +450,7 @@ func StartS3Session(IAMCredentials AWSCredentials) *s3.S3 {
 
 	sess, err := session.NewSession(&aws.Config{
 		Region:      aws.String(region),
-		Credentials: credentials.NewStaticCredentials(IAMCredentials.AccessKeyId, IAMCredentials.SecretAccessKey, IAMCredentials.SessionToken),
+		Credentials: credentials.NewStaticCredentials(IAMCredentials.AccessKeyID, IAMCredentials.SecretAccessKey, IAMCredentials.SessionToken),
 	})
 
 	if err != nil {
@@ -548,9 +548,9 @@ func KopsAttackAWS(serviceAccounts *[]ServiceAccount, awsCredentials AWSCredenti
 
 	// Hit the metadata API only if AWS creds aren't loaded already.
 	var credentialsToUse AWSCredentials
-	if len(assumedAWSrole.AccessKeyId) > 0 {
+	if len(assumedAWSrole.AccessKeyID) > 0 {
 		credentialsToUse = assumedAWSrole
-	} else if len(awsCredentials.AccessKeyId) > 0 {
+	} else if len(awsCredentials.AccessKeyID) > 0 {
 		credentialsToUse = awsCredentials
 	} else {
 		println("Pulling AWS credentials from the metadata API.")
@@ -565,7 +565,7 @@ func KopsAttackAWS(serviceAccounts *[]ServiceAccount, awsCredentials AWSCredenti
 		credentialsToUse = awsCredentials
 	}
 
-	println("[+] Preparing to use this AWS account to list and search S3 buckets: " + awsCredentials.AccessKeyId)
+	println("[+] Preparing to use this AWS account to list and search S3 buckets: " + awsCredentials.AccessKeyID)
 
 	result, err := ListAWSBuckets(credentialsToUse)
 	if err != nil {
@@ -645,9 +645,9 @@ func KopsAttackAWS(serviceAccounts *[]ServiceAccount, awsCredentials AWSCredenti
 func awsS3ListBucketsMenu(awsCredentials AWSCredentials, assumedAWSrole AWSCredentials) {
 
 	var credentialsToUse AWSCredentials
-	if len(assumedAWSrole.AccessKeyId) > 0 {
+	if len(assumedAWSrole.AccessKeyID) > 0 {
 		credentialsToUse = assumedAWSrole
-	} else if len(awsCredentials.AccessKeyId) > 0 {
+	} else if len(awsCredentials.AccessKeyID) > 0 {
 		credentialsToUse = awsCredentials
 	} else {
 		println("Pulling AWS credentials from the metadata API.")
@@ -690,7 +690,7 @@ func awsS3ListBucketObjectsMenu(awsCredentials AWSCredentials, assumedAWSrole AW
 
 	// Altering this to allow self-entered credentials.
 	// var IAMCredentials = PullIamCredentialsFromAWS()
-	if len(assumedAWSrole.AccessKeyId) > 0 {
+	if len(assumedAWSrole.AccessKeyID) > 0 {
 		err = ListBucketObjects(assumedAWSrole, bucket)
 	} else {
 		err = ListBucketObjects(awsCredentials, bucket)

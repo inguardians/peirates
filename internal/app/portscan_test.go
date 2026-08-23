@@ -33,7 +33,7 @@ func TestScanWorkerReportsOpenAndClosedPorts(t *testing.T) {
 	ports <- openPort
 	ports <- closedPort
 	close(ports)
-	go scan_worker("127.0.0.1", ports, results)
+	go scanWorker("127.0.0.1", ports, results)
 	first, second := <-results, <-results
 	if !((first == openPort && second == 0) || (first == 0 && second == openPort)) {
 		t.Fatalf("results = %d, %d (open port %s)", first, second, strconv.Itoa(openPort))

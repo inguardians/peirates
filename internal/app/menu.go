@@ -187,14 +187,14 @@ func banner(connectionString ServerInfo, detectCloud string, eth0IP string, awsC
 	}
 
 	// If we have an AWS role, print it here.
-	if len(assumedAWSRole.AccessKeyId) > 0 {
-		fmt.Println("[+] AWS IAM Credentials (assumed)     :" + assumedAWSRole.AccessKeyId + " (" + assumedAWSRole.accountName + ")\n")
+	if len(assumedAWSRole.AccessKeyID) > 0 {
+		fmt.Println("[+] AWS IAM Credentials (assumed)     :" + assumedAWSRole.AccessKeyID + " (" + assumedAWSRole.accountName + ")\n")
 	}
-	if len(awsCredentials.AccessKeyId) > 0 {
+	if len(awsCredentials.AccessKeyID) > 0 {
 		if len(awsCredentials.accountName) > 0 {
-			fmt.Println("[+] AWS IAM Credentials (available)   : " + awsCredentials.AccessKeyId + " (" + awsCredentials.accountName + ")\n")
+			fmt.Println("[+] AWS IAM Credentials (available)   : " + awsCredentials.AccessKeyID + " (" + awsCredentials.accountName + ")\n")
 		} else {
-			fmt.Println("[+] AWS IAM Credentials (available)   : " + awsCredentials.AccessKeyId + "\n")
+			fmt.Println("[+] AWS IAM Credentials (available)   : " + awsCredentials.AccessKeyID + "\n")
 		}
 	}
 }

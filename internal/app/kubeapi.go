@@ -8,18 +8,19 @@ import (
 	"net/http"
 )
 
+// RequestConfig configures a raw Kubernetes API request.
 type RequestConfig struct {
 	Host              string
 	Port              int
 	Method            string
-	Https             bool
-	IgnoreHttpsErrors bool
+	HTTPS             bool
+	IgnoreHTTPSErrors bool
 }
 
 func newKubeRequest(path string, cfg RequestConfig) (*http.Request, error) {
 	var protocol string
 
-	if cfg.Https {
+	if cfg.HTTPS {
 		protocol = "https"
 	} else {
 		protocol = "http"

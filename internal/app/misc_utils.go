@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// ReadLineStripWhitespace reads a line from standard input and trims whitespace.
 func ReadLineStripWhitespace() (string, error) {
 	line, err := ReadLine()
 
@@ -15,7 +16,7 @@ func ReadLineStripWhitespace() (string, error) {
 
 }
 
-// readLine reads up through the next \n from stdin. The returned string does
+// ReadLine reads up through the next \n from stdin. The returned string does
 // not include the \n.
 func ReadLine() (string, error) {
 	reader := bufio.NewReader(os.Stdin)

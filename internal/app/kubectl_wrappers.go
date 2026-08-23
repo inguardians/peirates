@@ -116,9 +116,8 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 		if len(cfg.CAPath) == 0 {
 			println("ERROR: certificate authority path not defined - will not communicate with api server")
 			return errors.New("certificate authority path not defined - will not communicate with api server")
-		} else {
-			connArgs = append(connArgs, "--certificate-authority="+cfg.CAPath)
 		}
+		connArgs = append(connArgs, "--certificate-authority="+cfg.CAPath)
 	}
 
 	// If we've been told to ignore TLS cert checking via -k, make sure to set --insecure-skip-tls-verify=true
@@ -247,7 +246,7 @@ func attemptEveryAccount(stopOnFirstSuccess bool, connectionStringPointer *Serve
 		if err == nil {
 
 			// ...tally another success...
-			successes += 1
+			successes++
 			// ...display the output...
 			outputToUser(string(kubectlOutput), logToFile, outputFileName)
 
@@ -279,7 +278,7 @@ func attemptEveryAccount(stopOnFirstSuccess bool, connectionStringPointer *Serve
 		if err == nil {
 
 			// ...tally another success...
-			successes += 1
+			successes++
 
 			// ...display the output...
 			outputToUser(string(kubectlOutput), logToFile, outputFileName)
@@ -301,10 +300,9 @@ func attemptEveryAccount(stopOnFirstSuccess bool, connectionStringPointer *Serve
 	// Choose a return
 	if successes == 0 {
 		return nil, nil, errors.New("no principals worked")
-	} else {
-		fmt.Printf("%d principals were successful in running the command.\n", successes)
-		return nil, nil, nil
 	}
+	fmt.Printf("%d principals were successful in running the command.\n", successes)
+	return nil, nil, nil
 }
 
 // runKubectlWithByteSliceForStdin is runKubectlSimple but you can pass in some bytes for stdin. Conven

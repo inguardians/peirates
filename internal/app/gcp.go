@@ -17,6 +17,7 @@ var (
 	gcpGetRequest      = GetRequest
 )
 
+// GCPToken represents a token returned by the GCP metadata API.
 // Tokens returned by the metadata API will look like this, unless error has occurred: {"access_token":"xxxxxxx","expires_in":2511,"token_type":"Bearer"}
 type GCPToken struct {
 	Token          string `json:"access_token"`
@@ -65,13 +66,13 @@ func GetGCPBearerTokenFromMetadataAPI(account string) (string, time.Time, error)
 		now := time.Now()
 		expiration := now.Add(time.Duration(token.Expires))
 		return token.Token, expiration, nil
-	} else {
-		errorStr := "[-] Error - could not find token in returned body text: " + string(reqTokenRaw)
-		println(errorStr)
-		return "", time.Now(), errors.New(errorStr)
 	}
+	errorStr := "[-] Error - could not find token in returned body text: " + string(reqTokenRaw)
+	println(errorStr)
+	return "", time.Now(), errors.New(errorStr)
 }
 
+// KopsAttackGCP retrieves and optionally stores GCP service-account tokens.
 func KopsAttackGCP(serviceAccounts *[]ServiceAccount) (err error) {
 	var storeTokens string
 	var placeTokensInStore bool
@@ -97,9 +98,8 @@ func KopsAttackGCP(serviceAccounts *[]ServiceAccount) (err error) {
 		msg := "[-] Could not get GCP default token from metadata API"
 		println(msg)
 		return errors.New(msg)
-	} else {
-		println("[+] Got default token for GCP - preparing to use it for GCS:", token)
 	}
+	println("[+] Got default token for GCP - preparing to use it for GCS:", token)
 
 	// Need to get project ID from metadata API
 	var headers []HeaderLine
