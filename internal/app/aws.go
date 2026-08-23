@@ -56,71 +56,65 @@ func PullIamCredentialsFromEnvironmentVariables() AWSCredentials {
 	return credentials
 }
 
+// validateAWSInput checks whether input matches the validation pattern for a credential component.
+func validateAWSInput(component, pattern, input string) error {
+	matched, err := regexp.MatchString(pattern, input)
+	if err != nil {
+		return fmt.Errorf("validate %s: %w", component, err)
+	}
+	if !matched {
+		return errors.New("invalid " + component)
+	}
+	return nil
+}
+
 // EnterIamCredentialsForAWS prompts the user for AWS IAM credentials.
 func EnterIamCredentialsForAWS() (AWSCredentials, error) {
-
 	var credentials AWSCredentials
-	var component string
-
 	var input string
-	var err error
 
-	component = "AccessKeyId"
+	component := "AccessKeyId"
 	println("[+] Enter an AWS " + component + " or hit enter to exit: ")
-	_, error := fmt.Scanln(&input)
-	if error != nil {
+	if _, err := fmt.Scanln(&input); err != nil {
 		println("[-] Unable to deal with input: %w", input)
 		return credentials, errors.New("invalid " + input)
 	}
-
-	matched, error := regexp.MatchString(`\w{18,}`, input)
-	if error != nil {
-		fmt.Printf("Error matching string: %s\n", input)
-	}
-
-	if !matched {
+	if err := validateAWSInput(component, `\w{18,}`, input); err != nil {
 		println("String entered isn't a " + component + "\n")
-		return credentials, errors.New("invalid " + component)
+		return credentials, err
 	}
-
 	credentials.AccessKeyID = strings.TrimSpace(strings.ToUpper(input))
 
 	component = "SecretAccessKey"
 	println("[+] Enter an AWS " + component + " or hit enter to exit: ")
-	_, err = fmt.Scanln(&input)
-	if err != nil {
+	if _, err := fmt.Scanln(&input); err != nil {
 		return credentials, errors.New("invalid " + component)
 	}
-	matched, err = regexp.MatchString(`\w{18,}`, input)
-	if err != nil {
+	if err := validateAWSInput(component, `\w{18,}`, input); err != nil {
 		println("String entered isn't a " + component + "\n")
-		return credentials, errors.New("invalid " + component)
+		return credentials, err
 	}
 	credentials.SecretAccessKey = strings.TrimSpace(input)
 
 	component = "session token"
 	println("[+] Enter an AWS " + component + " or hit enter to exit: ")
-	_, err = fmt.Scanln(&input)
-	if err != nil {
+	if _, err := fmt.Scanln(&input); err != nil {
 		return credentials, errors.New("invalid " + component)
 	}
-	matched, err = regexp.MatchString(`\w{5,}`, input)
-	if err != nil {
+	if err := validateAWSInput(component, `\w{5,}`, input); err != nil {
 		println("String entered isn't a " + component + "\n")
-		return credentials, errors.New("Invalid " + component)
+		return credentials, err
 	}
 	credentials.SessionToken = strings.TrimSpace(input)
 
 	component = "name or comment"
 	println("[+] Enter an AWS " + component + " or hit enter to exit: ")
-	_, error = fmt.Scanln(&input)
-	if error != nil {
-		return credentials, errors.New("Invalid " + component)
-	}
-	matched, err = regexp.MatchString(`\w{1,}`, input)
-	if err != nil {
-		println("Name must include at least one alphanumeric character.\n")
+	if _, err := fmt.Scanln(&input); err != nil {
 		return credentials, errors.New("invalid " + component)
+	}
+	if err := validateAWSInput(component, `\w{1,}`, input); err != nil {
+		println("Name must include at least one alphanumeric character.\n")
+		return credentials, err
 	}
 	credentials.accountName = strings.TrimSpace(input)
 

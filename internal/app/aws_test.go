@@ -16,6 +16,44 @@ func useAWSMetadataServer(t *testing.T, server *httptest.Server) {
 	})
 }
 
+func TestValidateAWSInput(t *testing.T) {
+	tests := []struct {
+		name      string
+		component string
+		pattern   string
+		input     string
+		wantErr   bool
+	}{
+		{name: "valid access key", component: "AccessKeyId", pattern: `\w{18,}`, input: "ABCDEFGHIJKLMNOPQR"},
+		{name: "short access key", component: "AccessKeyId", pattern: `\w{18,}`, input: "short", wantErr: true},
+		{name: "valid secret key", component: "SecretAccessKey", pattern: `\w{18,}`, input: "abcdefghijklmnopqr"},
+		{name: "short secret key", component: "SecretAccessKey", pattern: `\w{18,}`, input: "short", wantErr: true},
+		{name: "valid session token", component: "session token", pattern: `\w{5,}`, input: "abcde"},
+		{name: "short session token", component: "session token", pattern: `\w{5,}`, input: "abcd", wantErr: true},
+		{name: "valid account name", component: "name or comment", pattern: `\w{1,}`, input: "account"},
+		{name: "account name without word characters", component: "name or comment", pattern: `\w{1,}`, input: "---", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateAWSInput(tt.component, tt.pattern, tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("validateAWSInput(%q, %q, %q) error = %v, wantErr %v", tt.component, tt.pattern, tt.input, err, tt.wantErr)
+			}
+			if tt.wantErr && !strings.Contains(err.Error(), tt.component) {
+				t.Fatalf("error %q does not identify component %q", err, tt.component)
+			}
+		})
+	}
+}
+
+func TestValidateAWSInputRejectsInvalidPattern(t *testing.T) {
+	err := validateAWSInput("component", `[`, "value")
+	if err == nil || !strings.Contains(err.Error(), "validate component") {
+		t.Fatalf("validateAWSInput() error = %v", err)
+	}
+}
+
 func TestPullIamCredentialsFromEnvironmentVariables(t *testing.T) {
 	t.Setenv("AWS_ACCESS_KEY_ID", "key")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "secret")
