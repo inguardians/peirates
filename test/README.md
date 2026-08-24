@@ -63,3 +63,18 @@ go install golang.org/x/vuln/cmd/govulncheck@latest
 # Run govulncheck
 govulncheck ./...
 ```
+
+
+## Anonymous kubelet integration test
+
+Run `make kubelet-kind-test` to create a disposable Kind cluster and prove that
+Peirates can list running pods through the unauthenticated read-only kubelet endpoint on port 10255 and execute a command through the anonymous HTTPS kubelet endpoint on port 10250. The test
+refuses to use a pre-existing cluster, uses the isolated cluster name
+`peirates-kubelet-integration` by default, and deletes that cluster on every exit. The namespace default service account is granted only `get` and `list` on core `nodes`, and setup verifies that permission. It also receives namespace-scoped pod `get`/`list` plus the legacy pod `exec` authorization verb and `pods/exec` `create` permissions so the test can copy Peirates into the target pod and run its `exec-via-api` all-pods path with `id`.
+Override the name with `PEIRATES_KUBELET_KIND_CLUSTER`; choose a name reserved for
+this disposable test.
+
+This test intentionally configures the disposable node kubelet with anonymous authentication, `AlwaysAllow` authorization, and the read-only port. Those settings permit unauthenticated pod discovery and command execution and are unsafe for any
+shared or persistent cluster. The test must never be adapted to target an existing
+cluster. Docker, Kind, kubectl, Go, and network access to pull the test image are
+required.
