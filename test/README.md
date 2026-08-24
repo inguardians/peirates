@@ -64,6 +64,29 @@ go install golang.org/x/vuln/cmd/govulncheck@latest
 govulncheck ./...
 ```
 
+## Service-account menu integration test
+
+Run `make service-account-kind-test` to create a disposable Kind cluster and
+exercise all seven actions under main-menu option 1 through a Peirates binary
+running in a pod: list, switch, add, export, import, decode, and display. The
+test uses the pod's real projected service-account JWT, refuses to modify a
+pre-existing cluster named `peirates-service-account-integration`, and deletes
+the disposable cluster on exit. Override the cluster name with
+`PEIRATES_SERVICE_ACCOUNT_KIND_CLUSTER`, using a name reserved for this test.
+
+The raw-token display assertion handles a token belonging only to the
+disposable cluster; the token stops being useful when cleanup deletes it.
+
+
+## Namespace menu integration test
+
+Run `make namespace-kind-test` to create a disposable Kind cluster and exercise
+both actions under main-menu option 2 through a Peirates binary running in a
+pod: list namespaces and switch namespace. The pod's default service account is
+granted only `get` and `list` on core `namespaces`. The test refuses to modify a
+pre-existing cluster named `peirates-namespace-integration` and deletes its
+disposable cluster on exit. Override the name with
+`PEIRATES_NAMESPACE_KIND_CLUSTER`, using a name reserved for this test.
 
 ## Anonymous kubelet integration test
 
