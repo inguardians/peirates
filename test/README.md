@@ -98,6 +98,28 @@ modify a pre-existing cluster named `peirates-pod-info-integration` and deletes
 only its dedicated cluster on exit. Override the name with
 `PEIRATES_POD_INFO_KIND_CLUSTER`, using a name reserved for this test.
 
+## Volume-mount integration test
+
+Run `make volume-mount-kind-test` to create a disposable Kind cluster and
+exercise both paths under main-menu item 5 through a Peirates binary running in
+a pod: report hostPath mounts for all pods and for one named pod. The fixture
+pod mounts a dedicated, observable hostPath and its default service account is
+granted only namespace-scoped `get` and `list` access to core `pods`. The test
+refuses to modify a pre-existing cluster named
+`peirates-volume-mount-integration` and deletes only its dedicated cluster on
+exit. Override the name with `PEIRATES_VOLUME_MOUNT_KIND_CLUSTER`, using a name
+reserved for this test.
+
+## Certificate menu integration test
+
+Run `make certificate-menu-kind-test` to create a disposable Kind cluster, copy
+Peirates directly onto its control-plane node, and exercise both paths under
+main-menu item 9: list discovered client certificate/key pairs and switch to the
+live kubelet identity. The test refuses to modify a pre-existing cluster named
+`peirates-certificate-integration` and deletes only its dedicated cluster on
+exit. Override the name with `PEIRATES_CERTIFICATE_KIND_CLUSTER`, using a name
+reserved for this test.
+
 ## Anonymous kubelet integration test
 
 Run `make kubelet-kind-test` to create a disposable Kind cluster and prove that
