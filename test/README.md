@@ -88,6 +88,16 @@ pre-existing cluster named `peirates-namespace-integration` and deletes its
 disposable cluster on exit. Override the name with
 `PEIRATES_NAMESPACE_KIND_CLUSTER`, using a name reserved for this test.
 
+## Pod information integration test
+
+Run `make pod-info-kind-test` to create a disposable Kind cluster and exercise
+main-menu item 3 (list pods) followed by item 4 (dump complete pod JSON) through
+a Peirates binary running in a pod. The pod's default service account is granted
+only namespace-scoped `get` and `list` access to core `pods`. The test refuses to
+modify a pre-existing cluster named `peirates-pod-info-integration` and deletes
+only its dedicated cluster on exit. Override the name with
+`PEIRATES_POD_INFO_KIND_CLUSTER`, using a name reserved for this test.
+
 ## Anonymous kubelet integration test
 
 Run `make kubelet-kind-test` to create a disposable Kind cluster and prove that
