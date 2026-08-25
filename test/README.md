@@ -134,6 +134,31 @@ shared or persistent cluster. The test must never be adapted to target an existi
 cluster. Docker, Kind, kubectl, Go, and network access to pull the test image are
 required.
 
+## API Secret listing integration test
+
+Run `make list-secrets-kind-test` to create a disposable Kind cluster and test
+main-menu item 10 through a real Peirates binary running in-cluster. It verifies
+that opaque, TLS, and service-account-token Secrets are listed; that the token
+Secret is separately classified as a service account; that the numeric command
+and both named aliases work; and that an unprivileged service account receives
+the denial path without fixture names being disclosed. The test refuses a
+pre-existing `peirates-list-secrets-integration` cluster and deletes only its
+dedicated cluster. Override the name with `PEIRATES_LIST_SECRETS_KIND_CLUSTER`.
+
+## Secret-to-service-account integration test
+
+Run `make secret-to-sa-kind-test` to create a disposable Kind cluster and test
+main-menu item 11 through a real Peirates binary running in-cluster. The test
+creates a real `kubernetes.io/service-account-token` Secret, drives the numeric
+interactive item, and verifies the imported account remains available in the
+same Peirates session. It also covers the `secret-to-sa` command, its
+`get-secret` alias, and rejection of a non-token Secret. The pod's default
+service account receives only namespace-scoped `get` access to Secrets. Test
+diagnostics redact the fixture token, and successful output never prints it.
+The test refuses a pre-existing `peirates-secret-to-sa-integration` cluster and
+deletes only its dedicated cluster. Override the name with
+`PEIRATES_SECRET_TO_SA_KIND_CLUSTER`.
+
 ## Node filesystem secret integration test
 
 Run `make nodefs-steal-secrets-kind-test` to create a disposable Kind cluster;

@@ -4,7 +4,7 @@ GOCACHE ?= /tmp/peirates-go-build
 GOMODCACHE ?= /tmp/peirates-go-mod
 PACKAGES := $(shell GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) go list ./... | grep -v /vendor/)
 
-.PHONY: default gofmt lint test test-quiet kind-test kubelet-kind-test service-account-kind-test namespace-kind-test pod-info-kind-test volume-mount-kind-test certificate-menu-kind-test nodefs-steal-secrets-kind-test update-deps
+.PHONY: default gofmt lint test test-quiet kind-test kubelet-kind-test service-account-kind-test namespace-kind-test pod-info-kind-test volume-mount-kind-test certificate-menu-kind-test nodefs-steal-secrets-kind-test list-secrets-kind-test secret-to-sa-kind-test update-deps
 
 default: lint
 
@@ -45,6 +45,12 @@ certificate-menu-kind-test:
 
 nodefs-steal-secrets-kind-test:
 	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) ./test/nodefs-steal-secrets-kind-integration.sh
+
+list-secrets-kind-test:
+	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) ./test/list-secrets-kind-integration.sh
+
+secret-to-sa-kind-test:
+	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) ./test/secret-to-sa-kind-integration.sh
 
 update-deps:
 	go clean -modcache
