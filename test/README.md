@@ -159,6 +159,25 @@ The test refuses a pre-existing `peirates-secret-to-sa-integration` cluster and
 deletes only its dedicated cluster. Override the name with
 `PEIRATES_SECRET_TO_SA_KIND_CLUSTER`.
 
+## HostPath attack-pod integration test
+
+Run `make attack-hostpath-kind-test` to create a disposable Kind cluster and
+exercise main-menu item 20 through a real Peirates binary running in-cluster.
+The test covers the numeric command, canonical module name, and one historical
+alias. For each path, it observes the short-lived attack pod, verifies that its
+`hostPath` is `/`, and reads a synthetic marker through the pod's `/root` mount.
+It also confirms that the module writes its callback entry into the disposable
+Kind node's crontab and removes the attack pod afterward.
+
+The test verifies the callback port is closed and restricts it to `127.0.0.1:65535`.
+The Kind configuration
+does not mount any path from the physical Docker host. The runner's service
+account receives only namespace-scoped pod `get`, `list`, `create`, `delete`,
+and `pods/exec` `create` permissions. The test refuses a pre-existing cluster
+named `peirates-attack-hostpath-integration`, deletes only a cluster it created,
+and removes the module-created resources by deleting that disposable cluster.
+Override the name with `PEIRATES_ATTACK_HOSTPATH_KIND_CLUSTER`.
+
 ## Node filesystem secret integration test
 
 Run `make nodefs-steal-secrets-kind-test` to create a disposable Kind cluster;
