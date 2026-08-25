@@ -256,6 +256,7 @@ func curlNonWizard(arguments ...string) (request *http.Request, https bool, igno
 	method := "GET"
 	var fullURL string
 	params := make(map[string]string)
+	var headers []HeaderLine
 
 	var skipArgument bool
 
@@ -270,7 +271,7 @@ func curlNonWizard(arguments ...string) (request *http.Request, https bool, igno
 			if i+1 >= len(arguments) {
 				return nil, false, false, "", errors.New("-X requires an HTTP method")
 			}
-			method = arguments[i+1]
+			method = strings.ToUpper(arguments[i+1])
 			if Verbose {
 				println("DEBUG: found argument to set method: -X " + method)
 			}
@@ -280,6 +281,19 @@ func curlNonWizard(arguments ...string) (request *http.Request, https bool, igno
 
 		} else if argument == "-k" {
 			ignoreTLSErrors = true
+		} else if argument == "-H" {
+			if i+1 >= len(arguments) {
+				return nil, false, false, "", errors.New("-H requires a header in name:value form")
+			}
+			headerText := strings.Trim(arguments[i+1], "\"'")
+			headerName, headerValue, found := strings.Cut(headerText, ":")
+			headerName = strings.TrimSpace(headerName)
+			headerValue = strings.TrimSpace(headerValue)
+			if !found || headerName == "" {
+				return nil, false, false, "", errors.New("-H requires a header in name:value form")
+			}
+			headers = append(headers, HeaderLine{LHS: headerName, RHS: headerValue})
+			skipArgument = true
 		} else if argument == "-d" {
 			if i+1 >= len(arguments) {
 				return nil, false, false, "", errors.New("-d requires key=value data")
@@ -322,7 +336,6 @@ func curlNonWizard(arguments ...string) (request *http.Request, https bool, igno
 
 	}
 
-	var headers []HeaderLine
 	paramLocation := "url"
 	if method == "POST" {
 		paramLocation = "body"

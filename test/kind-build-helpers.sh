@@ -34,17 +34,22 @@ kind_node_go_target() {
     esac
 }
 
-build_peirates_for_kind_node() {
+build_go_package_for_kind_node() {
     local root_dir="$1"
     local output_path="$2"
     local node_name="$3"
+    local package="$4"
 
     kind_node_go_target "${node_name}"
     if [[ -n "${KIND_NODE_GOARM}" ]]; then
         (cd "${root_dir}" && CGO_ENABLED=0 GOOS=linux GOARCH="${KIND_NODE_GOARCH}" \
-            GOARM="${KIND_NODE_GOARM}" go build -o "${output_path}" ./cmd/peirates)
+            GOARM="${KIND_NODE_GOARM}" go build -o "${output_path}" "${package}")
     else
         (cd "${root_dir}" && CGO_ENABLED=0 GOOS=linux GOARCH="${KIND_NODE_GOARCH}" \
-            go build -o "${output_path}" ./cmd/peirates)
+            go build -o "${output_path}" "${package}")
     fi
+}
+
+build_peirates_for_kind_node() {
+    build_go_package_for_kind_node "$1" "$2" "$3" ./cmd/peirates
 }

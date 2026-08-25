@@ -167,6 +167,21 @@ pre-existing cluster named `peirates-kubectl-try-all-integration` and deletes
 only its dedicated cluster. Override the name with
 `PEIRATES_KUBECTL_TRY_ALL_KIND_CLUSTER`.
 
+## HTTP client integration test
+
+Run `make curl-kind-test` to create a disposable Kind cluster and exercise both
+forms of main-menu item 91 through a real Peirates binary running in-cluster.
+The test drives numeric item `91` through its interactive request wizard, then
+runs the direct `curl -X POST -H Name:Value -d key=value URL` form without the
+wizard. For each route, the HTTP fixture requires a POST request, two distinct
+custom headers, and two form variables in the request body before returning its
+route-specific success marker.
+
+The HTTP server and runner are isolated to the disposable cluster and require
+no Kubernetes RBAC permissions. The test refuses a pre-existing cluster named
+`peirates-curl-integration` and deletes only the cluster it created. Override
+the name with `PEIRATES_CURL_KIND_CLUSTER`, using a name reserved for this test.
+
 ## API Secret listing integration test
 
 Run `make list-secrets-kind-test` to create a disposable Kind cluster and test

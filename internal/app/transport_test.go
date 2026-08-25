@@ -140,20 +140,34 @@ func TestGetRequestAndCreateHTTPRequest(t *testing.T) {
 }
 
 func TestCurlNonWizard(t *testing.T) {
-	req, https, insecure, caPath, err := curlNonWizard("-X", "POST", "-k", "-d", "name=Jane Doe", "https://example.test/api")
+	req, https, insecure, caPath, err := curlNonWizard(
+		"-X", "POST", "-k",
+		"-H", "X-Peirates-Mode:direct",
+		"-H", "X-Peirates-Trace:direct-trace",
+		"-d", "name=Jane Doe",
+		"-d", "role=admin",
+		"https://example.test/api",
+	)
 	if err != nil || !https || !insecure || caPath != "" {
 		t.Fatalf("unexpected curl result: https=%t insecure=%t ca=%q err=%v", https, insecure, caPath, err)
 	}
 	if req.Method != http.MethodPost || req.URL.String() != "https://example.test/api" {
 		t.Fatalf("request = %s %s", req.Method, req.URL)
 	}
+	if req.Header.Get("X-Peirates-Mode") != "direct" || req.Header.Get("X-Peirates-Trace") != "direct-trace" {
+		t.Fatalf("headers = %#v", req.Header)
+	}
 	body, _ := io.ReadAll(req.Body)
-	if string(body) != "name=Jane%2BDoe" {
-		t.Fatalf("body = %q", body)
+	values, err := url.ParseQuery(string(body))
+	if err != nil || values.Get("name") != "Jane+Doe" || values.Get("role") != "admin" {
+		t.Fatalf("body = %q, parse error = %v", body, err)
 	}
 
 	if _, _, _, _, err := curlNonWizard("-d", "invalid", "http://example.test"); err == nil {
 		t.Fatal("expected invalid data argument to fail")
+	}
+	if _, _, _, _, err := curlNonWizard("-H", "invalid", "http://example.test"); err == nil {
+		t.Fatal("expected invalid header argument to fail")
 	}
 }
 
