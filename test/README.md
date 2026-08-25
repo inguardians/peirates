@@ -133,3 +133,15 @@ This test intentionally configures the disposable node kubelet with anonymous au
 shared or persistent cluster. The test must never be adapted to target an existing
 cluster. Docker, Kind, kubectl, Go, and network access to pull the test image are
 required.
+
+## Node filesystem secret integration test
+
+Run `make nodefs-steal-secrets-kind-test` to create a disposable Kind cluster;
+mount synthetic opaque and TLS Secrets plus a projected service-account token
+into a fixture pod; and copy Peirates directly onto the control-plane node. The
+test runs the real `nodefs-steal-secrets` module on that node and verifies that
+it classifies all three fixtures under `/var/lib/kubelet/pods` without printing
+the token, private key, or opaque Secret value. The test refuses to modify a
+pre-existing cluster named `peirates-nodefs-secrets-integration` and deletes
+only its dedicated cluster on exit. Override the name with
+`PEIRATES_NODEFS_SECRETS_KIND_CLUSTER`, using a name reserved for this test.
