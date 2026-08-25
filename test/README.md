@@ -149,6 +149,24 @@ The test refuses a pre-existing cluster named `peirates-exec-api-integration`
 and deletes only the cluster it created. Override the name with
 `PEIRATES_EXEC_API_KIND_CLUSTER`, using a name reserved for this test.
 
+## Kubectl authorization-context integration test
+
+Run `make kubectl-try-all-kind-test` to create a disposable Kind cluster and
+exercise `kubectl-try-all` and `kubectl-try-all-until-success` through a real
+Peirates binary running in-cluster. The runner starts with a denied service
+account and discovers two ordered, controller-populated service-account-token
+Secrets. The test proves that `kubectl-try-all` continues through every account
+and reports both successful API results, while the until-success form continues
+past the denied account, reports the first successful result, and never attempts
+the later account.
+
+Only the two successful accounts receive namespace-scoped `get` permission for
+one fixture ConfigMap. Peirates reads credentials only from mounted Secret
+volumes; the script does not retrieve or print token data. The test refuses a
+pre-existing cluster named `peirates-kubectl-try-all-integration` and deletes
+only its dedicated cluster. Override the name with
+`PEIRATES_KUBECTL_TRY_ALL_KIND_CLUSTER`.
+
 ## API Secret listing integration test
 
 Run `make list-secrets-kind-test` to create a disposable Kind cluster and test
