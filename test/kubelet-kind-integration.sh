@@ -4,8 +4,11 @@ set -euo pipefail
 # SECURITY: This test deliberately enables anonymous kubelet pod listing and exec.
 # The setting is confined to a uniquely named, disposable Kind cluster. Never point
 # this script at an existing or shared cluster.
+root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${root_dir}/test/kind-build-helpers.sh"
 cluster_name="${PEIRATES_KUBELET_KIND_CLUSTER:-peirates-kubelet-integration}"
 context="kind-${cluster_name}"
+node_name="${cluster_name}-control-plane"
 namespace="peirates-kubelet-test"
 node_lister_role="peirates-kubelet-test-node-lister"
 node_lister_binding="peirates-kubelet-test-node-lister"
@@ -102,7 +105,7 @@ PEIRATES_KUBELET_POD="${pod_name}" \
 PEIRATES_KUBELET_CONTAINER="${container_name}" \
     go test -tags=kubelet_integration ./internal/app -run '^TestAnonymousKubeletPodListingAndExec$' -count=1 -v
 
-CGO_ENABLED=0 go build -o "${peirates_binary}" ./cmd/peirates
+build_peirates_for_kind_node "${root_dir}" "${peirates_binary}" "${node_name}"
 kubectl --context "${context}" -n "${namespace}" cp \
     "${peirates_binary}" "${pod_name}:/tmp/peirates" -c "${container_name}"
 kubectl --context "${context}" -n "${namespace}" exec "${pod_name}" -c "${container_name}" -- chmod 0755 /tmp/peirates

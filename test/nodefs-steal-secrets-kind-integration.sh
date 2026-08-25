@@ -2,6 +2,7 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${root_dir}/test/kind-build-helpers.sh"
 cluster_name="${PEIRATES_NODEFS_SECRETS_KIND_CLUSTER:-peirates-nodefs-secrets-integration}"
 context="kind-${cluster_name}"
 node_name="${cluster_name}-control-plane"
@@ -96,7 +97,7 @@ if ! docker exec "${node_name}" test -f "${tls_secret_dir}/tls.crt"; then
     exit 1
 fi
 
-(cd "${root_dir}" && CGO_ENABLED=0 go build -o "${peirates_binary}" ./cmd/peirates)
+build_peirates_for_kind_node "${root_dir}" "${peirates_binary}" "${node_name}"
 docker cp "${peirates_binary}" "${node_name}:/peirates"
 docker exec "${node_name}" chmod 0755 /peirates
 

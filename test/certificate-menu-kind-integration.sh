@@ -2,6 +2,7 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${root_dir}/test/kind-build-helpers.sh"
 cluster_name="${PEIRATES_CERTIFICATE_KIND_CLUSTER:-peirates-certificate-integration}"
 node_name="${cluster_name}-control-plane"
 expected_identity="system:node:${node_name}"
@@ -30,7 +31,7 @@ nodes:
 CONFIG
 kind create cluster --name "${cluster_name}" --config "${config_file}" --wait 120s
 
-(cd "${root_dir}" && CGO_ENABLED=0 go build -o "${peirates_binary}" ./cmd/peirates)
+build_peirates_for_kind_node "${root_dir}" "${peirates_binary}" "${node_name}"
 docker cp "${peirates_binary}" "${node_name}:/peirates"
 docker exec "${node_name}" chmod 0755 /peirates
 

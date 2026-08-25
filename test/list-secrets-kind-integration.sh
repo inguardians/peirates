@@ -2,8 +2,10 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${root_dir}/test/kind-build-helpers.sh"
 cluster_name="${PEIRATES_LIST_SECRETS_KIND_CLUSTER:-peirates-list-secrets-integration}"
 context="kind-${cluster_name}"
+node_name="${cluster_name}-control-plane"
 namespace="peirates-list-secrets-test"
 allowed_pod="peirates-list-secrets-allowed"
 denied_pod="peirates-list-secrets-denied"
@@ -99,7 +101,7 @@ for pod in "${allowed_pod}" "${denied_pod}"; do
         --for=condition=Ready "pod/${pod}" --timeout=120s
 done
 
-(cd "${root_dir}" && CGO_ENABLED=0 go build -o "${peirates_binary}" ./cmd/peirates)
+build_peirates_for_kind_node "${root_dir}" "${peirates_binary}" "${node_name}"
 for pod in "${allowed_pod}" "${denied_pod}"; do
     kubectl --context "${context}" -n "${namespace}" cp "${peirates_binary}" "${pod}:/tmp/peirates"
     kubectl --context "${context}" -n "${namespace}" exec "${pod}" -- chmod 0755 /tmp/peirates

@@ -2,8 +2,10 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${root_dir}/test/kind-build-helpers.sh"
 cluster_name="${PEIRATES_SERVICE_ACCOUNT_KIND_CLUSTER:-peirates-service-account-integration}"
 context="kind-${cluster_name}"
+node_name="${cluster_name}-control-plane"
 namespace="peirates-service-account-test"
 pod_name="peirates-service-account-test"
 config_file="$(mktemp /tmp/peirates-service-account-kind.XXXXXX.yaml)"
@@ -36,7 +38,7 @@ kubectl --context "${context}" -n "${namespace}" run "${pod_name}" \
 kubectl --context "${context}" -n "${namespace}" wait \
     --for=condition=Ready "pod/${pod_name}" --timeout=120s
 
-(cd "${root_dir}" && CGO_ENABLED=0 go build -o "${peirates_binary}" ./cmd/peirates)
+build_peirates_for_kind_node "${root_dir}" "${peirates_binary}" "${node_name}"
 kubectl --context "${context}" -n "${namespace}" cp "${peirates_binary}" "${pod_name}:/tmp/peirates"
 kubectl --context "${context}" -n "${namespace}" exec "${pod_name}" -- chmod 0755 /tmp/peirates
 
