@@ -1,10 +1,14 @@
 package app
 
-import "fmt"
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+)
 
 func execInPodMenu(connectionString ServerInfo, interactive bool) {
-
-	var input string
+	reader := bufio.NewReader(os.Stdin)
 
 	println(`
 	[1] Run command on a specific pod
@@ -12,17 +16,17 @@ func execInPodMenu(connectionString ServerInfo, interactive bool) {
 	`)
 	fmt.Printf("\nPeirates (execInPods):># ")
 
-	_, err := fmt.Scanln(&input)
+	input, err := readExecMenuLine(reader)
 	if err != nil {
-		println("Problem with reading input: %v", err)
+		fmt.Printf("Problem with reading input: %v\n", err)
 		pauseToHitEnter(interactive)
 		return
 	}
 	println("[+] Please provide the command to run in the pods: ")
 
-	commandToRunInPods, err := ReadLineStripWhitespace()
+	commandToRunInPods, err := readExecMenuLine(reader)
 	if err != nil {
-		println("Problem with stripping white space: %v", err)
+		fmt.Printf("Problem with reading command: %v\n", err)
 		pauseToHitEnter(interactive)
 		return
 	}
@@ -38,11 +42,11 @@ func execInPodMenu(connectionString ServerInfo, interactive bool) {
 
 		println("[+] Enter the pod name in which to run the command: ")
 
-		var podToRunIn string
-		_, err = fmt.Scanln(&podToRunIn)
+		podToRunIn, err := readExecMenuLine(reader)
 		if err != nil {
-			println("Problem with reading pod name: %v", err)
+			fmt.Printf("Problem with reading pod name: %v\n", err)
 			pauseToHitEnter(interactive)
+			return
 		}
 		podsToRunTheCommandIn := []string{podToRunIn}
 
@@ -57,6 +61,11 @@ func execInPodMenu(connectionString ServerInfo, interactive bool) {
 
 		execInAllPods(connectionString, commandToRunInPods)
 	}
+}
+
+func readExecMenuLine(reader *bufio.Reader) (string, error) {
+	line, err := reader.ReadString('\n')
+	return strings.TrimSpace(line), err
 }
 
 // execInAllPods() runs a command in all running pods

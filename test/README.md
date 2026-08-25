@@ -134,6 +134,21 @@ shared or persistent cluster. The test must never be adapted to target an existi
 cluster. Docker, Kind, kubectl, Go, and network access to pull the test image are
 required.
 
+## API pod-exec integration test
+
+Run `make exec-via-api-kind-test` to create a disposable Kind cluster and
+exercise both interactive branches of main-menu item 21 through a real Peirates
+binary running in a pod. The specific-pod branch runs through numeric item `21`
+and verifies that a harmless marker is created only in the selected fixture pod.
+The all-pods branch runs through `exec-via-api` and verifies a separate marker
+in every running test pod.
+
+The runner's default service account receives only namespace-scoped `get`,
+`list`, and legacy `exec` access to pods plus `create` access to `pods/exec`.
+The test refuses a pre-existing cluster named `peirates-exec-api-integration`
+and deletes only the cluster it created. Override the name with
+`PEIRATES_EXEC_API_KIND_CLUSTER`, using a name reserved for this test.
+
 ## API Secret listing integration test
 
 Run `make list-secrets-kind-test` to create a disposable Kind cluster and test
