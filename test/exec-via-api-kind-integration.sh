@@ -1,8 +1,22 @@
 #!/usr/bin/env bash
+# This live Kind integration test verifies that Peirates can execute commands through the
+# Kubernetes API against either one selected pod or every running pod in a namespace.
+#
+# The script tests:
+# - Main-menu item 21 targets only the pod selected by the operator.
+# - The canonical exec-via-api module name targets every running pod.
+# - The namespace service account has the pod discovery and exec permissions Peirates requires.
+# - Commands executed through Peirates create the expected markers without affecting unintended pods.
+
+# Enable strict shell behavior so setup and assertion failures stop the test immediately.
 set -euo pipefail
 
+# Resolve repository paths and define the isolated Kind test environment.
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${root_dir}/test/kind-build-helpers.sh"
+kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
+chmod 600 "${kubeconfig_file}"
+export KUBECONFIG="${kubeconfig_file}"
 cluster_name="${PEIRATES_EXEC_API_KIND_CLUSTER:-peirates-exec-api-integration}"
 context="kind-${cluster_name}"
 node_name="${cluster_name}-control-plane"
@@ -15,14 +29,18 @@ config_file="$(mktemp /tmp/peirates-exec-api-kind.XXXXXX.yaml)"
 peirates_binary="$(mktemp /tmp/peirates-exec-api-binary.XXXXXX)"
 cluster_created=false
 
+# Remove the owned cluster and temporary files on exit.
 cleanup() {
     if [[ "${cluster_created}" == "true" ]]; then
         kind delete cluster --name "${cluster_name}" >/dev/null 2>&1 || true
     fi
-    rm -f "${config_file}" "${peirates_binary}"
+    rm -f "${config_file}" "${peirates_binary}" "${kubeconfig_file}"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
+# Verify required tooling and protect any pre-existing cluster.
 for required in kind kubectl docker go timeout; do
     command -v "${required}" >/dev/null || { echo "missing required command: ${required}" >&2; exit 1; }
 done
@@ -31,26 +49,29 @@ if kind get clusters 2>/dev/null | grep -Fxq "${cluster_name}"; then
     exit 1
 fi
 
+# Create the disposable Kind cluster and namespace.
 cat >"${config_file}" <<'CONFIG'
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
 - role: control-plane
 CONFIG
-kind create cluster --name "${cluster_name}" --config "${config_file}" --wait 120s
 cluster_created=true
+kind create cluster --name "${cluster_name}" --config "${config_file}" --wait 120s
 
+# Grant the default service account only the pod discovery and exec permissions.
 kubectl --context "${context}" create namespace "${namespace}"
 # Peirates currently performs an `auth can-i exec pods` compatibility check
 # before using the standard create permission on the pods/exec subresource.
 kubectl --context "${context}" -n "${namespace}" create role "${role_name}" \
-    --verb=get,list --resource=pods
+    --verb=get,list,exec --resource=pods
 kubectl --context "${context}" -n "${namespace}" patch role "${role_name}" \
     --type=json \
     -p='[{"op":"add","path":"/rules/-","value":{"apiGroups":[""],"resources":["pods/exec"],"verbs":["create"]}}]'
 kubectl --context "${context}" -n "${namespace}" create rolebinding "${role_name}" \
     --role="${role_name}" --serviceaccount="${namespace}:default"
 
+# Confirm the runner identity has every permission needed for pod exec.
 for permission in "get pods" "list pods" "exec pods" "create pods --subresource=exec"; do
     read -r -a permission_args <<<"${permission}"
     if [[ "$(kubectl --context "${context}" auth can-i "${permission_args[@]}" \
@@ -60,6 +81,7 @@ for permission in "get pods" "list pods" "exec pods" "create pods --subresource=
     fi
 done
 
+# Start the runner and targets, then wait for every pod to become ready.
 for pod in "${runner_pod}" "${first_target_pod}" "${second_target_pod}"; do
     kubectl --context "${context}" -n "${namespace}" run "${pod}" \
         --image=busybox:1.36.1 --restart=Never --command -- sh -c 'sleep 3600'
@@ -67,6 +89,7 @@ done
 kubectl --context "${context}" -n "${namespace}" wait \
     --for=condition=Ready pod --all --timeout=120s
 
+# Build Peirates and install it in the runner pod.
 build_peirates_for_kind_node "${root_dir}" "${peirates_binary}" "${node_name}"
 kubectl --context "${context}" -n "${namespace}" cp \
     "${peirates_binary}" "${runner_pod}:/tmp/peirates"
@@ -116,4 +139,5 @@ for pod in "${runner_pod}" "${first_target_pod}" "${second_target_pod}"; do
     fi
 done
 
+# Report completion after the selected-pod and all-pods paths succeed.
 echo "main-menu item 21 passed specific-pod and all-pods live integration testing"

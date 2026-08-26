@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 
+# This shared test-support script builds Go packages that can run inside Kind
+# nodes, regardless of the host machine's architecture.
+#
+# It provides support for:
+# - Detecting a Kind node's machine architecture.
+# - Mapping that architecture to the matching Go build target.
+# - Cross-compiling arbitrary Go packages for a Kind node.
+# - Building the Peirates CLI through the shared cross-compilation path.
+
+# Detect the Kind node architecture and expose its corresponding Go target.
 kind_node_go_target() {
     local node_name="$1"
     local machine
@@ -34,6 +44,7 @@ kind_node_go_target() {
     esac
 }
 
+# Cross-compile the requested Go package for the detected Kind node target.
 build_go_package_for_kind_node() {
     local root_dir="$1"
     local output_path="$2"
@@ -50,6 +61,7 @@ build_go_package_for_kind_node() {
     fi
 }
 
+# Build the Peirates executable using the shared node-aware build helper.
 build_peirates_for_kind_node() {
     build_go_package_for_kind_node "$1" "$2" "$3" ./cmd/peirates
 }

@@ -1,8 +1,21 @@
 #!/usr/bin/env bash
+# This live Kind integration test verifies that Peirates can discover mounted
+# Kubernetes service-account tokens and use them in the expected order.
+#
+# The script tests:
+# - kubectl-try-all attempts the denied runner and both authorized principals.
+# - kubectl-try-all reports a result for every authorized principal.
+# - kubectl-try-all-until-success stops after the first authorized principal.
+
+# Enable strict shell error handling for the integration test.
 set -euo pipefail
 
+# Resolve repository helpers and create the test's isolated kubeconfig.
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${root_dir}/test/kind-build-helpers.sh"
+kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
+chmod 600 "${kubeconfig_file}"
+export KUBECONFIG="${kubeconfig_file}"
 cluster_name="${PEIRATES_KUBECTL_TRY_ALL_KIND_CLUSTER:-peirates-kubectl-try-all-integration}"
 context="kind-${cluster_name}"
 node_name="${cluster_name}-control-plane"
@@ -21,14 +34,18 @@ pod_file="$(mktemp /tmp/peirates-kubectl-try-all-pod.XXXXXX.yaml)"
 peirates_binary="$(mktemp /tmp/peirates-kubectl-try-all-binary.XXXXXX)"
 cluster_created=false
 
+# Remove the owned cluster, generated manifest, and temporary binaries on exit.
 cleanup() {
     if [[ "${cluster_created}" == "true" ]]; then
         kind delete cluster --name "${cluster_name}" >/dev/null 2>&1 || true
     fi
-    rm -f "${config_file}" "${pod_file}" "${peirates_binary}"
+    rm -f "${config_file}" "${pod_file}" "${peirates_binary}" "${kubeconfig_file}"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
+# Verify prerequisites and protect any cluster that predates this run.
 for required in kind kubectl docker go sed timeout; do
     command -v "${required}" >/dev/null || { echo "missing required command: ${required}" >&2; exit 1; }
 done
@@ -37,15 +54,17 @@ if kind get clusters 2>/dev/null | grep -Fxq "${cluster_name}"; then
     exit 1
 fi
 
+# Create the disposable Kind cluster and test namespace.
 cat >"${config_file}" <<'CONFIG'
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
 - role: control-plane
 CONFIG
-kind create cluster --name "${cluster_name}" --config "${config_file}" --wait 120s
 cluster_created=true
+kind create cluster --name "${cluster_name}" --config "${config_file}" --wait 120s
 
+# Provision denied and authorized service accounts.
 kubectl --context "${context}" create namespace "${namespace}"
 for service_account in \
     "${runner_service_account}" \
@@ -54,6 +73,7 @@ for service_account in \
     kubectl --context "${context}" -n "${namespace}" create serviceaccount "${service_account}"
 done
 
+# Create the readable fixture and grant access only to successful principals.
 kubectl --context "${context}" -n "${namespace}" create configmap "${fixture_configmap}" \
     --from-literal=marker="${fixture_value}"
 kubectl --context "${context}" -n "${namespace}" create role "${role_name}" \
@@ -85,6 +105,7 @@ TOKEN_SECRET
         --for=jsonpath='{.data.token}' "secret/${secret_name}" --timeout=60s
 done
 
+# Confirm the runner is denied while both alternate principals are authorized.
 if [[ "$(kubectl --context "${context}" auth can-i get \
     "configmap/${fixture_configmap}" --namespace="${namespace}" \
     --as="system:serviceaccount:${namespace}:${runner_service_account}")" != "no" ]]; then
@@ -100,6 +121,7 @@ for service_account in "${success_one_service_account}" "${success_two_service_a
     fi
 done
 
+# Generate the runner pod with deterministically ordered token mounts.
 cat >"${pod_file}" <<RUNNER_POD
 apiVersion: v1
 kind: Pod
@@ -127,10 +149,12 @@ spec:
     secret:
       secretName: ${success_two_secret}
 RUNNER_POD
+# Start the runner and wait for its projected token volumes.
 kubectl --context "${context}" apply -f "${pod_file}"
 kubectl --context "${context}" -n "${namespace}" wait \
     --for=condition=Ready "pod/${runner_pod}" --timeout=120s
 
+# Build Peirates for the node architecture and install it in the runner.
 build_peirates_for_kind_node "${root_dir}" "${peirates_binary}" "${node_name}"
 kubectl --context "${context}" -n "${namespace}" cp \
     "${peirates_binary}" "${runner_pod}:/tmp/peirates"
@@ -141,14 +165,17 @@ success_one_name="${namespace}/${success_one_secret}"
 success_two_name="${namespace}/${success_two_secret}"
 kubectl_arguments="get configmap ${fixture_configmap} -o jsonpath={.data.marker}"
 
+# Execute a named Peirates module inside the runner pod.
 run_module() {
     local module="$1"
     timeout 90s kubectl --context "${context}" -n "${namespace}" exec "${runner_pod}" -- \
         /tmp/peirates -c -m "${module}"
 }
+# Redact live credentials before printing failed command output.
 print_redacted() {
     printf '%s\n' "$1" | sed -E 's~eyJ[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+){2}~[REDACTED JWT]~g' >&2
 }
+# Assert required output, exclusions, ordering, and occurrence counts.
 assert_contains() {
     local output="$1" expected="$2" scenario="$3"
     if [[ "${output}" != *"${expected}"* ]]; then
@@ -184,6 +211,7 @@ count_occurrences() {
     printf '%s\n' "${count}"
 }
 
+# Verify kubectl-try-all attempts every discovered principal.
 if ! try_all_output="$(run_module "kubectl-try-all ${kubectl_arguments}" 2>&1)"; then
     echo "kubectl-try-all live execution failed" >&2
     print_redacted "${try_all_output}"
@@ -200,6 +228,7 @@ if [[ "$(count_occurrences "${try_all_output}" "${fixture_value}")" != "2" ]]; t
     exit 1
 fi
 
+# Verify the until-success variant stops after its first authorized principal.
 if ! until_success_output="$(run_module \
     "kubectl-try-all-until-success ${kubectl_arguments}" 2>&1)"; then
     echo "kubectl-try-all-until-success live execution failed" >&2
@@ -216,4 +245,5 @@ if [[ "$(count_occurrences "${until_success_output}" "${fixture_value}")" != "1"
     exit 1
 fi
 
+# Report completion after both iteration behaviors are proven.
 echo "kubectl-try-all tried every principal, and kubectl-try-all-until-success stopped at the first success"
