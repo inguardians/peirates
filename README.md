@@ -42,6 +42,9 @@ Peirates is released under the GPLv2 license.
 If you just want the peirates binary to start attacking things, grab the latest
 release from the [releases page](https://github.com/inguardians/peirates/releases/latest).
 
+For command behavior, prerequisites, side effects, cleanup, and troubleshooting,
+see the [main menu command reference](docs/commands/README.md).
+
 ## Peirates as a Container Image
 
 You can find a useful [alpine-peirates container image on Docker Hub](https://hub.docker.com/r/bustakube/alpine-peirates), with a version number tag that tracks the Peirates version.

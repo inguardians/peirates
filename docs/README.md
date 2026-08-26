@@ -1,5 +1,9 @@
 # Docs
 
+## Command reference
+
+See the [main menu command reference](commands/README.md) for every command advertised by Peirates' full and minimal menus, including prerequisites, side effects, failure modes, implementation links, and test coverage.
+
 ## GKE
 
 NOTE: You may need to allow `140.82.113.34` (GHCR) to pass the firewall
