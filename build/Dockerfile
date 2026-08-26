@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.17.3-alpine3.13 as build
+FROM golang:1.27.0-alpine3.24 AS build
 
 LABEL maintainer="peirates-dev <peirates-dev@inguardians.com>"
 LABEL org.opencontainers.image.source = "https://github.com/inguardians/peirates"

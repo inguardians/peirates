@@ -8,7 +8,7 @@
 
 ## Purpose
 
-Start an interactive Bash or Bourne-compatible shell attached to Peirates' standard input, output, and error streams.
+Start Bash or a Bourne-compatible shell attached to Peirates' standard input, output, and error streams. With a terminal, the shell can be used interactively; with piped standard input, it can run a script noninteractively.
 
 ## Prerequisites and authorization
 
@@ -21,7 +21,13 @@ bash
 sh
 ```
 
-These commands require an interactive terminal. Do not use `peirates -m bash` or `peirates -m sh` for unattended execution; the child shell waits on standard input.
+Use `bash` or `sh` from an interactive Peirates session to start a shell on the current terminal. For noninteractive execution, pipe a script to a one-shot command, for example:
+
+```sh
+printf 'id\nuname -a\n' | peirates -m sh
+```
+
+The child shell reads from Peirates' standard input. A pipe closes at EOF after the script is written, allowing the shell to exit. If standard input remains open, the shell may keep waiting for more commands; if it is already closed, the shell may exit immediately.
 
 ## What it does
 
@@ -29,7 +35,7 @@ Peirates starts the selected absolute shell path as a child process and connects
 
 ## Expected output
 
-The selected shell provides its normal prompt and output. Peirates prints an error if the shell cannot be started.
+On a terminal, the selected shell provides its normal prompt and output. With piped input, it normally prints only the script's output and diagnostics, without an interactive prompt. Peirates prints an error if the shell cannot be started.
 
 ## Side effects and cleanup
 
@@ -37,7 +43,7 @@ Shell commands can make arbitrary changes with Peirates' privileges. Type `exit`
 
 ## Failure modes
 
-Minimal container images may not contain `/bin/bash`; use `sh` when `/bin/sh` is available. Non-interactive stdin can cause the shell to exit immediately or hang.
+Minimal container images may not contain `/bin/bash`; use `sh` when `/bin/sh` is available. A child shell can wait indefinitely when standard input remains open without supplying more commands, while closed standard input can make it exit immediately.
 
 ## Implementation and tests
 

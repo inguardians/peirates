@@ -37,7 +37,7 @@ The scan creates a large number of outbound connections but does not intentional
 
 ## Failure modes
 
-Input validation checks IPv4-shaped text but does not reject every octet above 255 before scanning. Large CIDRs can take a long time or consume substantial resources. Firewalls and the short timeout can make open ports appear closed.
+Input validation checks IPv4-shaped text but does not reject every octet above 255 before scanning. The CIDR input regex also accepts prefixes from `/33` through `/39`; `net.ParseCIDR` rejects those prefixes, and the unhandled error causes Peirates to panic and exit. Large CIDRs can take a long time or consume substantial resources. Firewalls and the short timeout can make open ports appear closed.
 
 ## Implementation and tests
 
