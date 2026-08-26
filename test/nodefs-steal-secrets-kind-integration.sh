@@ -1,8 +1,20 @@
 #!/usr/bin/env bash
+# This live Kind integration test verifies that Peirates can discover opaque,
+# TLS, and service-account secrets from the Kubernetes node filesystem.
+#
+# It tests:
+# - creation and node-side mounting of disposable opaque and TLS secrets
+# - startup discovery of a projected service-account token
+# - dispatch and execution of the nodefs-steal-secrets module
+# - reporting and summary output for the secrets found on the node
+
+# Exit on errors, unset variables, or failed pipeline commands.
 set -euo pipefail
 
+# Define repository paths, disposable resources, and test fixture values.
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${root_dir}/test/kind-build-helpers.sh"
+run_kind_script_with_signal_forwarding "${BASH_SOURCE[0]}" "$@"
 cluster_name="${PEIRATES_NODEFS_SECRETS_KIND_CLUSTER:-peirates-nodefs-secrets-integration}"
 context="kind-${cluster_name}"
 node_name="${cluster_name}-control-plane"
@@ -11,21 +23,35 @@ pod_name="peirates-nodefs-secrets-target"
 secret_name="peirates-nodefs-fixture"
 tls_secret_name="peirates-nodefs-tls-fixture"
 service_account_name="peirates-nodefs-service-account"
+legacy_token_secret_name="peirates-nodefs-token-legacy"
 fixture_value="peirates-disposable-nodefs-fixture"
+kubeconfig_file=""
+config_file=""
+peirates_binary=""
+tls_cert_file=""
+tls_key_file=""
+cluster_created=false
+
+# Remove the disposable cluster and temporary files when the test exits.
+cleanup() {
+    trap '' INT TERM
+    if [[ "${cluster_created}" == true ]]; then
+        kind delete cluster --name "${cluster_name}" >/dev/null 2>&1 || true
+    fi
+    rm -f "${config_file}" "${peirates_binary}" "${tls_cert_file}" "${tls_key_file}" \
+        "${kubeconfig_file}"
+}
+install_kind_script_traps cleanup
+
+kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
+chmod 600 "${kubeconfig_file}"
+export KUBECONFIG="${kubeconfig_file}"
 config_file="$(mktemp /tmp/peirates-nodefs-secrets-kind.XXXXXX.yaml)"
 peirates_binary="$(mktemp /tmp/peirates-nodefs-secrets-binary.XXXXXX)"
 tls_cert_file="$(mktemp /tmp/peirates-nodefs-cert.XXXXXX.crt)"
 tls_key_file="$(mktemp /tmp/peirates-nodefs-key.XXXXXX.key)"
-cluster_created=false
 
-cleanup() {
-    if [[ "${cluster_created}" == true ]]; then
-        kind delete cluster --name "${cluster_name}" >/dev/null 2>&1 || true
-    fi
-    rm -f "${config_file}" "${peirates_binary}" "${tls_cert_file}" "${tls_key_file}"
-}
-trap cleanup EXIT INT TERM
-
+# Verify required tools are installed and protect any same-named existing cluster.
 for required in kind kubectl docker go openssl timeout; do
     command -v "${required}" >/dev/null || { echo "missing required command: ${required}" >&2; exit 1; }
 done
@@ -34,6 +60,7 @@ if kind get clusters 2>/dev/null | grep -Fxq "${cluster_name}"; then
     exit 1
 fi
 
+# Write the minimal Kind configuration and create the disposable cluster.
 cat >"${config_file}" <<'CONFIG'
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
@@ -41,9 +68,23 @@ nodes:
 - role: control-plane
 CONFIG
 cluster_created=true
-kind create cluster --name "${cluster_name}" --config "${config_file}" --wait 120s
+kind create cluster --name "${cluster_name}" --config "${config_file}" \
+    --image "$(kind_node_image)" --wait 120s
+
+# Create the namespace, service account, opaque secret, and TLS secret fixtures.
 kubectl --context "${context}" create namespace "${namespace}"
 kubectl --context "${context}" -n "${namespace}" create serviceaccount "${service_account_name}"
+kubectl --context "${context}" -n "${namespace}" apply -f - <<TOKEN_SECRET
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${legacy_token_secret_name}
+  annotations:
+    kubernetes.io/service-account.name: ${service_account_name}
+type: kubernetes.io/service-account-token
+TOKEN_SECRET
+kubectl --context "${context}" -n "${namespace}" wait \
+    --for=jsonpath='{.data.token}' "secret/${legacy_token_secret_name}" --timeout=60s
 kubectl --context "${context}" -n "${namespace}" create secret generic "${secret_name}" \
     --from-literal=fixture="${fixture_value}"
 openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
@@ -51,6 +92,8 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
     -keyout "${tls_key_file}" -out "${tls_cert_file}" >/dev/null 2>&1
 kubectl --context "${context}" -n "${namespace}" create secret tls "${tls_secret_name}" \
     --cert="${tls_cert_file}" --key="${tls_key_file}"
+
+# Deploy a pod that mounts both fixture secrets and uses the fixture service account.
 kubectl --context "${context}" -n "${namespace}" apply -f - <<POD
 apiVersion: v1
 kind: Pod
@@ -69,6 +112,9 @@ spec:
     - name: ${tls_secret_name}
       mountPath: /var/run/peirates-nodefs-tls-fixture
       readOnly: true
+    - name: ${legacy_token_secret_name}
+      mountPath: /var/run/peirates-nodefs-token-legacy
+      readOnly: true
   volumes:
   - name: ${secret_name}
     secret:
@@ -76,14 +122,21 @@ spec:
   - name: ${tls_secret_name}
     secret:
       secretName: ${tls_secret_name}
+  - name: ${legacy_token_secret_name}
+    secret:
+      secretName: ${legacy_token_secret_name}
 POD
+
+# Wait for the fixture pod to be ready before inspecting its node filesystem data.
 kubectl --context "${context}" -n "${namespace}" wait \
     --for=condition=Ready "pod/${pod_name}" --timeout=120s
 
+# Resolve the pod's kubelet secret paths and confirm the fixtures were mounted.
 pod_uid="$(kubectl --context "${context}" -n "${namespace}" get pod "${pod_name}" \
     -o jsonpath='{.metadata.uid}')"
 secret_dir="/var/lib/kubelet/pods/${pod_uid}/volumes/kubernetes.io~secret/${secret_name}"
 tls_secret_dir="/var/lib/kubelet/pods/${pod_uid}/volumes/kubernetes.io~secret/${tls_secret_name}"
+legacy_token_secret_dir="/var/lib/kubelet/pods/${pod_uid}/volumes/kubernetes.io~secret/${legacy_token_secret_name}"
 if ! docker exec "${node_name}" test -f "${secret_dir}/fixture"; then
     echo "fixture Secret was not mounted on the Kind node" >&2
     exit 1
@@ -96,12 +149,20 @@ if ! docker exec "${node_name}" test -f "${tls_secret_dir}/tls.crt"; then
     echo "fixture TLS certificate was not mounted on the Kind node" >&2
     exit 1
 fi
+if ! docker exec "${node_name}" test -f "${legacy_token_secret_dir}/token"; then
+    echo "fixture legacy service-account token was not mounted on the Kind node" >&2
+    exit 1
+fi
 
+# Build Peirates for the Kind node and install it inside the node container.
 build_peirates_for_kind_node "${root_dir}" "${peirates_binary}" "${node_name}"
 docker cp "${peirates_binary}" "${node_name}:/peirates"
 docker exec "${node_name}" chmod 0755 /peirates
 
+# Run the node filesystem secret-stealing module and capture its combined output.
 output="$(timeout 90s docker exec "${node_name}" /peirates -c -m nodefs-steal-secrets 2>&1)"
+
+# Confirm Peirates dispatched and entered the requested module.
 module_marker="Attempting menu option nodefs-steal-secrets"
 module_warning="Attempting to steal secrets from the node filesystem"
 if [[ "${output}" != *"${module_marker}"* ]]; then
@@ -114,6 +175,8 @@ if [[ "${output}" != *"${module_warning}"* ]]; then
     printf '%s\n' "${output}" >&2
     exit 1
 fi
+
+# Confirm startup discovery identified the fixture service-account token.
 service_account_identity="short-lived-sa/${namespace}:${service_account_name}"
 service_account_record="Found a short-lived service account token on this node - in pod ${pod_name} service account: ${service_account_identity}"
 if [[ "${output}" != *"${service_account_record}"* ]]; then
@@ -121,9 +184,18 @@ if [[ "${output}" != *"${service_account_record}"* ]]; then
     printf '%s\n' "${output}" >&2
     exit 1
 fi
+
+# Check module-specific findings and summary counts after the dispatch marker.
+legacy_service_account_record="Found a service account token in pod ${pod_name} on this node: ${namespace}/${legacy_token_secret_name}"
+if [[ "${output}" != *"${legacy_service_account_record}"* ]]; then
+    echo "nodefs startup discovery did not find the fixture legacy service-account token" >&2
+    printf '%s\n' "${output}" >&2
+    exit 1
+fi
 module_output="${output#*${module_marker}}"
 for expected in \
     "Secret *** ${secret_name} *** found on pod with etc hosts entry ${pod_name} can be viewed via ls ${secret_dir}" \
+    "Found a certificate with subject" \
     "via a secret on the node's filesystem called ${tls_secret_name}, provided to pod ${pod_name}" \
     "SUMMARY: 1 certificates found in secrets in this node's /var/lib/kubelet/pods/ directory" \
     "SUMMARY: 1 other secrets found in this node's /var/lib/kubelet/pods/ directory"; do
@@ -134,4 +206,5 @@ for expected in \
     fi
 done
 
-echo "nodefs-steal-secrets passed live node integration testing for opaque, TLS, and service-account secrets"
+# Report successful completion of all live integration assertions.
+echo "nodefs-steal-secrets passed live node integration testing for opaque, TLS, projected-token, and legacy-token secrets"

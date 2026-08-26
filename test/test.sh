@@ -1,17 +1,27 @@
 #!/usr/bin/env bash
 
-# Test Script
+# This development test runner prepares dependencies, builds Peirates, and provides
+# checks for the application, its container image, security posture, and documentation.
+#
+# It can run:
+# - Development dependency installation.
+# - A source build of the Peirates binary.
+# - A Docker image build with image metadata logging.
+# - GoSec security checks.
+# - Go module upgrade checks and the Go test suite.
+# - A local Go documentation server and documentation mirror.
 
 # Email: peirates-dev <peirates-dev@inguardians.com>
 
 # v0.1 - 08 May 2023 - Initial Version
 
+# Resolve output paths from the directory where the runner was invoked.
 CURRENT_DIR=$(realpath .)
 DOCKER_LOG="${CURRENT_DIR}/docker-testing.log"
 SECURITY_LOG="${CURRENT_DIR}/security-testing.log"
 TEST_LOG="${CURRENT_DIR}/app-testing.log"
 
-# add deps for dev workstation here
+# Install development dependencies used by the remaining runner actions.
 function install_deps() {
   echo "☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️"
   echo "Install dependencies..."
@@ -19,6 +29,7 @@ function install_deps() {
   go mod download github.com/aws/aws-sdk-go
 }
 
+# Fetch project build dependencies and invoke the repository build script.
 function build_from_source() {
   echo "‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️"
   echo "Build from source..."
@@ -27,6 +38,7 @@ function build_from_source() {
   cd ${CURRENT_DIR}/../scripts && ./build.sh # is this right?
 }
 
+# Build the container image and record its resulting metadata.
 function docker() {
   echo "‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️" | tee ${DOCKER_LOG}
   echo "Docker build..." | tee -a ${DOCKER_LOG}
@@ -36,12 +48,14 @@ function docker() {
   # echo "Tagging image:" (docker images -q | head -1) # for fish shell
 }
 
+# Run GoSec against the repository and capture its findings.
 function security() {
   echo "‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️" | tee ${SECURITY_LOG}
   echo "GoSec Security Checks..." | tee -a ${SECURITY_LOG}
   cd ${CURRENT_DIR}/.. && gosec -conf ${CURRENT_DIR}/.gosec.config.json -track-suppressions ./... 2>&1 | tee -a ${SECURITY_LOG}
 }
 
+# Check module upgrades and run the Go package test suite.
 function test_all() {
   echo "‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️" | tee ${TEST_LOG}
   echo "testing..." | tee -a ${TEST_LOG}
@@ -56,6 +70,7 @@ function test_all() {
   cd ${CURRENT_DIR}/.. && go test all 2>&1 | tee -a ${TEST_LOG}
 }
 
+# Serve local Go documentation and mirror it for offline inspection.
 function godoc() {
   echo "‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️"
   echo "Godoc..."
@@ -63,6 +78,7 @@ function godoc() {
   get -m -k -q -erobots=off --no-host-directories --no-use-server-timestamps http://localhost:6060
 }
 
+# Select the development checks run by default.
 function main() {
   install_deps
   security
@@ -72,4 +88,5 @@ function main() {
   #godoc
 }
 
+# Enter the test runner.
 main

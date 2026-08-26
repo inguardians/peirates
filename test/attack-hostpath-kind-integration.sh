@@ -1,8 +1,21 @@
 #!/usr/bin/env bash
+#
+# This live Kind integration test verifies that Peirates main-menu item 20 can
+# create a privileged hostPath attack pod and use it against a disposable node.
+#
+# The script tests:
+# - RBAC grants only the pod-management permissions required by the attack.
+# - Numeric, canonical, and historical alias forms all launch the module.
+# - The attack pod mounts the Kind node root at /root and exposes a node marker.
+# - The module writes the expected callback command and removes its attack pod.
+
+# Enable strict shell error handling and initialize test paths and identifiers.
 set -euo pipefail
 
+# Resolve shared helpers and define isolated cluster, fixture, and output paths.
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${root_dir}/test/kind-build-helpers.sh"
+run_kind_script_with_signal_forwarding "${BASH_SOURCE[0]}" "$@"
 cluster_name="${PEIRATES_ATTACK_HOSTPATH_KIND_CLUSTER:-peirates-attack-hostpath-integration}"
 context="kind-${cluster_name}"
 node_name="${cluster_name}-control-plane"
@@ -13,19 +26,30 @@ marker_path="/peirates-item20-disposable-marker"
 marker_value="peirates-item20-mounted-node-root"
 callback_ip="127.0.0.1"
 callback_port="65535"
-config_file="$(mktemp /tmp/peirates-attack-hostpath-kind.XXXXXX.yaml)"
-peirates_binary="$(mktemp /tmp/peirates-attack-hostpath-binary.XXXXXX)"
-output_file="$(mktemp /tmp/peirates-attack-hostpath-output.XXXXXX)"
+kubeconfig_file=""
+config_file=""
+peirates_binary=""
+output_file=""
 cluster_created=false
 
+# Delete only resources owned by this run and remove temporary files.
 cleanup() {
+    trap '' INT TERM
     if [[ "${cluster_created}" == true ]]; then
         kind delete cluster --name "${cluster_name}" >/dev/null 2>&1 || true
     fi
-    rm -f "${config_file}" "${peirates_binary}" "${output_file}"
+    rm -f "${config_file}" "${peirates_binary}" "${output_file}" "${kubeconfig_file}"
 }
-trap cleanup EXIT INT TERM
+install_kind_script_traps cleanup
 
+kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
+chmod 600 "${kubeconfig_file}"
+export KUBECONFIG="${kubeconfig_file}"
+config_file="$(mktemp /tmp/peirates-attack-hostpath-kind.XXXXXX.yaml)"
+peirates_binary="$(mktemp /tmp/peirates-attack-hostpath-binary.XXXXXX)"
+output_file="$(mktemp /tmp/peirates-attack-hostpath-output.XXXXXX)"
+
+# Verify required tools and refuse to alter an existing cluster.
 for required in kind kubectl docker go timeout; do
     command -v "${required}" >/dev/null || { echo "missing required command: ${required}" >&2; exit 1; }
 done
@@ -34,6 +58,7 @@ if kind get clusters 2>/dev/null | grep -Fxq "${cluster_name}"; then
     exit 1
 fi
 
+# Generate the Kind configuration and create the disposable cluster.
 cat >"${config_file}" <<'CONFIG'
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
@@ -41,7 +66,9 @@ nodes:
 - role: control-plane
 CONFIG
 cluster_created=true
-kind create cluster --name "${cluster_name}" --config "${config_file}" --wait 120s
+kind create cluster --name "${cluster_name}" --config "${config_file}" \
+    --image "$(kind_node_image)" --wait 120s
+# Create the namespace and narrowly scoped pod-management RBAC.
 kubectl --context "${context}" create namespace "${namespace}"
 kubectl --context "${context}" -n "${namespace}" apply -f - <<RBAC
 apiVersion: rbac.authorization.k8s.io/v1
@@ -70,6 +97,7 @@ subjects:
   namespace: ${namespace}
 RBAC
 
+# Confirm required pod permissions and the absence of Secret-list access.
 service_account="system:serviceaccount:${namespace}:default"
 for permission in "get pods" "list pods" "create pods" "delete pods" "create pods/exec"; do
     read -r verb resource <<<"${permission}"
@@ -85,6 +113,7 @@ if [[ "$(kubectl --context "${context}" auth can-i list secrets \
     exit 1
 fi
 
+# Start the unprivileged runner pod and wait until it is ready.
 kubectl --context "${context}" -n "${namespace}" run "${runner_pod}" \
     --image=busybox:1.36.1 --restart=Never --command -- sh -c 'sleep 3600'
 kubectl --context "${context}" -n "${namespace}" wait \
@@ -97,11 +126,13 @@ if docker exec "${node_name}" awk '$2 ~ /:FFFF$/ && $4 == "0A" { found=1 } END {
     exit 1
 fi
 docker exec "${node_name}" sh -c "printf '%s\\n' '${marker_value}' > '${marker_path}'"
+# Build Peirates for the node architecture and install it in the runner pod.
 build_peirates_for_kind_node "${root_dir}" "${peirates_binary}" "${node_name}"
 kubectl --context "${context}" -n "${namespace}" cp \
     "${peirates_binary}" "${runner_pod}:/tmp/peirates"
 kubectl --context "${context}" -n "${namespace}" exec "${runner_pod}" -- chmod 0755 /tmp/peirates
 
+# Assert that captured module output contains an expected marker.
 assert_contains() {
     local output="$1" expected="$2" scenario="$3"
     if [[ "${output}" != *"${expected}"* ]]; then
@@ -111,6 +142,7 @@ assert_contains() {
     fi
 }
 
+# Locate the privileged attack pod created by Peirates.
 find_attack_pod() {
     local attack_pod="" attempt
     for attempt in $(seq 1 150); do
@@ -126,6 +158,7 @@ find_attack_pod() {
     return 1
 }
 
+# Run one dispatch form and validate its mount, callback, and cleanup behavior.
 run_item() {
     local module="$1" attack_pod host_path mounted_marker output
 
@@ -179,9 +212,11 @@ for module in 20 attack-pod-hostpath-mount attack-hostpath-mount; do
     run_item "${module}"
 done
 
+# Verify the callback command was written into the disposable node crontab.
 cron_contents="$(docker exec "${node_name}" sh -c 'test -f /etc/crontab && cat /etc/crontab')"
 assert_contains "${cron_contents}" "${callback_ip}" "node crontab callback IP"
 assert_contains "${cron_contents}" "${callback_port}" "node crontab callback port"
 assert_contains "${cron_contents}" "python3 -c" "node crontab command"
 
+# Report completion after every supported dispatch form succeeds.
 echo "main-menu item 20 passed live integration testing for its numeric, canonical, and alias commands"

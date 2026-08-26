@@ -1,0 +1,170 @@
+name: Kind integration
+
+"on":
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  KIND_VERSION: v0.32.0
+  KUBECTL_VERSION: v1.36.1
+  PEIRATES_KIND_NODE_IMAGE: kindest/node:v1.36.1@sha256:3489c7674813ba5d8b1a9977baea8a6e553784dab7b84759d1014dbd78f7ebd5
+
+jobs:
+  kind:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      KIND_CI_CLUSTER: peirates-ci-${{ github.run_id }}-${{ strategy.job-index }}-${{ github.run_attempt }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: kind-test
+            cluster-env: KIND_CLUSTER_NAME
+          - target: kubelet-kind-test
+            cluster-env: PEIRATES_KUBELET_KIND_CLUSTER
+          - target: service-account-kind-test
+            cluster-env: PEIRATES_SERVICE_ACCOUNT_KIND_CLUSTER
+          - target: namespace-kind-test
+            cluster-env: PEIRATES_NAMESPACE_KIND_CLUSTER
+          - target: pod-info-kind-test
+            cluster-env: PEIRATES_POD_INFO_KIND_CLUSTER
+          - target: volume-mount-kind-test
+            cluster-env: PEIRATES_VOLUME_MOUNT_KIND_CLUSTER
+          - target: certificate-menu-kind-test
+            cluster-env: PEIRATES_CERTIFICATE_KIND_CLUSTER
+          - target: nodefs-steal-secrets-kind-test
+            cluster-env: PEIRATES_NODEFS_SECRETS_KIND_CLUSTER
+          - target: list-secrets-kind-test
+            cluster-env: PEIRATES_LIST_SECRETS_KIND_CLUSTER
+          - target: secret-to-sa-kind-test
+            cluster-env: PEIRATES_SECRET_TO_SA_KIND_CLUSTER
+          - target: attack-hostpath-kind-test
+            cluster-env: PEIRATES_ATTACK_HOSTPATH_KIND_CLUSTER
+          - target: exec-via-api-kind-test
+            cluster-env: PEIRATES_EXEC_API_KIND_CLUSTER
+          - target: kubectl-try-all-kind-test
+            cluster-env: PEIRATES_KUBECTL_TRY_ALL_KIND_CLUSTER
+          - target: curl-kind-test
+            cluster-env: PEIRATES_CURL_KIND_CLUSTER
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Go from go.mod
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install pinned Kind and kubectl
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          curl --fail --location --silent --show-error \
+            --output "${RUNNER_TEMP}/kind-linux-amd64" \
+            "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
+          curl --fail --location --silent --show-error \
+            --output "${RUNNER_TEMP}/kind-linux-amd64.sha256sum" \
+            "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64.sha256sum"
+          (cd "${RUNNER_TEMP}" && sha256sum --check kind-linux-amd64.sha256sum)
+          sudo install -m 0755 "${RUNNER_TEMP}/kind-linux-amd64" /usr/local/bin/kind
+
+          curl --fail --location --silent --show-error \
+            --output "${RUNNER_TEMP}/kubectl" \
+            "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          curl --fail --location --silent --show-error \
+            --output "${RUNNER_TEMP}/kubectl.sha256" \
+            "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256"
+          printf '%s  %s\n' "$(<"${RUNNER_TEMP}/kubectl.sha256")" "${RUNNER_TEMP}/kubectl" |
+            sha256sum --check
+          sudo install -m 0755 "${RUNNER_TEMP}/kubectl" /usr/local/bin/kubectl
+
+          go version
+          kind version
+          kubectl version --client
+
+      - name: Run ${{ matrix.target }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'Running %s with disposable cluster %s\n' \
+            '${{ matrix.target }}' "${KIND_CI_CLUSTER}"
+          set +e
+          timeout --foreground --kill-after=2m 20m \
+            env '${{ matrix.cluster-env }}'="${KIND_CI_CLUSTER}" \
+            make --no-print-directory '${{ matrix.target }}' 2>&1 |
+            sed -E 's/eyJ[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+){2}/[REDACTED SERVICE ACCOUNT TOKEN]/g' |
+            tee "${RUNNER_TEMP}/kind-test.log"
+          test_status=$?
+          set -e
+          exit "${test_status}"
+
+      - name: Capture failure diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          diagnostics="${RUNNER_TEMP}/kind-diagnostics"
+          mkdir -p "${diagnostics}"
+          if [[ -f "${RUNNER_TEMP}/kind-test.log" ]]; then
+            cp "${RUNNER_TEMP}/kind-test.log" "${diagnostics}/test.log"
+          fi
+          {
+            printf 'target=%s\n' '${{ matrix.target }}'
+            printf 'cluster=%s\n' "${KIND_CI_CLUSTER}"
+            command -v go >/dev/null && go version || printf 'go unavailable\n'
+            command -v kind >/dev/null && kind version || printf 'kind unavailable\n'
+            command -v kubectl >/dev/null && kubectl version --client || printf 'kubectl unavailable\n'
+            printf '\nKind clusters:\n'
+            command -v kind >/dev/null && kind get clusters || printf 'kind unavailable\n'
+            printf '\nOwned control-plane container:\n'
+            docker inspect "${KIND_CI_CLUSTER}-control-plane" \
+              --format 'name={{.Name}} status={{.State.Status}} image={{.Config.Image}}' \
+              2>/dev/null || printf 'absent\n'
+          } > "${diagnostics}/summary.txt"
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: kind-${{ matrix.target }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/kind-diagnostics
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Delete and verify the exact job cluster
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v kind >/dev/null; then
+            printf 'Kind is unavailable; exact cleanup cannot be verified for %s.\n' \
+              "${KIND_CI_CLUSTER}" >&2
+            exit 1
+          fi
+          if ! clusters="$(kind get clusters 2>&1)"; then
+            printf 'Unable to enumerate Kind clusters before cleanup of %s.\n' \
+              "${KIND_CI_CLUSTER}" >&2
+            [[ -z "${clusters}" ]] || printf '%s\n' "${clusters}" >&2
+            exit 1
+          fi
+          if grep -Fxq "${KIND_CI_CLUSTER}" <<<"${clusters}"; then
+            kind delete cluster --name "${KIND_CI_CLUSTER}"
+          fi
+          if ! clusters="$(kind get clusters 2>&1)"; then
+            printf 'Unable to enumerate Kind clusters after cleanup of %s.\n' \
+              "${KIND_CI_CLUSTER}" >&2
+            [[ -z "${clusters}" ]] || printf '%s\n' "${clusters}" >&2
+            exit 1
+          fi
+          if grep -Fxq "${KIND_CI_CLUSTER}" <<<"${clusters}"; then
+            printf 'Exact cleanup failed for %s\n' "${KIND_CI_CLUSTER}" >&2
+            exit 1
+          fi
+          printf 'Verified absent: %s\n' "${KIND_CI_CLUSTER}"
