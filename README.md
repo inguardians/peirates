@@ -46,10 +46,10 @@ release from the [releases page](https://github.com/inguardians/peirates/release
 
 You can find a useful [alpine-peirates container image on Docker Hub](https://hub.docker.com/r/bustakube/alpine-peirates), with a version number tag that tracks the Peirates version.
 
-For example, for `alpine-peirates:1.1.16`, which contains peirates version `1.1.16`, run:
+For example, for `alpine-peirates:v1.1.27d`, which contains peirates version `v1.1.27d`, run:
 
 ```shell
-docker pull bustakube/alpine-peirates:1.1.16
+docker pull bustakube/alpine-peirates:v1.1.27d
 ```
 
 ## Building Peirates
