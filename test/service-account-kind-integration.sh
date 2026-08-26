@@ -17,28 +17,33 @@ set -euo pipefail
 # Resolve shared helpers and configure isolated cluster and temporary paths.
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${root_dir}/test/kind-build-helpers.sh"
-kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
-chmod 600 "${kubeconfig_file}"
-export KUBECONFIG="${kubeconfig_file}"
+run_kind_script_with_signal_forwarding "${BASH_SOURCE[0]}" "$@"
 cluster_name="${PEIRATES_SERVICE_ACCOUNT_KIND_CLUSTER:-peirates-service-account-integration}"
 context="kind-${cluster_name}"
 node_name="${cluster_name}-control-plane"
 namespace="peirates-service-account-test"
 pod_name="peirates-service-account-test"
-config_file="$(mktemp /tmp/peirates-service-account-kind.XXXXXX.yaml)"
-peirates_binary="$(mktemp /tmp/peirates-service-account-binary.XXXXXX)"
+kubeconfig_file=""
+config_file=""
+peirates_binary=""
 cluster_owned=false
+pod_token=""
 
 # Remove the owned cluster and temporary files on all exit paths.
 cleanup() {
+    trap '' INT TERM
     if [[ "${cluster_owned}" == true ]]; then
         kind delete cluster --name "${cluster_name}" >/dev/null 2>&1 || true
     fi
     rm -f "${config_file}" "${peirates_binary}" "${kubeconfig_file}"
 }
-trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
+install_kind_script_traps cleanup
+
+kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
+chmod 600 "${kubeconfig_file}"
+export KUBECONFIG="${kubeconfig_file}"
+config_file="$(mktemp /tmp/peirates-service-account-kind.XXXXXX.yaml)"
+peirates_binary="$(mktemp /tmp/peirates-service-account-binary.XXXXXX)"
 
 # Check required tooling and refuse to modify a pre-existing cluster.
 for required in kind kubectl docker go timeout; do
@@ -57,7 +62,8 @@ nodes:
 - role: control-plane
 CONFIG
 cluster_owned=true
-kind create cluster --name "${cluster_name}" --config "${config_file}" --wait 120s
+kind create cluster --name "${cluster_name}" --config "${config_file}" \
+    --image "$(kind_node_image)" --wait 120s
 kubectl --context "${context}" create namespace "${namespace}"
 kubectl --context "${context}" -n "${namespace}" run "${pod_name}" \
     --image=busybox:1.36.1 --restart=Never --command -- sh -c 'sleep 3600'
@@ -69,6 +75,11 @@ build_peirates_for_kind_node "${root_dir}" "${peirates_binary}" "${node_name}"
 kubectl --context "${context}" -n "${namespace}" cp "${peirates_binary}" "${pod_name}:/tmp/peirates"
 kubectl --context "${context}" -n "${namespace}" exec "${pod_name}" -- chmod 0755 /tmp/peirates
 
+# Load the projected token before capturing any Peirates output so every
+# assertion failure, including early menu actions, can redact it.
+pod_token="$(kubectl --context "${context}" -n "${namespace}" exec "${pod_name}" -- \
+    cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+
 # Run the service-account submenu interactively inside the pod.
 run_sa_menu() {
     timeout 90s kubectl --context "${context}" -n "${namespace}" exec -i "${pod_name}" -- \
@@ -78,10 +89,16 @@ run_sa_menu() {
 assert_contains() {
     local output="$1" expected="$2" action="$3"
     if [[ "${output}" != *"${expected}"* ]]; then
-        echo "service-account ${action} output did not contain: ${expected}" >&2
-        printf '%s\n' "${output}" >&2
+        echo "service-account ${action} output did not contain: $(redact_service_account_output "${expected}")" >&2
+        redact_service_account_output "${output}" >&2
         exit 1
     fi
+}
+
+# Assertions inspect the unmodified output in memory; only diagnostics are
+# transformed, so a failure can never disclose the disposable account token.
+redact_service_account_output() {
+    redact_service_account_token_output "$1" "${pod_token}"
 }
 
 # Delays prevent one of the submenu's several stdin readers from consuming a
@@ -94,9 +111,7 @@ assert_contains "${list_output}" "${namespace}:default" "list"
 switch_output="$({ printf '2\n'; sleep 1; printf '0\n'; } | run_sa_menu 2>&1)"
 assert_contains "${switch_output}" "Selected ${namespace}:default" "switch"
 
-# Read the pod token and verify adding it under an alternate account name.
-pod_token="$(kubectl --context "${context}" -n "${namespace}" exec "${pod_name}" -- \
-    cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+# Verify adding the pod token under an alternate account name.
 add_output="$({ printf '3\n'; sleep 1; printf '%s\n' "${pod_token}"; sleep 1; \
     printf 'alternate-live-account\n'; sleep 1; printf '2\n'; } | run_sa_menu 2>&1)"
 assert_contains "${add_output}" "Switch to this service account" "add"

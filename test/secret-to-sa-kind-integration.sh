@@ -15,9 +15,7 @@ set -euo pipefail
 # Resolve repository paths and define the disposable cluster and fixture names.
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${root_dir}/test/kind-build-helpers.sh"
-kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
-chmod 600 "${kubeconfig_file}"
-export KUBECONFIG="${kubeconfig_file}"
+run_kind_script_with_signal_forwarding "${BASH_SOURCE[0]}" "$@"
 cluster_name="${PEIRATES_SECRET_TO_SA_KIND_CLUSTER:-peirates-secret-to-sa-integration}"
 context="kind-${cluster_name}"
 node_name="${cluster_name}-control-plane"
@@ -27,21 +25,27 @@ token_service_account="peirates-secret-to-sa-fixture"
 token_secret="peirates-secret-to-sa-token"
 opaque_secret="peirates-secret-to-sa-opaque"
 role_name="peirates-secret-to-sa-reader"
-config_file="$(mktemp /tmp/peirates-secret-to-sa-kind.XXXXXX.yaml)"
-peirates_binary="$(mktemp /tmp/peirates-secret-to-sa-binary.XXXXXX)"
+kubeconfig_file=""
+config_file=""
+peirates_binary=""
 cluster_created=false
 fixture_token=""
 
 # Delete the owned cluster and temporary files on exit.
 cleanup() {
+    trap '' INT TERM
     if [[ "${cluster_created}" == true ]]; then
         kind delete cluster --name "${cluster_name}" >/dev/null 2>&1 || true
     fi
     rm -f "${config_file}" "${peirates_binary}" "${kubeconfig_file}"
 }
-trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
+install_kind_script_traps cleanup
+
+kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
+chmod 600 "${kubeconfig_file}"
+export KUBECONFIG="${kubeconfig_file}"
+config_file="$(mktemp /tmp/peirates-secret-to-sa-kind.XXXXXX.yaml)"
+peirates_binary="$(mktemp /tmp/peirates-secret-to-sa-binary.XXXXXX)"
 
 # Verify prerequisites and refuse to modify a pre-existing cluster.
 for required in kind kubectl docker go base64 timeout; do
@@ -60,7 +64,8 @@ nodes:
 - role: control-plane
 CONFIG
 cluster_created=true
-kind create cluster --name "${cluster_name}" --config "${config_file}" --wait 120s
+kind create cluster --name "${cluster_name}" --config "${config_file}" \
+    --image "$(kind_node_image)" --wait 120s
 kubectl --context "${context}" create namespace "${namespace}"
 kubectl --context "${context}" -n "${namespace}" create serviceaccount "${token_service_account}"
 kubectl --context "${context}" -n "${namespace}" create role "${role_name}" \

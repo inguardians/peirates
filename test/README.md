@@ -40,11 +40,37 @@ make push-dev
 
 This opt-in test creates a disposable Kind cluster, grants a temporary service
 account read access, and verifies Peirates can list namespaces through the
-live Kubernetes API. It requires Docker, Kind, kubectl, and Go.
+live Kubernetes API. It requires Docker, Kind, kubectl, and Go. The script
+refuses a pre-existing `peirates-integration` cluster (or the exact
+`KIND_CLUSTER_NAME` override), records private kubeconfig provenance, and
+deletes only a cluster positively owned by the current invocation.
 
 ```sh
 make kind-test
 ```
+
+`make kind-test` remains the short namespace API smoke test. To run every
+automated Kind scenario serially, use:
+
+```sh
+make kind-tests
+```
+
+The full suite requires Docker, Kind v0.32.0, kubectl v1.36.1, Go 1.26.7, and
+network access for container images and Go modules. It creates one disposable
+cluster at a time, uses private temporary kubeconfig files, and stops at the
+first failing target. After every target it independently enumerates Kind
+clusters and verifies that the exact configured name is absent; an enumeration
+error or remaining name fails the aggregate visibly. The aggregate itself
+never deletes clusters. Allow roughly 20–30 minutes with warm image and module
+caches, and longer on a first run. The intentionally vulnerable
+`test/kubelet-kind-manual.sh` harness is not part of the aggregate suite and
+must be started and cleaned up explicitly.
+
+All Kind harnesses pin the official Kind v0.32.0 Kubernetes v1.36.1 node image
+by digest, matching both the external kubectl and Peirates' embedded
+`k8s.io/kubectl` v0.36.1 client. A test workstation may override the image with
+`PEIRATES_KIND_NODE_IMAGE`, but CI always supplies the documented digest.
 
 ## Security
 
@@ -74,8 +100,10 @@ pre-existing cluster named `peirates-service-account-integration`, and deletes
 the disposable cluster on exit. Override the cluster name with
 `PEIRATES_SERVICE_ACCOUNT_KIND_CLUSTER`, using a name reserved for this test.
 
-The raw-token display assertion handles a token belonging only to the
-disposable cluster; the token stops being useful when cleanup deletes it.
+The display assertion still compares the complete raw token in memory, but all
+failure diagnostics replace it with `[REDACTED SERVICE ACCOUNT TOKEN]`. The
+token belongs only to the disposable cluster and is never written to an
+artifact by the test.
 
 
 ## Namespace menu integration test
@@ -83,9 +111,12 @@ disposable cluster; the token stops being useful when cleanup deletes it.
 Run `make namespace-kind-test` to create a disposable Kind cluster and exercise
 both actions under main-menu option 2 through a Peirates binary running in a
 pod: list namespaces and switch namespace. The pod's default service account is
-granted only `get` and `list` on core `namespaces`. The test refuses to modify a
-pre-existing cluster named `peirates-namespace-integration` and deletes its
-disposable cluster on exit. Override the name with
+granted only `get` and `list` on core `namespaces`, plus `get` and `list` on
+pods in the target namespace. The switch and a target-scoped pod listing run in
+one Peirates process, and the test requires a pod that exists only in the target
+namespace to appear after switching. The test refuses to modify a pre-existing
+cluster named `peirates-namespace-integration` and deletes its disposable
+cluster on exit. Override the name with
 `PEIRATES_NAMESPACE_KIND_CLUSTER`, using a name reserved for this test.
 
 ## Pod information integration test
@@ -133,6 +164,20 @@ This test intentionally configures the disposable node kubelet with anonymous au
 shared or persistent cluster. The test must never be adapted to target an existing
 cluster. Docker, Kind, kubectl, Go, and network access to pull the test image are
 required.
+
+All dedicated automated Kind integration scripts use a private temporary
+kubeconfig and remove it after deleting their disposable cluster. They do not
+change the caller's kubeconfig or current context.
+
+For hands-on kubelet testing, run `test/kubelet-kind-manual.sh`. The manual
+harness retains both its intentionally vulnerable cluster and its private
+kubeconfig after successful setup, and prints the exact `KUBECONFIG=...`
+commands needed to inspect and delete the cluster. Override the generated path
+with `PEIRATES_KUBELET_MANUAL_KUBECONFIG=/path/to/new-file`; the path must not
+already exist, and a caller-supplied path is never removed automatically. A
+relative path is converted to an absolute path for the printed handoff commands.
+Colon-separated kubeconfig path lists are rejected because this harness must
+retain and report exactly one file.
 
 ## API pod-exec integration test
 

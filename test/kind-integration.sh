@@ -11,11 +11,25 @@
 # Exit on command failures, unset variables, and failed pipeline stages.
 set -euo pipefail
 
-# Resolve repository paths and configure the disposable cluster and kubeconfig.
+# Resolve repository paths and configure ownership-tracked disposable state.
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${ROOT_DIR}/test/kind-build-helpers.sh"
+run_kind_script_with_signal_forwarding "${BASH_SOURCE[0]}" "$@"
 CLUSTER_NAME="${KIND_CLUSTER_NAME:-peirates-integration}"
 NAMESPACE="peirates-integration"
-KUBECONFIG_FILE="$(mktemp)"
+KUBECONFIG_FILE=""
+CLUSTER_OWNERSHIP=none
+CLUSTER_CLAIM=""
+
+# Delete only a cluster for which this invocation has positive provenance.
+cleanup() {
+  finish_kind_script_cleanup "$?" "${CLUSTER_NAME}" "${KUBECONFIG_FILE}" \
+    "${CLUSTER_OWNERSHIP}" "${CLUSTER_CLAIM}" "${KUBECONFIG_FILE}"
+}
+install_kind_script_traps cleanup
+
+KUBECONFIG_FILE="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
+chmod 600 "${KUBECONFIG_FILE}"
 export KUBECONFIG="${KUBECONFIG_FILE}"
 
 # Verify every external command required by the live integration test.
@@ -26,16 +40,12 @@ for command in kind kubectl docker go; do
   }
 done
 
-# Remove the disposable cluster and kubeconfig on every exit path.
-cleanup() {
-  kind delete cluster --name "${CLUSTER_NAME}" >/dev/null 2>&1 || true
-  rm -f "${KUBECONFIG_FILE}"
-}
-trap cleanup EXIT
-
-# Recreate the isolated Kind cluster from a known state.
-kind delete cluster --name "${CLUSTER_NAME}" >/dev/null 2>&1 || true
-kind create cluster --name "${CLUSTER_NAME}" --wait 90s
+# Serialize participating runs, refuse existing names, and record durable
+# ownership provenance before cleanup is allowed to delete anything.
+acquire_kind_cluster_claim "${CLUSTER_NAME}" CLUSTER_CLAIM
+require_absent_kind_cluster "${CLUSTER_NAME}"
+create_kind_cluster_with_provenance "${CLUSTER_NAME}" "${KUBECONFIG_FILE}" \
+  CLUSTER_OWNERSHIP --wait 90s
 
 # Provision the namespace, service account, and view-only RBAC binding.
 kubectl create namespace "${NAMESPACE}"

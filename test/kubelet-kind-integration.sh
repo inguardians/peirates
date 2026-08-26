@@ -16,9 +16,7 @@ set -euo pipefail
 # Resolve repository paths and define isolated test resource names and files.
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${root_dir}/test/kind-build-helpers.sh"
-kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
-chmod 600 "${kubeconfig_file}"
-export KUBECONFIG="${kubeconfig_file}"
+run_kind_script_with_signal_forwarding "${BASH_SOURCE[0]}" "$@"
 cluster_name="${PEIRATES_KUBELET_KIND_CLUSTER:-peirates-kubelet-integration}"
 context="kind-${cluster_name}"
 node_name="${cluster_name}-control-plane"
@@ -30,20 +28,26 @@ pod_reader_binding="peirates-kubelet-test-pod-reader"
 pod_exec_role="peirates-kubelet-test-pod-exec"
 pod_exec_binding="peirates-kubelet-test-pod-exec"
 pod_name="kubelet-exec-target"
-config_file="$(mktemp /tmp/peirates-kubelet-kind.XXXXXX.yaml)"
-peirates_binary="$(mktemp /tmp/peirates-kubelet-binary.XXXXXX)"
+kubeconfig_file=""
+config_file=""
+peirates_binary=""
 cluster_owned=false
 
 # Delete only the cluster created by this run and remove temporary files.
 cleanup() {
+    trap '' INT TERM
     if [[ "${cluster_owned}" == true ]]; then
         kind delete cluster --name "${cluster_name}" >/dev/null 2>&1 || true
     fi
     rm -f "${config_file}" "${peirates_binary}" "${kubeconfig_file}"
 }
-trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
+install_kind_script_traps cleanup
+
+kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
+chmod 600 "${kubeconfig_file}"
+export KUBECONFIG="${kubeconfig_file}"
+config_file="$(mktemp /tmp/peirates-kubelet-kind.XXXXXX.yaml)"
+peirates_binary="$(mktemp /tmp/peirates-kubelet-binary.XXXXXX)"
 
 # Check prerequisites and refuse to modify an existing Kind cluster.
 for required in kind kubectl docker go timeout; do
@@ -73,7 +77,8 @@ CONFIG
 
 # Create the cluster and grant minimal node, pod-read, and pod-exec permissions.
 cluster_owned=true
-kind create cluster --name "${cluster_name}" --config "${config_file}" --wait 120s
+kind create cluster --name "${cluster_name}" --config "${config_file}" \
+    --image "$(kind_node_image)" --wait 120s
 kubectl --context "${context}" create namespace "${namespace}"
 
 kubectl --context "${context}" create clusterrole "${node_lister_role}" \

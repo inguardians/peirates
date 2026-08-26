@@ -14,9 +14,7 @@ set -euo pipefail
 # Resolve repository paths and define the isolated Kind test environment.
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${root_dir}/test/kind-build-helpers.sh"
-kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
-chmod 600 "${kubeconfig_file}"
-export KUBECONFIG="${kubeconfig_file}"
+run_kind_script_with_signal_forwarding "${BASH_SOURCE[0]}" "$@"
 cluster_name="${PEIRATES_EXEC_API_KIND_CLUSTER:-peirates-exec-api-integration}"
 context="kind-${cluster_name}"
 node_name="${cluster_name}-control-plane"
@@ -25,29 +23,32 @@ runner_pod="peirates-exec-api-runner"
 first_target_pod="peirates-exec-api-target-one"
 second_target_pod="peirates-exec-api-target-two"
 role_name="peirates-exec-api-runner"
-config_file="$(mktemp /tmp/peirates-exec-api-kind.XXXXXX.yaml)"
-peirates_binary="$(mktemp /tmp/peirates-exec-api-binary.XXXXXX)"
-cluster_created=false
+kubeconfig_file=""
+config_file=""
+peirates_binary=""
+cluster_claim=""
+cluster_ownership=none
 
 # Remove the owned cluster and temporary files on exit.
 cleanup() {
-    if [[ "${cluster_created}" == "true" ]]; then
-        kind delete cluster --name "${cluster_name}" >/dev/null 2>&1 || true
-    fi
-    rm -f "${config_file}" "${peirates_binary}" "${kubeconfig_file}"
+    finish_kind_script_cleanup "$?" "${cluster_name}" "${kubeconfig_file}" \
+        "${cluster_ownership}" "${cluster_claim}" \
+        "${config_file}" "${peirates_binary}" "${kubeconfig_file}"
 }
-trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
+install_kind_script_traps cleanup
+
+kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
+chmod 600 "${kubeconfig_file}"
+export KUBECONFIG="${kubeconfig_file}"
+config_file="$(mktemp /tmp/peirates-exec-api-kind.XXXXXX.yaml)"
+peirates_binary="$(mktemp /tmp/peirates-exec-api-binary.XXXXXX)"
 
 # Verify required tooling and protect any pre-existing cluster.
 for required in kind kubectl docker go timeout; do
     command -v "${required}" >/dev/null || { echo "missing required command: ${required}" >&2; exit 1; }
 done
-if kind get clusters 2>/dev/null | grep -Fxq "${cluster_name}"; then
-    echo "refusing to modify existing Kind cluster ${cluster_name}" >&2
-    exit 1
-fi
+acquire_kind_cluster_claim "${cluster_name}" cluster_claim
+require_absent_kind_cluster "${cluster_name}"
 
 # Create the disposable Kind cluster and namespace.
 cat >"${config_file}" <<'CONFIG'
@@ -56,8 +57,8 @@ apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
 - role: control-plane
 CONFIG
-cluster_created=true
-kind create cluster --name "${cluster_name}" --config "${config_file}" --wait 120s
+create_kind_cluster_with_provenance "${cluster_name}" "${kubeconfig_file}" \
+    cluster_ownership --config "${config_file}" --wait 120s
 
 # Grant the default service account only the pod discovery and exec permissions.
 kubectl --context "${context}" create namespace "${namespace}"

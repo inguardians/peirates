@@ -15,9 +15,7 @@ set -euo pipefail
 # Resolve shared helpers and define the disposable cluster, fixture, and file names.
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${root_dir}/test/kind-build-helpers.sh"
-kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
-chmod 600 "${kubeconfig_file}"
-export KUBECONFIG="${kubeconfig_file}"
+run_kind_script_with_signal_forwarding "${BASH_SOURCE[0]}" "$@"
 cluster_name="${PEIRATES_LIST_SECRETS_KIND_CLUSTER:-peirates-list-secrets-integration}"
 context="kind-${cluster_name}"
 node_name="${cluster_name}-control-plane"
@@ -30,23 +28,31 @@ opaque_secret="peirates-list-secrets-opaque"
 tls_secret="peirates-list-secrets-tls"
 token_secret="peirates-list-secrets-service-account-token"
 role_name="peirates-list-secrets-reader"
-config_file="$(mktemp /tmp/peirates-list-secrets-kind.XXXXXX.yaml)"
-peirates_binary="$(mktemp /tmp/peirates-list-secrets-binary.XXXXXX)"
-tls_cert_file="$(mktemp /tmp/peirates-list-secrets-cert.XXXXXX.crt)"
-tls_key_file="$(mktemp /tmp/peirates-list-secrets-key.XXXXXX.key)"
+kubeconfig_file=""
+config_file=""
+peirates_binary=""
+tls_cert_file=""
+tls_key_file=""
 cluster_created=false
 
 # Remove the disposable cluster and temporary files when the test exits.
 cleanup() {
+    trap '' INT TERM
     if [[ "${cluster_created}" == true ]]; then
         kind delete cluster --name "${cluster_name}" >/dev/null 2>&1 || true
     fi
     rm -f "${config_file}" "${peirates_binary}" "${tls_cert_file}" "${tls_key_file}" \
         "${kubeconfig_file}"
 }
-trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
+install_kind_script_traps cleanup
+
+kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
+chmod 600 "${kubeconfig_file}"
+export KUBECONFIG="${kubeconfig_file}"
+config_file="$(mktemp /tmp/peirates-list-secrets-kind.XXXXXX.yaml)"
+peirates_binary="$(mktemp /tmp/peirates-list-secrets-binary.XXXXXX)"
+tls_cert_file="$(mktemp /tmp/peirates-list-secrets-cert.XXXXXX.crt)"
+tls_key_file="$(mktemp /tmp/peirates-list-secrets-key.XXXXXX.key)"
 
 # Verify required tools are installed and protect any pre-existing cluster.
 for required in kind kubectl docker go openssl timeout; do
@@ -65,7 +71,8 @@ nodes:
 - role: control-plane
 CONFIG
 cluster_created=true
-kind create cluster --name "${cluster_name}" --config "${config_file}" --wait 120s
+kind create cluster --name "${cluster_name}" --config "${config_file}" \
+    --image "$(kind_node_image)" --wait 120s
 kubectl --context "${context}" create namespace "${namespace}"
 
 # Configure allowed and denied service accounts with namespace-scoped Secret RBAC.

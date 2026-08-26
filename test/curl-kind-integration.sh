@@ -15,9 +15,7 @@ set -euo pipefail
 # Resolve repository paths, create temporary files, and define test resources.
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${root_dir}/test/kind-build-helpers.sh"
-kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
-chmod 600 "${kubeconfig_file}"
-export KUBECONFIG="${kubeconfig_file}"
+run_kind_script_with_signal_forwarding "${BASH_SOURCE[0]}" "$@"
 cluster_name="${PEIRATES_CURL_KIND_CLUSTER:-peirates-curl-integration}"
 context="kind-${cluster_name}"
 node_name="${cluster_name}-control-plane"
@@ -27,21 +25,28 @@ server_service="peirates-curl-server"
 runner_pod="peirates-curl-runner"
 wizard_marker="peirates-item-91-wizard-response"
 direct_marker="peirates-item-91-direct-response"
-config_file="$(mktemp /tmp/peirates-curl-kind.XXXXXX.yaml)"
-peirates_binary="$(mktemp /tmp/peirates-curl-binary.XXXXXX)"
-server_binary="$(mktemp /tmp/peirates-curl-server-binary.XXXXXX)"
+kubeconfig_file=""
+config_file=""
+peirates_binary=""
+server_binary=""
 cluster_created=false
 
 # Tear down the owned cluster and generated files on exit.
 cleanup() {
+    trap '' INT TERM
     if [[ "${cluster_created}" == true ]]; then
         kind delete cluster --name "${cluster_name}" >/dev/null 2>&1 || true
     fi
     rm -f "${config_file}" "${peirates_binary}" "${server_binary}" "${kubeconfig_file}"
 }
-trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
+install_kind_script_traps cleanup
+
+kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
+chmod 600 "${kubeconfig_file}"
+export KUBECONFIG="${kubeconfig_file}"
+config_file="$(mktemp /tmp/peirates-curl-kind.XXXXXX.yaml)"
+peirates_binary="$(mktemp /tmp/peirates-curl-binary.XXXXXX)"
+server_binary="$(mktemp /tmp/peirates-curl-server-binary.XXXXXX)"
 
 # Check prerequisites and guard against modifying an existing cluster.
 for required in kind kubectl docker go timeout; do
@@ -60,7 +65,8 @@ nodes:
 - role: control-plane
 CONFIG
 cluster_created=true
-kind create cluster --name "${cluster_name}" --config "${config_file}" --wait 120s
+kind create cluster --name "${cluster_name}" --config "${config_file}" \
+    --image "$(kind_node_image)" --wait 120s
 kubectl --context "${context}" create namespace "${namespace}"
 kubectl --context "${context}" -n "${namespace}" apply -f - <<SERVER
 apiVersion: v1

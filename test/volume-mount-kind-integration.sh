@@ -13,9 +13,7 @@ set -euo pipefail
 # Resolve repository paths and define the temporary and Kubernetes test resources.
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${root_dir}/test/kind-build-helpers.sh"
-kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
-chmod 600 "${kubeconfig_file}"
-export KUBECONFIG="${kubeconfig_file}"
+run_kind_script_with_signal_forwarding "${BASH_SOURCE[0]}" "$@"
 cluster_name="${PEIRATES_VOLUME_MOUNT_KIND_CLUSTER:-peirates-volume-mount-integration}"
 context="kind-${cluster_name}"
 node_name="${cluster_name}-control-plane"
@@ -23,20 +21,26 @@ namespace="peirates-volume-mount-test"
 pod_name="peirates-volume-mount-target"
 role_name="peirates-volume-mount-reader"
 host_path="/tmp/peirates-observable-host-volume"
-config_file="$(mktemp /tmp/peirates-volume-mount-kind.XXXXXX.yaml)"
-peirates_binary="$(mktemp /tmp/peirates-volume-mount-binary.XXXXXX)"
+kubeconfig_file=""
+config_file=""
+peirates_binary=""
 cluster_owned=false
 
 # Remove test-owned cluster and temporary files on every exit path.
 cleanup() {
+    trap '' INT TERM
     if [[ "${cluster_owned}" == true ]]; then
         kind delete cluster --name "${cluster_name}" >/dev/null 2>&1 || true
     fi
     rm -f "${config_file}" "${peirates_binary}" "${kubeconfig_file}"
 }
-trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
+install_kind_script_traps cleanup
+
+kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
+chmod 600 "${kubeconfig_file}"
+export KUBECONFIG="${kubeconfig_file}"
+config_file="$(mktemp /tmp/peirates-volume-mount-kind.XXXXXX.yaml)"
+peirates_binary="$(mktemp /tmp/peirates-volume-mount-binary.XXXXXX)"
 
 # Verify required tools are installed and avoid modifying a pre-existing cluster.
 for required in kind kubectl docker go timeout; do
@@ -55,7 +59,8 @@ nodes:
 - role: control-plane
 CONFIG
 cluster_owned=true
-kind create cluster --name "${cluster_name}" --config "${config_file}" --wait 120s
+kind create cluster --name "${cluster_name}" --config "${config_file}" \
+    --image "$(kind_node_image)" --wait 120s
 kubectl --context "${context}" create namespace "${namespace}"
 kubectl --context "${context}" -n "${namespace}" create role "${role_name}" \
     --verb=get,list --resource=pods

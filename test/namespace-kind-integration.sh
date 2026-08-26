@@ -15,9 +15,7 @@ set -euo pipefail
 # Resolve repository paths, create isolated temporary files, and name fixtures.
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${root_dir}/test/kind-build-helpers.sh"
-kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
-chmod 600 "${kubeconfig_file}"
-export KUBECONFIG="${kubeconfig_file}"
+run_kind_script_with_signal_forwarding "${BASH_SOURCE[0]}" "$@"
 cluster_name="${PEIRATES_NAMESPACE_KIND_CLUSTER:-peirates-namespace-integration}"
 context="kind-${cluster_name}"
 node_name="${cluster_name}-control-plane"
@@ -27,20 +25,26 @@ pod_name="peirates-namespace-test"
 target_pod_name="peirates-namespace-target-only"
 role_name="peirates-namespace-reader"
 target_role_name="peirates-namespace-target-pod-reader"
-config_file="$(mktemp /tmp/peirates-namespace-kind.XXXXXX.yaml)"
-peirates_binary="$(mktemp /tmp/peirates-namespace-binary.XXXXXX)"
+kubeconfig_file=""
+config_file=""
+peirates_binary=""
 cluster_owned=false
 
 # Remove the owned cluster and all temporary files on exit.
 cleanup() {
+    trap '' INT TERM
     if [[ "${cluster_owned}" == true ]]; then
         kind delete cluster --name "${cluster_name}" >/dev/null 2>&1 || true
     fi
     rm -f "${config_file}" "${peirates_binary}" "${kubeconfig_file}"
 }
-trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
+install_kind_script_traps cleanup
+
+kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
+chmod 600 "${kubeconfig_file}"
+export KUBECONFIG="${kubeconfig_file}"
+config_file="$(mktemp /tmp/peirates-namespace-kind.XXXXXX.yaml)"
+peirates_binary="$(mktemp /tmp/peirates-namespace-binary.XXXXXX)"
 
 # Check required tools and protect any existing cluster.
 for required in kind kubectl docker go timeout; do
@@ -59,7 +63,8 @@ nodes:
 - role: control-plane
 CONFIG
 cluster_owned=true
-kind create cluster --name "${cluster_name}" --config "${config_file}" --wait 120s
+kind create cluster --name "${cluster_name}" --config "${config_file}" \
+    --image "$(kind_node_image)" --wait 120s
 kubectl --context "${context}" create namespace "${namespace}"
 kubectl --context "${context}" create namespace "${target_namespace}"
 kubectl --context "${context}" create clusterrole "${role_name}" --verb=get,list --resource=namespaces

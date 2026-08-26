@@ -15,9 +15,7 @@ set -euo pipefail
 # Resolve shared helpers and define isolated cluster, fixture, and output paths.
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${root_dir}/test/kind-build-helpers.sh"
-kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
-chmod 600 "${kubeconfig_file}"
-export KUBECONFIG="${kubeconfig_file}"
+run_kind_script_with_signal_forwarding "${BASH_SOURCE[0]}" "$@"
 cluster_name="${PEIRATES_ATTACK_HOSTPATH_KIND_CLUSTER:-peirates-attack-hostpath-integration}"
 context="kind-${cluster_name}"
 node_name="${cluster_name}-control-plane"
@@ -28,21 +26,28 @@ marker_path="/peirates-item20-disposable-marker"
 marker_value="peirates-item20-mounted-node-root"
 callback_ip="127.0.0.1"
 callback_port="65535"
-config_file="$(mktemp /tmp/peirates-attack-hostpath-kind.XXXXXX.yaml)"
-peirates_binary="$(mktemp /tmp/peirates-attack-hostpath-binary.XXXXXX)"
-output_file="$(mktemp /tmp/peirates-attack-hostpath-output.XXXXXX)"
+kubeconfig_file=""
+config_file=""
+peirates_binary=""
+output_file=""
 cluster_created=false
 
 # Delete only resources owned by this run and remove temporary files.
 cleanup() {
+    trap '' INT TERM
     if [[ "${cluster_created}" == true ]]; then
         kind delete cluster --name "${cluster_name}" >/dev/null 2>&1 || true
     fi
     rm -f "${config_file}" "${peirates_binary}" "${output_file}" "${kubeconfig_file}"
 }
-trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
+install_kind_script_traps cleanup
+
+kubeconfig_file="$(mktemp /tmp/peirates-kind-kubeconfig.XXXXXX)"
+chmod 600 "${kubeconfig_file}"
+export KUBECONFIG="${kubeconfig_file}"
+config_file="$(mktemp /tmp/peirates-attack-hostpath-kind.XXXXXX.yaml)"
+peirates_binary="$(mktemp /tmp/peirates-attack-hostpath-binary.XXXXXX)"
+output_file="$(mktemp /tmp/peirates-attack-hostpath-output.XXXXXX)"
 
 # Verify required tools and refuse to alter an existing cluster.
 for required in kind kubectl docker go timeout; do
@@ -61,7 +66,8 @@ nodes:
 - role: control-plane
 CONFIG
 cluster_created=true
-kind create cluster --name "${cluster_name}" --config "${config_file}" --wait 120s
+kind create cluster --name "${cluster_name}" --config "${config_file}" \
+    --image "$(kind_node_image)" --wait 120s
 # Create the namespace and narrowly scoped pod-management RBAC.
 kubectl --context "${context}" create namespace "${namespace}"
 kubectl --context "${context}" -n "${namespace}" apply -f - <<RBAC

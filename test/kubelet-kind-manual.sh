@@ -14,6 +14,9 @@ set -euo pipefail
 # SECURITY: This creates an intentionally vulnerable kubelet for local testing.
 # It must only be used as a disposable Kind cluster on an isolated workstation.
 # Define the dedicated cluster resources and track setup ownership and state.
+root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${root_dir}/test/kind-build-helpers.sh"
+run_kind_script_with_signal_forwarding "${BASH_SOURCE[0]}" "$@"
 cluster_name="${PEIRATES_KUBELET_MANUAL_CLUSTER:-peirates-kubelet-manual}"
 context="kind-${cluster_name}"
 namespace="peirates-kubelet-manual"
@@ -28,6 +31,7 @@ cluster_owned=false
 
 # Clean up only resources created by this invocation.
 cleanup() {
+    trap '' INT TERM
     if [[ "${cluster_owned}" == true && "${setup_complete}" != true ]]; then
         echo "setup did not complete; deleting partial cluster ${cluster_name}" >&2
         kind delete cluster --name "${cluster_name}" >/dev/null 2>&1 || true
@@ -37,13 +41,13 @@ cleanup() {
         rm -f "${kubeconfig_file}"
     fi
 }
-trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
+install_kind_script_traps cleanup
 # Create a secure temporary kubeconfig when one was not supplied.
 if [[ -z "${kubeconfig_file}" ]]; then
     kubeconfig_file="$(mktemp /tmp/peirates-kubelet-manual-kubeconfig.XXXXXX)"
     kubeconfig_owned=true
+elif ! kubeconfig_file="$(canonicalize_kind_kubeconfig_path "${kubeconfig_file}")"; then
+    exit 1
 elif [[ -e "${kubeconfig_file}" || -L "${kubeconfig_file}" ]]; then
     echo "refusing to overwrite existing manual kubeconfig ${kubeconfig_file}" >&2
     exit 1
@@ -87,7 +91,8 @@ CONFIG
 
 # Create the cluster, namespace, and minimal node-listing RBAC.
 cluster_owned=true
-kind create cluster --name "${cluster_name}" --config "${config_file}" --wait 120s
+kind create cluster --name "${cluster_name}" --config "${config_file}" \
+    --image "$(kind_node_image)" --wait 120s
 kubectl --context "${context}" create namespace "${namespace}"
 kubectl --context "${context}" create clusterrole "${node_lister_role}" \
     --verb=get,list --resource=nodes
