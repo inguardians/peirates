@@ -53,13 +53,13 @@ Peirates also runs the same credential scanner once during startup, before dispa
 
 When the path is unavailable, menu invocation reports `Attack fails - path does not exist`. When it cannot be read, it reports `Attack fails - cannot read`.
 
-Findings can include service-account identities, certificate subjects and paths, other Secret names and paths, and summary counts. The module does not intentionally print service-account token strings, private keys, or opaque Secret values, but its output still identifies sensitive material and exact locations.
+Findings can include service-account identities, certificate subjects and paths, other Secret names and paths, and summary counts. For successfully parsed projected tokens and legacy token candidates, the normal finding messages do not intentionally print token strings, private keys, or opaque Secret values. However, if a projected token file does not contain exactly three JWT segments, the current parser prints its complete contents as `Invalid token: <contents>` before skipping it. Treat all module output as potentially containing credential material as well as sensitive identities and exact paths.
 
 ## Side effects and cleanup
 
 The scan is read-only on disk. It starts `openssl` subprocesses for candidate certificate files and adds newly parsed service-account tokens to the running Peirates session. No Kubernetes objects or node files are created or changed.
 
-Clear the Peirates session and securely handle any captured output after the authorized assessment. If operators manually inspect the reported paths, that separate activity may expose secret contents and requires its own data-handling and cleanup controls.
+Clear the Peirates session and securely handle any captured output after the authorized assessment. Because malformed projected token-file contents can be written to output, protect terminal logs and redirected output as credential-bearing data and remove them according to the assessment's cleanup requirements. If operators manually inspect the reported paths, that separate activity may expose secret contents and requires its own data-handling and cleanup controls.
 
 ## Failure modes
 
@@ -70,6 +70,7 @@ Clear the Peirates session and securely handle any captured output after the aut
 - Legacy token detection depends on `-token-` in the Secret directory name and the presence of both `token` and `namespace` files.
 - Legacy token contents are not parsed or validated before storage, so a matching directory with arbitrary token text can be mislabeled as a service-account credential.
 - Projected token detection depends on a `kube-api-access-` directory name and a JWT `sub` beginning with `system:serviceaccount:`.
+- A projected token file that does not contain exactly three JWT segments is skipped, but its complete contents are first printed in an `Invalid token:` error. Do not rely on malformed input being redacted from logs or captured output.
 - Pod-name inference from `etc-hosts` is heuristic and may return placeholder text.
 - Per-file and per-directory errors are generally skipped, so a quiet or partial result does not prove that no secrets exist.
 - Startup discovery can make the explicit module's service-account count appear lower than expected because duplicate tokens are not added twice.

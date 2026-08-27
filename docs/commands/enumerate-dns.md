@@ -42,4 +42,4 @@ Modern CoreDNS configurations commonly do not support the wildcard behavior, pro
 
 ## Implementation and tests
 
-See [`enumerate_dns.go`](../../internal/app/enumerate_dns.go) and the newer DNS module in [`dns.go`](../../internal/modules/dns/dns.go). DNS result handling is tested in [`dns_test.go`](../../internal/modules/dns/dns_test.go), and dispatch coverage is in [`module_commands_test.go`](../../internal/app/module_commands_test.go).
+The registered `enumerate-dns` command dispatches to the legacy implementation in [`enumerate_dns.go`](../../internal/app/enumerate_dns.go). A separate, newer implementation lives in [`dns.go`](../../internal/modules/dns/dns.go); its resolver result handling is tested in [`dns_test.go`](../../internal/modules/dns/dns_test.go), but those tests do not exercise the registered handler. Command registration and dispatch are covered in [`module_commands_test.go`](../../internal/app/module_commands_test.go), while the active DNS enumeration implementation lacks focused result-handling tests.

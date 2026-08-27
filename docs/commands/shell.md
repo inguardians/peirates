@@ -25,7 +25,9 @@ shell uname -a
 peirates -m 'shell id'
 ```
 
-In an interactive session, bare `shell` prompts for a command and then continues prompting until `exit` is entered. Supplying a command also enters that loop after the first execution. In one-shot mode, Peirates returns after the first command.
+Bare `shell` prompts for an initial command. After running an initial command, the handler continues reading commands from standard input; subsequent lines do not need the `shell` prefix. The loop stops when a subsequent line is `exit` or empty, or when reading standard input reaches EOF or returns an error.
+
+This behavior also applies to module mode. `peirates -m 'shell id'` can execute additional commands supplied through piped or redirected standard input before it returns; it does not necessarily stop after `id`.
 
 ## What it does
 

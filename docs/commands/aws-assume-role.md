@@ -39,11 +39,11 @@ Peirates validates the ARN, queries IMDS for the availability zone to derive a r
 
 ## Expected output
 
-The command prompts for the ARN. When base credentials come from environment variables, Peirates also prints those credentials in plaintext during startup. A successful STS request prints the SDK's assumed-role-user and credential structures. The SDK redacts the secret access key in its string form, but the temporary access key ID and session token are not marked sensitive there and may be printed. Failures report invalid input, inability to obtain a region, session creation failure, or STS assume-role failure.
+The command prompts for the ARN. When base credentials come from environment variables, Peirates also prints those credentials in plaintext during startup. A successful STS request prints the SDK's assumed-role-user and credential structures, including the temporary access key ID, secret access key, and session token in plaintext. Failures report invalid input, inability to obtain a region, session creation failure, or STS assume-role failure.
 
 ## Side effects and cleanup
 
-This command makes network requests to IMDS and AWS STS and retains temporary credentials in memory. It does not change the source credentials or modify the IAM role. Use `aws-empty-assumed-role` to deactivate the assumed context, and protect terminal or log output containing credentials.
+This command makes network requests to IMDS and AWS STS and retains temporary credentials in memory. It does not change the source credentials or modify the IAM role. Use `aws-empty-assumed-role` to deactivate the assumed context. Treat every successful command's terminal or log output as containing the complete temporary credential set, and protect or securely remove that output.
 
 ## Failure modes
 

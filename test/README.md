@@ -56,7 +56,7 @@ automated Kind scenario serially, use:
 make kind-tests
 ```
 
-The full suite requires Docker, Kind v0.32.0, kubectl v1.36.1, Go 1.26.7, and
+The full suite requires Docker, Kind v0.32.0, kubectl v1.36.1, Go 1.27.0, and
 network access for container images and Go modules. It creates one disposable
 cluster at a time, uses private temporary kubeconfig files, and stops at the
 first failing target. After every target it independently enumerates Kind
