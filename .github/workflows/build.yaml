@@ -20,4 +20,4 @@ jobs:
         run: |
           go get .
       - name: Build
-        run: cd scripts && ./build.sh
+        run: make build

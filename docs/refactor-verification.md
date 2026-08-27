@@ -14,7 +14,7 @@ changing `go.mod`; `go.sum` is now tracked instead of ignored.
 - `go vet ./...` and a clean `gofmt` check
 - integration-tag compile: `go test -run '^$' -tags=integration ./...`
 - normal build: `go build ./cmd/peirates`
-- static build: `(cd scripts && ./build.sh)`
+- static build: `make build`
 - Linux cross-builds for `amd64`, `arm`, `arm64`, and `386`
 - `git diff --check` and dependency/script/deployment diff review
 

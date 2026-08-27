@@ -26,7 +26,7 @@ RUN mkdir -p ${MY_HOME} ;\
 
 COPY . ${MY_HOME}/
 RUN \
-  cd ${MY_HOME}/scripts && ${MY_HOME}/scripts/build.sh
+  make build
 
 FROM alpine:3.13
 

@@ -3,6 +3,19 @@
 GOCACHE ?= /tmp/peirates-go-build
 GOMODCACHE ?= /tmp/peirates-go-mod
 PACKAGES = $(shell GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) go list ./... | grep -v /vendor/)
+.DEFAULT_GOAL := build
+
+BINARY ?= peirates
+BUILD_PACKAGE := ./cmd/peirates
+STATIC_BUILD_ENV := CGO_ENABLED=0
+STATIC_BUILD_FLAGS := -tags netgo,osusergo -a --ldflags '-extldflags "-static"'
+DIST_OS ?= linux
+DIST_ARCHES ?= amd64 arm arm64 386
+DIST_OUTPUT_DIR ?= scripts
+DIST_COMPRESS ?= yes
+DIST_TARGETS := $(addprefix dist-,$(DIST_ARCHES))
+DIST_COMPRESS_VALUES := 1 true yes
+DIST_COMPRESS_ENABLED := $(filter $(DIST_COMPRESS_VALUES),$(DIST_COMPRESS))
 
 KIND_TEST_CASES := \
 	kind-test:KIND_CLUSTER_NAME:peirates-integration:test/kind-integration.sh \
@@ -21,9 +34,27 @@ KIND_TEST_CASES := \
 	curl-kind-test:PEIRATES_CURL_KIND_CLUSTER:peirates-curl-integration:test/curl-kind-integration.sh
 KIND_TEST_TARGETS := $(foreach test_case,$(KIND_TEST_CASES),$(word 1,$(subst :, ,$(test_case))))
 
-.PHONY: default gofmt lint test test-quiet kind-kubeconfig-path-test kind-cluster-ownership-test kind-aggregate-test kind-test-inventory kind-tests $(KIND_TEST_TARGETS) update-deps
+.PHONY: build dist FORCE gofmt lint test test-quiet kind-kubeconfig-path-test kind-cluster-ownership-test kind-aggregate-test kind-test-inventory kind-tests $(KIND_TEST_TARGETS) update-deps
 
-default: lint
+build:
+	@echo "Building for Linux on AMD64..."
+	$(STATIC_BUILD_ENV) GOOS=linux GOARCH=amd64 GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) go build $(STATIC_BUILD_FLAGS) -o $(BINARY) $(BUILD_PACKAGE)
+	chmod 755 $(BINARY)
+	@echo "Final executable at $(abspath $(BINARY))"
+
+dist: $(DIST_TARGETS)
+
+dist-%: FORCE
+	@echo "Building for arch: $*"
+	mkdir -p $(DIST_OUTPUT_DIR)/peirates-$(DIST_OS)-$*
+	$(STATIC_BUILD_ENV) GOOS=$(DIST_OS) GOARCH=$* GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) go build $(STATIC_BUILD_FLAGS) -o $(DIST_OUTPUT_DIR)/peirates-$(DIST_OS)-$*/peirates $(BUILD_PACKAGE)
+ifneq ($(DIST_COMPRESS_ENABLED),)
+	tar cJf $(DIST_OUTPUT_DIR)/peirates-$(DIST_OS)-$*.tar.xz -C $(DIST_OUTPUT_DIR) peirates-$(DIST_OS)-$*
+	$(RM) $(DIST_OUTPUT_DIR)/peirates-$(DIST_OS)-$*/peirates
+	rmdir $(DIST_OUTPUT_DIR)/peirates-$(DIST_OS)-$*
+endif
+
+FORCE:
 
 gofmt:
 	go fmt ./...

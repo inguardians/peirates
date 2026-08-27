@@ -70,7 +70,18 @@ gig of space because it needs the whole kubernetes repository)
 
 Build the executable
 
-    cd $GOPATH/github.com/inguardians/peirates/scripts
-    ./build.sh
+    cd $GOPATH/github.com/inguardians/peirates
+    make
 
-This will generate an executable file named `peirates` in the same directory.
+The default `build` target generates a statically linked Linux AMD64 executable
+named `peirates` in the repository root. You can also invoke it explicitly with
+`make build`.
+
+Build compressed Linux distributions for AMD64, ARM, ARM64, and 386:
+
+    make dist
+
+Distribution archives contain statically linked binaries and are written to
+`scripts/`. Set `DIST_COMPRESS=no` to keep unpacked binaries or
+`DIST_ARCHES=amd64` to build a subset of architectures. Individual targets such
+as `make dist-arm64` are also available.

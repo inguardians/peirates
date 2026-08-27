@@ -29,13 +29,13 @@ function install_deps() {
   go mod download github.com/aws/aws-sdk-go
 }
 
-# Fetch project build dependencies and invoke the repository build script.
+# Fetch project build dependencies and invoke the repository build target.
 function build_from_source() {
   echo "‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️‍☠‍☠️"
   echo "Build from source..."
   go get -v "github.com/inguardians/peirates"
   go get -v "k8s.io/kubectl/pkg/cmd" "github.com/aws/aws-sdk-go"
-  cd ${CURRENT_DIR}/../scripts && ./build.sh # is this right?
+  make -C "${CURRENT_DIR}/.." build
 }
 
 # Build the container image and record its resulting metadata.

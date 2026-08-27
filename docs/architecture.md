@@ -24,5 +24,5 @@ API. Capability packages must not import `internal/app`; dependencies point
 toward `internal/model`, and app supplies mutable state or narrow callbacks.
 
 Build and deployment paths remain unchanged. Use `go build ./cmd/peirates`,
-`make test`, and `(cd scripts && ./build.sh)` from the repository root. The Kind test
-remains opt-in through `make kind-test`.
+`make build`, and `make test` from the repository root. The Kind test remains
+opt-in through `make kind-test`.

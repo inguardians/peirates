@@ -1,5 +1,5 @@
 # scripts
 
-Scripts to perform various build, install, analysis, etc operations.
-
-These scripts keep the root level Makefile small and simple.
+Scripts for operational and development tasks that are not build or
+distribution workflows. Use the root-level Makefile to build and package
+Peirates.
