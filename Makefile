@@ -14,6 +14,8 @@ DIST_ARCHES ?= amd64 arm arm64 386
 DIST_OUTPUT_DIR ?= scripts
 DIST_COMPRESS ?= yes
 DIST_TARGETS := $(addprefix dist-,$(DIST_ARCHES))
+DIST_MAC_ARCHES ?= amd64 arm64
+DIST_MAC_TARGETS := $(addprefix dist-darwin-,$(DIST_MAC_ARCHES))
 DIST_COMPRESS_VALUES := 1 true yes
 DIST_COMPRESS_ENABLED := $(filter $(DIST_COMPRESS_VALUES),$(DIST_COMPRESS))
 
@@ -34,7 +36,7 @@ KIND_TEST_CASES := \
 	curl-kind-test:PEIRATES_CURL_KIND_CLUSTER:peirates-curl-integration:test/curl-kind-integration.sh
 KIND_TEST_TARGETS := $(foreach test_case,$(KIND_TEST_CASES),$(word 1,$(subst :, ,$(test_case))))
 
-.PHONY: build dist FORCE gofmt lint test test-quiet kind-kubeconfig-path-test kind-cluster-ownership-test kind-aggregate-test kind-test-inventory kind-tests $(KIND_TEST_TARGETS) update-deps
+.PHONY: build dist dist-mac FORCE gofmt lint test test-quiet kind-kubeconfig-path-test kind-cluster-ownership-test kind-aggregate-test kind-test-inventory kind-tests $(KIND_TEST_TARGETS) update-deps
 
 build:
 	@echo "Building for Linux on AMD64..."
@@ -43,6 +45,13 @@ build:
 	@echo "Final executable at $(abspath $(BINARY))"
 
 dist: $(DIST_TARGETS)
+
+# macOS builds: delegate to dist-<arch> with GOOS=darwin. The longer stem of
+# dist-darwin-% wins over dist-% so `make dist-darwin-arm64` targets macOS.
+dist-mac: $(DIST_MAC_TARGETS)
+
+dist-darwin-%: FORCE
+	$(MAKE) --no-print-directory dist-$* DIST_OS=darwin
 
 dist-%: FORCE
 	@echo "Building for arch: $*"
