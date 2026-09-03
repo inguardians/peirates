@@ -181,6 +181,7 @@ scripts=(
     "test/kind-integration.sh:KIND_CLUSTER_NAME:basic"
     "test/exec-via-api-kind-integration.sh:PEIRATES_EXEC_API_KIND_CLUSTER:exec"
     "test/kubectl-try-all-kind-integration.sh:PEIRATES_KUBECTL_TRY_ALL_KIND_CLUSTER:try-all"
+    "test/hostpid-breakout-kind-integration.sh:PEIRATES_HOSTPID_BREAKOUT_KIND_CLUSTER:hostpid"
 )
 for item in "${scripts[@]}"; do
     IFS=: read -r script cluster_variable short_name <<<"${item}"

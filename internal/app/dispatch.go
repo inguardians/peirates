@@ -28,6 +28,7 @@ var commandAliases = map[string]string{
 	"16": "aws-attack-kops-1", "attack-aws-kops-1": "aws-attack-kops-1", "17": "aws-s3-ls", "aws-ls-s3": "aws-s3-ls", "ls-s3": "aws-s3-ls", "s3-ls": "aws-s3-ls",
 	"18": "aws-s3-ls-objects", "aws-s3-list-objects": "aws-s3-ls-objects", "aws-s3-list-bucket": "aws-s3-ls-objects",
 	"21": "exec-via-api", "22": "exec-via-kubelet", "exec-via-kubelets": "exec-via-kubelet", "23": "leakyvessels", "cve-2024-21626": "leakyvessels",
+	"24": "hostpid-breakout", "host-pid-breakout": "hostpid-breakout", "breakout-hostpid": "hostpid-breakout",
 	"30": "nodefs-steal-secrets", "steal-nodefs-secrets": "nodefs-steal-secrets", "31": "nodefs-secrets-list", "list-nodefs-secrets": "nodefs-secrets-list",
 	"89": "inject-and-exec", "91": "curl", "92": "set-auth-can-i", "93": "tcpscan", "tcp scan": "tcpscan", "portscan": "tcpscan", "port scan": "tcpscan",
 	"94": "enumerate-dns", "help": "full", "minimal": "short",

@@ -40,6 +40,7 @@ Commands can normally be selected interactively by number, canonical name, or al
 | 21 | `exec-via-api` | [Execute commands in pods through the API server](exec-via-api.md) |
 | 22 | `exec-via-kubelet` | [Execute through kubelet APIs](exec-via-kubelet.md) |
 | 23 | `leakyvessels` | [Exercise CVE-2024-21626](leakyvessels.md) |
+| 24 | `hostpid-breakout` | [Enter a node from a privileged hostPID container](hostpid-breakout.md) |
 | 30 | `nodefs-steal-secrets` | [Collect credentials from the node filesystem](nodefs-steal-secrets.md) |
 
 ## General utilities

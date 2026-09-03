@@ -1,0 +1,253 @@
+Peirates idiomatic Go reorganization plan
+=========================================
+
+Status: PROPOSED — implementation must not begin until the maintainer explicitly approves this plan.
+
+1. Goals and decisions already agreed
+-------------------------------------
+
+The reorganization will:
+
+* preserve every existing CLI behavior, flag, module alias, prompt, output, exit behavior, binary name, build output, script path, Docker path, and deployment path;
+* keep cmd/peirates as the executable entry point;
+* put application code mostly or entirely below internal/ rather than creating a supported public pkg API;
+* allow incremental commits and move tests alongside the packages they exercise;
+* end with all unit, integration-build, lint, packaging, and compatibility checks passing.
+
+This is a structural refactor, not a feature change. Dependency upgrades, command redesigns, output cleanup, flag changes, behavior fixes, and broad style rewrites are out of scope unless they are strictly required to preserve behavior during a move. Any such exception must be isolated and documented.
+
+2. Current-state findings
+-------------------------
+
+* The module is github.com/inguardians/peirates and declares Go 1.25.0.
+* cmd/peirates/peirates.go is already the binary entry point, but it imports the root github.com/inguardians/peirates package and calls peirates.Main or peirates.ExecKubectlAndExit.
+* Almost all implementation code and all non-integration unit tests are in one root package named peirates. The package mixes startup, CLI parsing, interactive menus, process state, Kubernetes access, credentials, cloud access, attack modules, network helpers, filesystem helpers, output, and domain structs.
+* The central Main function owns substantial mutable session state and dispatches menu/module behavior. Several packages-to-be are coupled through package globals and replaceable function variables used by tests (for example Verbose, UseAuthCanI, HTTP request hooks, and kubectl hooks).
+* The build and distribution scripts explicitly build cmd/peirates. The Docker and deployment layout must remain at build/, deployments/, scripts/, and test/.
+* The root currently has no go.sum, so go list/test reports missing checksum entries. Establishing a reproducible baseline must be handled before judging refactor failures. This does not authorize dependency upgrades.
+* The existing tests provide useful compatibility coverage for module aliases, menu completion, safe -m execution, HTTP/Kubernetes transport, credentials, cloud metadata, filesystem helpers, scanning, and the build-tagged kind integration test.
+
+3. Target structure
+-------------------
+
+The exact number of files inside each package may change during implementation, but package responsibilities and dependency direction should follow this design:
+
+    cmd/peirates/
+        main.go                 process-mode detection and call into internal/app only
+
+    internal/app/
+        app.go                  construction and Run lifecycle
+        options.go              existing flag parsing and normalization
+        dispatch.go             canonical module names, aliases, and command dispatch
+        session.go              explicit mutable session state
+
+    internal/ui/
+        menu.go                 banner, main/submenu rendering, readline completion
+        output.go               user output and optional file logging
+        prompt.go               terminal/readline helpers
+
+    internal/model/
+        kubernetes.go           ServerInfo and Kubernetes response/domain structs
+        auth.go                 ServiceAccount and ClientCertificateKeyPair
+        cloud.go                shared credential/token value types only when truly shared
+
+    internal/kube/
+        client.go               native Kubernetes HTTP request construction/transport
+        kubectl.go              embedded kubectl execution and auth can-i behavior
+        credentials.go          in-pod and kubelet credential discovery/selection
+        enumerate.go            pods, secrets, namespaces, roles, nodes, mounts
+        exec.go                 API/kubelet pod execution helpers
+
+    internal/cloud/
+        detect.go               cloud/container/OpenStack detection coordinator
+        aws/                    AWS metadata, STS, S3, and AWS-specific actions
+        gcp/                    GCP metadata and GCP-specific actions
+
+    internal/modules/
+        registry.go             module handler registry owned by app composition
+        attacks/                hostfs, node-secret, injection, and CVE modules
+        curl/                   curl command parsing/execution
+        dns/                    DNS enumeration
+        portscan/               TCP/CIDR scanning
+        shell/                  external shell/program execution
+        filesystem/             interactive filesystem operations
+
+    internal/token/
+        jwt.go                  JWT decode/parse/pretty-print behavior
+
+The repository root will contain module metadata and project assets/documentation only; it will no longer be an importable Go package. Existing README placeholder directories (cmd/, pkg/, docs/, etc.) should be retained unless a later documentation-only cleanup is separately approved. No new code should be placed under pkg/.
+
+Dependency direction:
+
+    cmd/peirates -> internal/app -> ui, kube, cloud, modules, token, model
+                                     |      |       |        |
+                                     +------+-------+--------+-> model
+
+Lower-level packages must not import internal/app or internal/ui. internal/model must contain data only and import no Peirates package. Cloud-provider packages must not depend on one another. Modules receive the narrow operations/state they need from app composition instead of accessing app globals.
+
+Package splitting should remain pragmatic. If moving a proposed subpackage creates cyclic imports or a one-function package with no meaningful boundary, keep it in the nearest cohesive parent package and record the deviation. Idiomatic dependency flow is more important than matching the sketch mechanically.
+
+4. Compatibility contract
+-------------------------
+
+Before moving production code, capture the following as tests or scripted checks:
+
+* cmd/peirates remains the sole supported build target and produces a binary named peirates through the existing scripts and Make targets.
+* Invocation through peirates, peirates --kubectl ..., and an argv[0] basename of kubectl follows the current branch and argument rewriting exactly.
+* All current flags, defaults, accepted spellings, and parsing normalization remain unchanged.
+* Every canonical module and alias in moduleCommandAliases remains accepted and maps to the same handler.
+* Full/minimal menu text, completion entries, prompts, banner/version text, log output behavior, and noninteractive -m behavior remain byte-compatible where tests can reasonably capture them.
+* Existing environment variables, default filesystem paths, service-account paths, kubelet paths, history path, network timeouts, TLS handling, and external command arguments remain unchanged.
+* Build tags and the kind integration test continue to work.
+* scripts/build.sh, scripts/dist.sh, build/Dockerfile*, deployments/*, Makefile, and documented commands retain their paths and observable outputs.
+
+Golden tests should be used sparingly for stable CLI surfaces. Tests that depend on nondeterministic ordering, terminal escape codes, environment state, networks, or a live cluster should isolate those inputs rather than weaken the compatibility requirement.
+
+5. Design rules for the refactor
+--------------------------------
+
+* Introduce an app.Session (or equivalently named type) for mutable runtime state: active Kubernetes connection, discovered service accounts and certificates, AWS credentials, assumed role, interactive/full-menu settings, logging settings, cloud result, pod data, verbosity, and auth-can-i setting.
+* Replace package globals gradually. Preserve their exact semantics while routing them through Session or constructor configuration. Do not combine state migration with behavior changes.
+* Define interfaces at the consuming package, and only where a real substitution boundary exists (for example Kubernetes commands/requests, HTTP metadata requests, filesystem/process operations, and output). Avoid speculative interface layers.
+* Pass context.Context into newly defined long-running/network operation boundaries where doing so does not change existing timeout or cancellation behavior. Do not force context through pure helpers merely for uniformity.
+* Preserve dependency-injection seams currently implemented as function variables. Convert them to small injected functions/interfaces when extracting the relevant package so tests remain deterministic.
+* Keep domain types in the package that owns them. Put a type in internal/model only when multiple sibling packages genuinely share it and moving it prevents cycles.
+* Keep exported identifiers to the minimum needed between internal packages. Exported internal identifiers still require clear names and comments where linting expects them.
+* Use Go file names with underscores rather than hyphens when files move (for example cve_2024_21626.go and inject_into_pod.go). File renaming must not alter behavior.
+* Move tests in the same commit as the production behavior they cover. Prefer black-box package tests when practical, but retain same-package tests for intentionally unexported behavior rather than exporting implementation details solely for tests.
+* Do not silently delete legacy entry points until all internal callers and compatibility tests have moved. Use short-lived adapters when needed, then remove them before completion.
+* Avoid import cycles by keeping orchestration in internal/app and behavior below it. A proposed dependency from a lower layer back to app is a signal to pass a value or narrow callback instead.
+
+6. Phased implementation
+------------------------
+
+Phase 0 — Establish and record the baseline
+
+1. Record git status and preserve all pre-existing user changes.
+2. Reproduce the current missing-checksum failure. Generate go.sum using the versions already pinned in go.mod (go mod download or an equivalent non-upgrading command), then verify go.mod did not change unexpectedly.
+3. Run gofmt verification, go vet ./..., go test ./..., and a build of ./cmd/peirates. Run existing project lint targets when their tools are installed. Record pre-existing failures separately rather than attributing them to the refactor.
+4. Exercise scripts/build.sh and inspect scripts/dist.sh/Docker build assumptions without publishing artifacts. Run the kind test only in an explicitly available disposable kind environment.
+5. Add missing characterization tests for entrypoint routing, CLI flags/defaults, aliases, menu/completion surfaces, and representative output. These tests form the invariant for later phases.
+
+Exit gate: dependencies are reproducible, the baseline is documented, and compatibility tests fail only for known pre-existing reasons.
+
+Phase 1 — Create the composition root and explicit state
+
+1. Move the executable logic to cmd/peirates/main.go without changing argv handling.
+2. Create internal/app with Run and RunKubectl (names may vary) and make cmd/peirates depend only on internal/app plus the standard library.
+3. Introduce Session and populate it with the values currently local to Main or global to the root package.
+4. Extract option parsing and canonical alias resolution into internal/app while keeping exact flag and dispatch behavior.
+5. Initially call unmoved behavior through temporary internal adapters if necessary, keeping every commit buildable.
+
+Exit gate: the binary builds at the same target, CLI characterization tests pass, and cmd/peirates has no dependency on a root package.
+
+Phase 2 — Extract foundational types, output, and transport
+
+1. Move shared value types into their owning packages or internal/model.
+2. Extract token/JWT pure logic into internal/token and relocate its tests.
+3. Extract terminal/menu/output behavior into internal/ui, injecting readers, writers, environment/filesystem access, and readline construction only where tests require it.
+4. Extract HTTP and Kubernetes request construction into internal/kube. Preserve TLS, CA, headers, status handling, and timeouts exactly.
+5. Extract embedded kubectl wrappers, stdin/stdout/stderr plumbing, --kubectl routing support, account fallback, and auth can-i behavior into internal/kube.
+
+Exit gate: transport, token, output, kubectl, alias, and CLI tests pass; lower packages do not import app/ui; no new cycle exists.
+
+Phase 3 — Extract authentication and Kubernetes capabilities
+
+1. Move service-account and certificate parsing/selection into internal/kube credentials code, preserving discovery order and path constants.
+2. Split the large current config.go by responsibility: pod token import, kubelet kubeconfig discovery, pod credential gathering, namespace behavior, and process-argument helpers.
+3. Move Kubernetes enumeration (pods, secrets, roles, nodes, namespaces, mounts) and Kubernetes response structs into internal/kube.
+4. Move pod execution and kubelet API behavior into internal/kube, exposing only operations needed by modules/app.
+5. Move relevant tests beside each package, preserving stubs through injected request/command functions.
+
+Exit gate: Kubernetes/auth unit tests and all app compatibility tests pass, and no credential/session behavior remains duplicated.
+
+Phase 4 — Extract cloud and local capability packages
+
+1. Move cloud detection into internal/cloud without changing providers, probe order, timeout, or displayed result.
+2. Move AWS behavior into internal/cloud/aws and GCP behavior into internal/cloud/gcp. Keep provider SDK details private to each package and preserve metadata hooks used by tests.
+3. Move JWT-independent local capabilities into internal/modules/portscan, dns, filesystem, shell, and curl.
+4. Relocate tests with each extraction. Add boundary tests for state passed between app and each capability.
+
+Exit gate: cloud, scanning, filesystem, shell, curl, and full repository tests pass; cloud packages do not import app or each other.
+
+Phase 5 — Extract attack modules and finish dispatch composition
+
+1. Move host-path pod creation, API injection, exec-in-pods, kubelet execution commands, node secret discovery, and CVE-2024-21626 behavior into internal/modules/attacks (or cohesive child packages only if dependency flow benefits).
+2. Replace the large switch implementation with a registry/dispatcher composed in internal/app while preserving preprocessing of kubectl and kubectl-try-all and every canonical alias.
+3. Keep menu display metadata and command execution mapping driven by a shared canonical command definition where practical, without changing order or text.
+4. Remove temporary adapters and the root Go package once no imports depend on it.
+
+Exit gate: every existing module is reachable through every existing alias, menu/completion order and content are unchanged, noninteractive execution returns as before, and the repository root has no .go implementation/test files.
+
+Phase 6 — Repository-wide verification and documentation
+
+1. Run gofmt on changed Go files and verify gofmt cleanliness.
+2. Run go vet ./..., go test ./..., go test -race ./... where environment and tests support it, and go test with the integration build tag (without requiring a live cluster unless available).
+3. Run the project lint/security targets using the project's configured versions where available; distinguish tool/environment failures from code failures.
+4. Build ./cmd/peirates normally and through scripts/build.sh. Perform a dry run of the distribution matrix or build each GOOS/GOARCH target without publishing.
+5. Build Docker images when the Docker daemon is available and validate that deployment YAML/docker-compose references and paths are unchanged.
+6. In a disposable kind environment, run test/kind-integration.sh and compare representative CLI output to the pre-refactor characterization fixtures.
+7. Update README/docs package-layout descriptions and developer instructions only; do not change user commands or deployment paths.
+8. Run git diff --check, inspect git status, and review the final diff specifically for accidental behavior, dependency-version, permission, asset, script-path, and deployment changes.
+
+Exit gate: all available checks pass, unavailable environment-dependent checks are explicitly listed with exact reproduction commands, and compatibility has been reviewed independently of code organization.
+
+7. Commit and coordination strategy
+-----------------------------------
+
+Implementation may use incremental commits. Each commit should be reviewable, buildable, and limited to one package boundary or one prerequisite. A suggested sequence is:
+
+1. baseline/checksum and characterization tests;
+2. app composition/session and entrypoint;
+3. model/token/ui;
+4. HTTP/kubectl transport;
+5. Kubernetes credentials/enumeration/execution;
+6. cloud packages;
+7. local modules;
+8. attack modules and registry;
+9. root-package removal, docs, and final verification.
+
+Agents must not edit the same files concurrently. Shared integration files—internal/app, cmd/peirates/main.go, go.mod/go.sum, Makefile, scripts, and docs—should have one designated owner. Other agents should implement leaf packages against agreed interfaces or work in sequenced handoffs. Every agent should record tests run and unresolved assumptions in its commit message or handoff note.
+
+After this plan is approved, create no more than five separate subagent plan files. Those files should divide ownership into independently reviewable scopes, define allowed files, dependencies and sequencing, tests, handoff contracts, and explicit non-goals. A likely allocation is:
+
+* Agent 1: baseline characterization, composition root, Session, CLI/dispatch, and final integration ownership.
+* Agent 2: model/token/ui extraction.
+* Agent 3: Kubernetes transport, kubectl, credentials, enumeration, and execution.
+* Agent 4: cloud detection plus AWS/GCP extraction.
+* Agent 5: local/attack modules, followed by coordinated registry integration.
+
+This allocation is provisional. The subagent plans will be written only after maintainer approval and may be adjusted to minimize overlapping files after the first extraction interfaces are fixed.
+
+8. Risks and mitigations
+------------------------
+
+* Import cycles: enforce the dependency direction and keep composition in app; pass interfaces/callbacks downward.
+* Behavior drift in the large Main switch: add alias/dispatch/output characterization first, then migrate handlers in small batches.
+* Global-state drift: move one state field at a time into Session and retain deterministic test injection.
+* Over-fragmentation: combine packages that lack an independent responsibility or create excessive cross-package plumbing.
+* Accidental public API promises: keep implementation under internal and remove the root importable package once cmd migration completes.
+* Test loss during package moves: move tests with code, preserve same-package access where justified, and compare test inventory before/after.
+* Dependency churn: generate checksums for pinned versions only; reject unrelated go.mod changes.
+* Platform/release regressions: retain all paths and verify scripts, static builds, cross-builds, Docker contexts, and deployment manifests.
+* Concurrency conflicts between agents: assign file ownership, serialize shared integration changes, and require clean handoffs.
+
+9. Definition of done
+---------------------
+
+The reorganization is complete only when:
+
+* cmd/peirates is a thin executable importing internal/app;
+* production Go code is organized under cohesive internal packages and no root implementation package remains;
+* dependency direction is acyclic and lower-level packages do not depend on orchestration/UI;
+* mutable application state is explicit rather than held in broad package globals, except narrowly justified constants or immutable package state;
+* current flags, aliases, prompts, outputs, exit behavior, executable behavior, paths, scripts, builds, Docker files, and deployments remain compatible;
+* all existing tests have been retained or replaced by equivalent/stronger coverage and all available verification checks pass;
+* dependency versions have not changed merely because of the reorganization;
+* documentation reflects the new developer-facing layout; and
+* any checks that require unavailable external infrastructure are clearly documented and ready to run.
+
+10. Approval checkpoint
+-----------------------
+
+Please review this file and explicitly approve it or request changes. No implementation work and no subagent plan files should be created before that approval.

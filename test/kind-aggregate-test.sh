@@ -95,7 +95,7 @@ set -e
 [[ "$(grep -c '^enumerate$' "${fail_fast_log}" || true)" == 1 ]]
 
 # The Make inventory, executable integration scripts, and CI matrix must stay
-# in exact 14-entry parity, and the intentionally retained manual harness must
+# in exact 15-entry parity, and the intentionally retained manual harness must
 # never appear in either automated inventory.
 mapfile -t make_targets < <(make -s -C "${root_dir}" --no-print-directory kind-test-inventory)
 mapfile -t workflow_targets < <(awk '/^[[:space:]]+- target:/ { print $3 }' \
@@ -103,9 +103,9 @@ mapfile -t workflow_targets < <(awk '/^[[:space:]]+- target:/ { print $3 }' \
 mapfile -t integration_scripts < <(find "${root_dir}/test" -maxdepth 1 \
     -type f -name '*kind-integration.sh' -printf '%f\n' | LC_ALL=C sort)
 
-[[ "${#make_targets[@]}" == 14 ]]
-[[ "${#workflow_targets[@]}" == 14 ]]
-[[ "${#integration_scripts[@]}" == 14 ]]
+[[ "${#make_targets[@]}" == 15 ]]
+[[ "${#workflow_targets[@]}" == 15 ]]
+[[ "${#integration_scripts[@]}" == 15 ]]
 [[ "${make_targets[*]}" == "${workflow_targets[*]}" ]]
 [[ " ${make_targets[*]} " != *" kubelet-kind-manual "* ]]
 
@@ -130,4 +130,4 @@ node_image="kindest/node:v1.36.1@sha256:3489c7674813ba5d8b1a9977baea8a6e553784da
 grep -Fq "PEIRATES_KIND_NODE_IMAGE: ${node_image}" "${workflow}"
 grep -Fq "PEIRATES_KIND_DEFAULT_NODE_IMAGE=\"${node_image}\"" "${helper}"
 
-echo "Kind aggregate cleanup and 14/14/14 inventory regression tests passed"
+echo "Kind aggregate cleanup and 15/15/15 inventory regression tests passed"

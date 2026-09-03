@@ -1,10 +1,16 @@
 package app
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/inguardians/peirates/internal/modules"
+	"github.com/inguardians/peirates/internal/modules/hostpid"
 )
+
+var launchHostPIDBreakout = func() error {
+	return hostpid.Launch(os.Stdin, os.Stdout, os.Stderr)
+}
 
 func newModuleRegistry(session *Session) *modules.Registry {
 	registry := modules.NewRegistry()
@@ -102,6 +108,12 @@ func newModuleRegistry(session *Session) *modules.Registry {
 		return modules.Continue
 	}, "exec-via-kubelet")
 	registry.Register(func() modules.Result { _ = createLeakyVesselPod(session.Connection); return modules.Continue }, "leakyvessels")
+	registry.Register(func() modules.Result {
+		if err := launchHostPIDBreakout(); err != nil {
+			fmt.Fprintf(os.Stderr, "[hostpid-breakout] %v\n", err)
+		}
+		return modules.Continue
+	}, "hostpid-breakout")
 	registry.Register(func() modules.Result {
 		println("\nAttempting to steal secrets from the node filesystem - this will return no output if run in a container or if /var/lib/kubelet is inaccessible.\n")
 		gatherPodCredentials(&session.ServiceAccounts, true, true)

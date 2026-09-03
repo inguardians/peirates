@@ -44,6 +44,8 @@ jobs:
             cluster-env: PEIRATES_SECRET_TO_SA_KIND_CLUSTER
           - target: attack-hostpath-kind-test
             cluster-env: PEIRATES_ATTACK_HOSTPATH_KIND_CLUSTER
+          - target: hostpid-breakout-kind-test
+            cluster-env: PEIRATES_HOSTPID_BREAKOUT_KIND_CLUSTER
           - target: exec-via-api-kind-test
             cluster-env: PEIRATES_EXEC_API_KIND_CLUSTER
           - target: kubectl-try-all-kind-test

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ergochat/readline"
+	"github.com/inguardians/peirates/internal/modules"
 )
 
 func TestMainSafeModuleHelper(t *testing.T) {
@@ -21,6 +22,9 @@ func TestMainSafeModuleHelper(t *testing.T) {
 		if err := os.Chdir(cwd); err != nil {
 			t.Fatal(err)
 		}
+	}
+	launchHostPIDBreakout = func() error {
+		return errors.New("hostPID breakout unavailable in smoke test")
 	}
 	// Keep cloud-module smoke tests local and deterministic. These helpers are
 	// used only by code paths that already support dependency injection.
@@ -63,6 +67,10 @@ func TestMainRunsSafeModulesFromMFlag(t *testing.T) {
 		{"full", "Attempting menu option"}, {"help", "Attempting menu option"},
 		{"short", "Attempting menu option"}, {"minimal", "Attempting menu option"},
 		{"shell echo module-shell-output", "module-shell-output"},
+		{"hostpid-breakout", "hostPID breakout unavailable in smoke test"},
+		{"24", "hostPID breakout unavailable in smoke test"},
+		{"host-pid-breakout", "hostPID breakout unavailable in smoke test"},
+		{"breakout-hostpid", "hostPID breakout unavailable in smoke test"},
 	} {
 		t.Run(test.module, func(t *testing.T) {
 			cmd := exec.Command(os.Args[0], "-test.run=^TestMainSafeModuleHelper$")
@@ -167,7 +175,7 @@ func TestMainRunsMenuModulesWithoutTerminalInput(t *testing.T) {
 		"aws-enter-credentials", "aws-assume-role", "aws-s3-ls", "aws-s3-ls-objects",
 		"inject-and-exec", "attack-pod-hostpath-mount", "nodefs-steal-secrets", "bash", "sh",
 		"get-pods", "dump-pod-info", "find-volume-mounts", "list-secrets", "secret-to-sa",
-		"exec-via-kubelet", "leakyvessels", "tcpscan", "enumerate-dns",
+		"exec-via-kubelet", "leakyvessels", "hostpid-breakout", "tcpscan", "enumerate-dns",
 		"aws-get-token", "attack-aws-kops-1", "gcp-attack-kops-1", "gcp-get-token", "gcp-attack-kube-env",
 	} {
 		t.Run(module, func(t *testing.T) {
@@ -207,7 +215,7 @@ func TestMainMenuCompletionIncludesEveryCanonicalModule(t *testing.T) {
 		"gcp-attack-kube-env", "attack-kops-gcs-1", "gcp-attack-kops-1",
 		"attack-kops-aws-1", "aws-attack-kops-1", "aws-s3-ls",
 		"aws-s3-ls-objects", "attack-pod-hostpath-mount", "exec-via-api",
-		"exec-via-kubelet", "leakyvessels", "nodefs-steal-secrets", "nodefs-secrets-list",
+		"exec-via-kubelet", "leakyvessels", "hostpid-breakout", "nodefs-steal-secrets", "nodefs-secrets-list",
 		"inject-and-exec",
 		"kubectl", "kubectl-try-all", "kubectl-try-all-until-success", "curl",
 		"set-auth-can-i", "tcpscan", "enumerate-dns", "cd", "pwd", "ls", "cat",
@@ -263,12 +271,36 @@ func TestCanonicalModuleCommandsRemainUnchanged(t *testing.T) {
 		"get-pods", "dump-pod-info", "aws-enter-credentials", "aws-assume-role", "aws-empty-assumed-role",
 		"cert-menu", "list-secrets", "secret-to-sa", "find-volume-mounts", "attack-pod-hostpath-mount",
 		"aws-get-token", "gcp-get-token", "gcp-attack-kube-env", "gcp-attack-kops-1", "aws-attack-kops-1",
-		"aws-s3-ls", "aws-s3-ls-objects", "exec-via-api", "exec-via-kubelet", "leakyvessels",
+		"aws-s3-ls", "aws-s3-ls-objects", "exec-via-api", "exec-via-kubelet", "leakyvessels", "hostpid-breakout",
 		"nodefs-steal-secrets", "nodefs-secrets-list", "inject-and-exec", "curl", "set-auth-can-i", "tcpscan",
 		"enumerate-dns", "bash", "sh", "full", "short", "exit", "quit",
 	} {
 		if got := canonicalModuleCommand(command); got != command {
 			t.Errorf("canonical command %q was rewritten to %q", command, got)
 		}
+	}
+}
+
+func TestHostPIDBreakoutDispatchFormsUseOneNonPromptingHandler(t *testing.T) {
+	originalLauncher := launchHostPIDBreakout
+	t.Cleanup(func() { launchHostPIDBreakout = originalLauncher })
+
+	launches := 0
+	launchHostPIDBreakout = func() error {
+		launches++
+		return nil
+	}
+	registry := newModuleRegistry(NewSession(ServerInfo{}))
+	for _, command := range []string{"24", "hostpid-breakout", "host-pid-breakout", "breakout-hostpid"} {
+		result, found := registry.Run(canonicalModuleCommand(command))
+		if !found {
+			t.Fatalf("command %q was not registered", command)
+		}
+		if result != modules.Continue {
+			t.Fatalf("command %q result = %v, want Continue", command, result)
+		}
+	}
+	if launches != 4 {
+		t.Fatalf("hostPID launcher calls = %d, want 4", launches)
 	}
 }

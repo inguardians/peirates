@@ -283,3 +283,23 @@ Secret value. The test refuses to modify a
 pre-existing cluster named `peirates-nodefs-secrets-integration` and deletes
 only its dedicated cluster on exit. Override the name with
 `PEIRATES_NODEFS_SECRETS_KIND_CLUSTER`, using a name reserved for this test.
+
+## Privileged hostPID breakout integration test
+
+Run `make hostpid-breakout-kind-test` to create a disposable single-node Kind
+cluster and exercise main-menu item 24 through a real static Peirates binary.
+The positive runner is a root privileged pod with `hostPID: true`; the test
+proves its ordinary container root cannot see a synthetic node marker, enters
+the node shell through the numeric command, canonical command, and one alias,
+then verifies UID, root directory, marker contents, and PID, mount, UTS, IPC,
+and network namespace identities against independent Docker observations.
+
+Two negative controls prove fail-closed behavior: a root hostPID pod without
+privilege is rejected for missing capabilities, and a privileged pod without
+hostPID is rejected because visible PID 1 has no distinct node root. All three
+pods disable service-account-token mounting and receive no RBAC permissions.
+The Kind configuration mounts no physical-host path, so the escape reaches
+only the disposable Kind node container. The test refuses a pre-existing
+cluster named `peirates-hostpid-breakout-integration`, uses the shared private
+kubeconfig and ownership protections, and deletes only its proven-owned
+cluster. Override the name with `PEIRATES_HOSTPID_BREAKOUT_KIND_CLUSTER`.

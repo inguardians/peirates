@@ -1,0 +1,56 @@
+attack_create_hostfs_pod.go:168:9: if block ends with a return statement, so drop this else and outdent its block
+attack_create_hostfs_pod.go:181:10: if block ends with a return statement, so drop this else and outdent its block
+aws.go:38:2: struct field AccessKeyId should be AccessKeyID
+aws.go:43:1: exported function PullIamCredentialsFromEnvironmentVariables should have comment or be unexported
+aws.go:58:1: exported function EnterIamCredentialsForAWS should have comment or be unexported
+aws.go:151:34: error strings should not be capitalized or end with punctuation or a newline
+aws.go:187:1: exported function RequestAWSIMDSv2Token should have comment or be unexported
+aws.go:228:1: exported function PullIamCredentialsFromAWSWithIMDSv2 should have comment or be unexported
+aws.go:309:1: exported function AWSSTSAssumeRole should have comment or be unexported
+aws.go:372:1: exported function GetAWSRegionAndZone should have comment or be unexported
+aws.go:490:1: comment on exported function ListAWSBuckets should be of the form "ListAWSBuckets ..."
+aws.go:515:1: exported function KopsAttackAWS should have comment or be unexported
+aws.go:604:5: var byteEncodedJsonOutput should be byteEncodedJSONOutput
+aws.go:620:12: if block ends with a return statement, so drop this else and outdent its block
+cloud_detection.go:14:6: exported type CloudProvider should have comment or be unexported
+commandline.go:1:1: package comment should be of the form "Package peirates ..."
+commandline.go:11:6: exported type CommandLineOptions should have comment or be unexported
+config.go:19:7: exported const ServiceAccountPath should have comment or be unexported
+config.go:26:6: exported type ServerInfo should have comment or be unexported
+config.go:40:1: exported function ImportPodServiceAccountToken should have comment or be unexported
+config.go:138:11: if block ends with a return statement, so drop this else and outdent its block
+config.go:823:11: if block ends with a return statement, so drop this else and outdent its block
+gcp.go:20:1: comment on exported type GCPToken should be of the form "GCPToken ..." (with optional leading article)
+gcp.go:68:9: if block ends with a return statement, so drop this else and outdent its block
+gcp.go:75:1: exported function KopsAttackGCP should have comment or be unexported
+gcp.go:100:9: if block ends with a return statement, so drop this else and outdent its block
+http_utils.go:337:1: exported function GetMyIPAddress should have comment or be unexported
+json_structs.go:181:6: exported type AWSS3BucketObject should have comment or be unexported
+json_structs.go:185:6: exported type PodNamespaceContainerTuple should have comment or be unexported
+kubeapi.go:11:6: exported type RequestConfig should have comment or be unexported
+kubeapi.go:15:2: struct field Https should be HTTPS
+kubeapi.go:16:2: struct field IgnoreHttpsErrors should be IgnoreHTTPSErrors
+kubectl_interactive.go:8:6: don't use underscores in Go names; func kubectl_interactive should be kubectlInteractive
+kubectl_wrappers.go:119:10: if block ends with a return statement, so drop this else and outdent its block
+kubectl_wrappers.go:250:4: should replace successes += 1 with successes++
+kubectl_wrappers.go:282:4: should replace successes += 1 with successes++
+kubectl_wrappers.go:304:9: if block ends with a return statement, so drop this else and outdent its block
+menu_serviceaccounts.go:129:10: if block ends with a return statement, so drop this else and outdent its block
+menu_serviceaccounts.go:140:10: if block ends with a return statement, so drop this else and outdent its block
+menu_tcp_portscan.go:24:3: don't use underscores in Go names; var check_pattern_1 should be checkPattern1
+menu_tcp_portscan.go:35:10: if block ends with a return statement, so drop this else and outdent its block
+menu_tcp_portscan.go:36:4: don't use underscores in Go names; var check_pattern_2 should be checkPattern2
+menu_tcp_portscan.go:50:11: if block ends with a return statement, so drop this else and outdent its block
+misc_utils.go:11:1: exported function ReadLineStripWhitespace should have comment or be unexported
+misc_utils.go:18:1: comment on exported function ReadLine should be of the form "ReadLine ..."
+node_secrets.go:14:6: exported type SecretFromPodViaNodeFS should have comment or be unexported
+peirates.go:17:1: comment on exported var Verbose should be of the form "Verbose ..."
+peirates.go:20:1: comment on exported var UseAuthCanI should be of the form "UseAuthCanI ..."
+portscan.go:12:6: don't use underscores in Go names; func scan_worker should be scanWorker
+portscan.go:14:3: don't use underscores in Go names; var ip_port should be ipPort
+portscan.go:30:6: don't use underscores in Go names; func scan_controller should be scanController
+service_account_utils.go:35:6: exported type JWTComponents should have comment or be unexported
+service_account_utils.go:66:1: exported function MakeClientCertificateKeyPair should have comment or be unexported
+service_account_utils.go:275:6: don't use underscores in Go names; func parseServiceAccountJWT_return_sub should be parseServiceAccountJWTReturnSub
+service_account_utils.go:328:9: if block ends with a return statement, so drop this else and outdent its block (move short variable declaration to its own line if necessary)
+service_account_utils.go:376:9: if block ends with a return statement, so drop this else and outdent its block

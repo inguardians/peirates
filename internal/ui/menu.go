@@ -71,6 +71,7 @@ Compromise |
 [21] Run command in one or all pods in this namespace via the API Server [exec-via-api]
 [22] Run a token-dumping command in all pods via Kubelets (authorization permitting) [exec-via-kubelet]
 [23] Use CVE-2024-21626 (Leaky Vessels) to get a shell on the host (runc versions <1.12) [leakyvessels] *
+[24] Enter the node from a privileged hostPID container [hostpid-breakout]
 -------------+
 Node Attacks |
 -------------+

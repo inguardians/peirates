@@ -21,6 +21,7 @@ attack-pod-hostpath-mount	attack-pod-hostpath-mount	attack-pod-hostpath-mount.md
 exec-via-api	exec-via-api	exec-via-api.md
 exec-via-kubelet	exec-via-kubelet	exec-via-kubelet.md
 leakyvessels	leakyvessels	leakyvessels.md
+hostpid-breakout	hostpid-breakout	hostpid-breakout.md
 nodefs-steal-secrets	nodefs-steal-secrets	nodefs-steal-secrets.md
 kubectl	kubectl	kubectl.md
 kubectl-try-all-until-success	kubectl-try-all-until-success	kubectl-try-all-until-success.md
