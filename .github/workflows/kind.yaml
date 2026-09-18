@@ -50,6 +50,8 @@ jobs:
             cluster-env: PEIRATES_HOSTPID_PTRACE_KIND_CLUSTER
           - target: container-escape-scan-kind-test
             cluster-env: PEIRATES_CONTAINER_ESCAPE_SCAN_KIND_CLUSTER
+          - target: hostlog-read-kind-test
+            cluster-env: PEIRATES_HOSTLOG_READ_KIND_CLUSTER
           - target: docker-socket-breakout-kind-test
             cluster-env: PEIRATES_DOCKER_SOCKET_BREAKOUT_KIND_CLUSTER
           - target: hostroot-breakout-kind-test

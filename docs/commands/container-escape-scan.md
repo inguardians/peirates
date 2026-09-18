@@ -83,13 +83,16 @@ The scan emits one result for each reviewed technique:
 - `docker-socket-breakout`: creation of a disposable privileged container
   through an exposed Docker-compatible daemon;
 - `cgroup-release-agent-breakout`: cgroup v1 `release_agent`, detection only;
-  and
 - `hostproc-core-pattern-breakout`: writable `core_pattern` exposed by a procfs
   mount. This remains a kernel-global candidate rather than proof that the
-  action will succeed or reach the intended host; and
+  action will succeed or reach the intended host;
 - `hostpid-ptrace-breakout`: effective UID 0, matching visible-PID-1 PID and
   user namespaces, and effective `CAP_SYS_PTRACE`. An explicit eligible
-  disposable process must still be selected by the action.
+  disposable process must still be selected by the action; and
+- `hostlog-symlink-read`: a direct, writable, searchable mount rooted at the
+  node's `/var/log` directory or a normalized descendant. The local scanner
+  does not contact Kubernetes or prove that the kubelet `/logs/` handler and
+  `nodes/proxy` authorization are available.
 
 The cgroup technique remains assessment-only. The core-pattern action is a
 separate, explicitly confirmed command; the scanner itself remains read-only
@@ -121,11 +124,12 @@ line per technique:
 ```text
 Container escape assessment (read-only; findings are not proof of escape):
 [blocked] hostpid-breakout: ...
+[blocked] hostpid-ptrace-breakout: ...
 [available] hostroot-breakout: ...
+[candidate] hostlog-symlink-read: ...
 [candidate] docker-socket-breakout: ...
 [unsupported] cgroup-release-agent-breakout: ...
 [blocked] hostproc-core-pattern-breakout: ...
-[blocked] hostpid-ptrace-breakout: ...
 ```
 
 Indented evidence lines explain successful checks. Exact results depend on the
@@ -151,6 +155,13 @@ independently before using an action module.
   metadata causes the affected finding to fail closed.
 - More than one mounted-root candidate requires explicit selection in the
   dedicated host-root command.
+- More than one qualifying host-log mount requires explicit selection in the
+  dedicated host-log command. Detection checks mount metadata and effective
+  write/search access without creating a file or symlink.
+- Some Kubernetes runtimes report `/` or a runtime-specific mountinfo root for
+  staged hostPath binds. The scanner accepts this only at the exact container
+  destination `/var/log` and labels the hostPath origin unproven; arbitrary
+  destinations do not use this fallback.
 - A missing, non-socket, symbolic-link, permission-denied, non-responsive, or
   incompatible Docker endpoint is never treated as a candidate.
 - A Docker endpoint can pass `_ping` and `/version` but lack a usable existing

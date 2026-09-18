@@ -59,6 +59,10 @@ func TestMountSelections(t *testing.T) {
 		{Root: "/", MountPoint: "/proc", FSType: "proc"},
 		{Root: "/", MountPoint: "relative", FSType: "ext4"},
 		{Root: "/", MountPoint: "/overlay", FSType: "overlay", SuperOptions: []string{"upperdir=relative", "upperdir=/host/second"}},
+		{Root: "/var/log", MountPoint: "/mnt/logs", Options: []string{"rw", "nosuid"}, FSType: "overlay"},
+		{Root: "/var/log/containers", MountPoint: "/mnt/containers", Options: []string{"nodev", "rw"}, FSType: "ext4"},
+		{Root: "/var/log", MountPoint: "/mnt/logs", Options: []string{"rw"}, FSType: "overlay"},
+		{Root: "/var/log/pods", MountPoint: "/mnt/pods", Options: []string{"ro"}, FSType: "ext4"},
 	}
 	if got := HostRootCandidates(mounts); !reflect.DeepEqual(got, []string{"/host", "/overlay"}) {
 		t.Fatalf("HostRootCandidates() = %#v", got)
@@ -68,6 +72,64 @@ func TestMountSelections(t *testing.T) {
 	}
 	if got := MountsByType(mounts, "proc"); len(got) != 1 || got[0].MountPoint != "/proc" {
 		t.Fatalf("MountsByType(proc) = %#v", got)
+	}
+	wantHostLogs := []HostLogMount{
+		{MountPoint: "/mnt/containers", Root: "/var/log/containers", URLPrefix: "containers"},
+		{MountPoint: "/mnt/logs", Root: "/var/log", URLPrefix: ""},
+	}
+	if got := HostLogCandidates(mounts); !reflect.DeepEqual(got, wantHostLogs) {
+		t.Fatalf("HostLogCandidates() = %#v, want %#v", got, wantHostLogs)
+	}
+}
+
+func TestHostLogCandidatesRejectMalformedAndSimilarPaths(t *testing.T) {
+	mounts := []Mount{
+		{Root: "/var/logger", MountPoint: "/mnt/logger", Options: []string{"rw"}},
+		{Root: "/var/log-old", MountPoint: "/mnt/old", Options: []string{"rw"}},
+		{Root: "var/log", MountPoint: "/mnt/relative-root", Options: []string{"rw"}},
+		{Root: "/var/log/../log", MountPoint: "/mnt/unclean-root", Options: []string{"rw"}},
+		{Root: "/var/log", MountPoint: "mnt/relative", Options: []string{"rw"}},
+		{Root: "/var/log", MountPoint: "/mnt/logs/.", Options: []string{"rw"}},
+		{Root: "/var/log", MountPoint: "/mnt/readonly", Options: []string{"ro"}},
+		{Root: "/var/log", MountPoint: "/mnt/not-exact", Options: []string{"rwx"}},
+	}
+	if got := HostLogCandidates(mounts); len(got) != 0 {
+		t.Fatalf("HostLogCandidates() = %#v, want no candidates", got)
+	}
+}
+
+func TestHostLogCandidatesAcceptsOnlyExactVarLogDestinationFallback(t *testing.T) {
+	mounts := []Mount{
+		{Root: "/", MountPoint: "/var/log", Options: []string{"rw", "nosuid"}},
+		{Root: "/", MountPoint: "/var/log", Options: []string{"rw"}},
+		{Root: "/var/lib/runtime/volumes/id/_data/log", MountPoint: "/var/log", Options: []string{"rw"}},
+		{Root: "/", MountPoint: "/mnt/node-logs", Options: []string{"rw"}},
+		{Root: "/", MountPoint: "/var/log/pods", Options: []string{"rw"}},
+		{Root: "/", MountPoint: "/var/log", Options: []string{"ro"}},
+		{Root: "/var/log", MountPoint: "/mnt/node-logs", Options: []string{"rw"}},
+		{Root: "/var/log", MountPoint: "/var/log", Options: []string{"rw"}},
+	}
+	want := []HostLogMount{
+		{MountPoint: "/mnt/node-logs", Root: "/var/log", URLPrefix: ""},
+		{MountPoint: "/var/log", Root: "/var/log", URLPrefix: ""},
+	}
+	if got := HostLogCandidates(mounts); !reflect.DeepEqual(got, want) {
+		t.Fatalf("HostLogCandidates() = %#v, want %#v", got, want)
+	}
+	readOnly := []Mount{{Root: "/", MountPoint: "/var/log", Options: []string{"ro"}}}
+	if got := HostLogCandidates(readOnly); len(got) != 0 {
+		t.Fatalf("HostLogCandidates(read-only fallback) = %#v, want no candidates", got)
+	}
+	fallbackOnly := []Mount{{
+		Root:       "/var/lib/runtime/volumes/id/_data/log",
+		MountPoint: "/var/log",
+		Options:    []string{"rw"},
+	}}
+	wantFallback := []HostLogMount{{
+		MountPoint: "/var/log", Root: "/var/log", HostPathOriginUnproven: true,
+	}}
+	if got := HostLogCandidates(fallbackOnly); !reflect.DeepEqual(got, wantFallback) {
+		t.Fatalf("HostLogCandidates(fallback) = %#v, want %#v", got, wantFallback)
 	}
 }
 

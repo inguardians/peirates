@@ -38,6 +38,9 @@ func TestMainSafeModuleHelper(t *testing.T) {
 	launchHostRootBreakout = func() error {
 		return errors.New("host-root breakout unavailable in smoke test")
 	}
+	launchHostLogSymlinkRead = func(ServerInfo) error {
+		return errors.New("host-log symlink read unavailable in smoke test")
+	}
 	// Keep cloud-module smoke tests local and deterministic. These helpers are
 	// used only by code paths that already support dependency injection.
 	awsMetadataBaseURL = "http://127.0.0.1:1"
@@ -97,6 +100,9 @@ func TestMainRunsSafeModulesFromMFlag(t *testing.T) {
 		{"27", "host-root breakout unavailable in smoke test"},
 		{"host-root-breakout", "host-root breakout unavailable in smoke test"},
 		{"hostfs-breakout", "host-root breakout unavailable in smoke test"},
+		{"hostlog-symlink-read", "host-log symlink read unavailable in smoke test"},
+		{"33", "host-log symlink read unavailable in smoke test"},
+		{"hostlog-read", "host-log symlink read unavailable in smoke test"},
 	} {
 		t.Run(test.module, func(t *testing.T) {
 			cmd := exec.Command(os.Args[0], "-test.run=^TestMainSafeModuleHelper$")
@@ -202,7 +208,7 @@ func TestMainRunsMenuModulesWithoutTerminalInput(t *testing.T) {
 		"inject-and-exec", "attack-pod-hostpath-mount", "nodefs-steal-secrets", "bash", "sh",
 		"get-pods", "dump-pod-info", "find-volume-mounts", "list-secrets", "secret-to-sa",
 		"exec-via-kubelet", "leakyvessels", "hostpid-breakout", "hostpid-ptrace-breakout", "container-escape-scan",
-		"docker-socket-breakout", "hostroot-breakout", "tcpscan", "enumerate-dns",
+		"docker-socket-breakout", "hostroot-breakout", "hostlog-symlink-read", "tcpscan", "enumerate-dns",
 		"aws-get-token", "attack-aws-kops-1", "gcp-attack-kops-1", "gcp-get-token", "gcp-attack-kube-env",
 	} {
 		t.Run(module, func(t *testing.T) {
@@ -243,7 +249,7 @@ func TestMainMenuCompletionIncludesEveryCanonicalModule(t *testing.T) {
 		"attack-kops-aws-1", "aws-attack-kops-1", "aws-s3-ls",
 		"aws-s3-ls-objects", "attack-pod-hostpath-mount", "exec-via-api",
 		"exec-via-kubelet", "leakyvessels", "hostpid-breakout", "hostpid-ptrace-breakout", "container-escape-scan", "docker-socket-breakout",
-		"hostroot-breakout", "nodefs-steal-secrets", "nodefs-secrets-list",
+		"hostroot-breakout", "hostlog-symlink-read", "hostlog-read", "nodefs-steal-secrets", "nodefs-secrets-list",
 		"inject-and-exec",
 		"kubectl", "kubectl-try-all", "kubectl-try-all-until-success", "curl",
 		"set-auth-can-i", "tcpscan", "enumerate-dns", "cd", "pwd", "ls", "cat",
@@ -300,7 +306,7 @@ func TestCanonicalModuleCommandsRemainUnchanged(t *testing.T) {
 		"cert-menu", "list-secrets", "secret-to-sa", "find-volume-mounts", "attack-pod-hostpath-mount",
 		"aws-get-token", "gcp-get-token", "gcp-attack-kube-env", "gcp-attack-kops-1", "aws-attack-kops-1",
 		"aws-s3-ls", "aws-s3-ls-objects", "exec-via-api", "exec-via-kubelet", "leakyvessels", "hostpid-breakout", "hostpid-ptrace-breakout",
-		"container-escape-scan", "docker-socket-breakout", "hostroot-breakout",
+		"container-escape-scan", "docker-socket-breakout", "hostroot-breakout", "hostlog-symlink-read",
 		"nodefs-steal-secrets", "nodefs-secrets-list", "inject-and-exec", "curl", "set-auth-can-i", "tcpscan",
 		"enumerate-dns", "bash", "sh", "full", "short", "exit", "quit",
 	} {
@@ -387,5 +393,29 @@ func TestContainerEscapeDispatchFormsUseOneHandler(t *testing.T) {
 				t.Fatalf("handler calls = %d, want %d", calls, len(test.commands))
 			}
 		})
+	}
+}
+
+func TestHostLogSymlinkReadDispatchFormsUseOneHandler(t *testing.T) {
+	original := launchHostLogSymlinkRead
+	t.Cleanup(func() { launchHostLogSymlinkRead = original })
+
+	calls := 0
+	launchHostLogSymlinkRead = func(ServerInfo) error {
+		calls++
+		return nil
+	}
+	registry := newModuleRegistry(NewSession(ServerInfo{}))
+	for _, command := range []string{"33", "hostlog-symlink-read", "hostlog-read"} {
+		result, found := registry.Run(canonicalModuleCommand(command))
+		if !found {
+			t.Fatalf("command %q was not registered", command)
+		}
+		if result != modules.Continue {
+			t.Fatalf("command %q result = %v, want Continue", command, result)
+		}
+	}
+	if calls != 3 {
+		t.Fatalf("host-log launcher calls = %d, want 3", calls)
 	}
 }

@@ -32,6 +32,7 @@ KIND_TEST_CASES := \
 	hostpid-breakout-kind-test:PEIRATES_HOSTPID_BREAKOUT_KIND_CLUSTER:peirates-hostpid-breakout-integration:test/hostpid-breakout-kind-integration.sh \
 	hostpid-ptrace-breakout-kind-test:PEIRATES_HOSTPID_PTRACE_KIND_CLUSTER:peirates-hostpid-ptrace-integration:test/hostpid-ptrace-breakout-kind-integration.sh \
 	container-escape-scan-kind-test:PEIRATES_CONTAINER_ESCAPE_SCAN_KIND_CLUSTER:peirates-container-escape-scan-integration:test/container-escape-scan-kind-integration.sh \
+	hostlog-read-kind-test:PEIRATES_HOSTLOG_READ_KIND_CLUSTER:peirates-hostlog-read-integration:test/hostlog-read-kind-integration.sh \
 	docker-socket-breakout-kind-test:PEIRATES_DOCKER_SOCKET_BREAKOUT_KIND_CLUSTER:peirates-docker-socket-breakout-integration:test/docker-socket-breakout-kind-integration.sh \
 	hostroot-breakout-kind-test:PEIRATES_HOSTROOT_BREAKOUT_KIND_CLUSTER:peirates-hostroot-breakout-integration:test/hostroot-breakout-kind-integration.sh \
 	exec-via-api-kind-test:PEIRATES_EXEC_API_KIND_CLUSTER:peirates-exec-api-integration:test/exec-via-api-kind-integration.sh \
@@ -137,6 +138,9 @@ hostpid-ptrace-breakout-kind-test:
 
 container-escape-scan-kind-test:
 	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) ./test/container-escape-scan-kind-integration.sh
+
+hostlog-read-kind-test:
+	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) ./test/hostlog-read-kind-integration.sh
 
 docker-socket-breakout-kind-test:
 	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) ./test/docker-socket-breakout-kind-integration.sh

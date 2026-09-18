@@ -3,10 +3,12 @@ package kube
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
@@ -18,15 +20,21 @@ type CommandRunner func(stdin io.Reader, stdout, stderr io.Writer, args ...strin
 
 // Client groups Kubernetes operations with replaceable transport seams.
 type Client struct {
-	RunCommand CommandRunner
-	APIRequest func(ServerInfo, string, string, any, any) error
-	Output     func(string)
-	Verbose    bool
+	RunCommand    CommandRunner
+	APIRequest    func(ServerInfo, string, string, any, any) error
+	RawAPIRequest func(context.Context, ServerInfo, RawRequestOptions) ([]byte, error)
+	Output        func(string)
+	Verbose       bool
 }
 
 // NewClient returns a client using Peirates' embedded-kubectl subprocess path.
 func NewClient() *Client {
-	return &Client{RunCommand: runCommand, APIRequest: DoAPIRequest, Output: func(output string) { print(output) }}
+	return &Client{
+		RunCommand:    runCommand,
+		APIRequest:    DoAPIRequest,
+		RawAPIRequest: RawRequest,
+		Output:        func(output string) { print(output) },
+	}
 }
 
 func runCommand(stdin io.Reader, stdout, stderr io.Writer, args ...string) error {
@@ -163,6 +171,69 @@ func (c *Client) AuthCanI(cfg ServerInfo, verb, resource string) bool {
 		return false
 	}
 	return response.Status.Allowed
+}
+
+// ResourceAttributes identifies one Kubernetes API resource operation for a
+// SelfSubjectAccessReview. Namespace must be empty for cluster-scoped resources.
+type ResourceAttributes struct {
+	Group       string `json:"group,omitempty"`
+	Resource    string `json:"resource"`
+	Subresource string `json:"subresource,omitempty"`
+	Verb        string `json:"verb"`
+	Namespace   string `json:"namespace,omitempty"`
+}
+
+// AuthCanIResource performs a context-aware, subresource-aware
+// SelfSubjectAccessReview. It uses the bounded raw transport so token and
+// in-memory client-certificate authentication follow the same path as the
+// operation being authorized.
+func (c *Client) AuthCanIResource(ctx context.Context, cfg ServerInfo, attributes ResourceAttributes) (bool, error) {
+	if !cfg.UseAuthCanI {
+		return true, nil
+	}
+	if attributes.Verb == "" || attributes.Resource == "" {
+		return false, errors.New("resource access review requires a verb and resource")
+	}
+	query := struct {
+		APIVersion string `json:"apiVersion"`
+		Kind       string `json:"kind"`
+		Spec       struct {
+			ResourceAttributes ResourceAttributes `json:"resourceAttributes"`
+		} `json:"spec"`
+	}{
+		APIVersion: "authorization.k8s.io/v1",
+		Kind:       "SelfSubjectAccessReview",
+	}
+	query.Spec.ResourceAttributes = attributes
+	body, err := json.Marshal(query)
+	if err != nil {
+		return false, fmt.Errorf("marshal SelfSubjectAccessReview: %w", err)
+	}
+	request := c.RawAPIRequest
+	if request == nil {
+		request = RawRequest
+	}
+	responseBody, err := request(ctx, cfg, RawRequestOptions{
+		Method:            http.MethodPost,
+		APIPath:           "/apis/authorization.k8s.io/v1/selfsubjectaccessreviews",
+		Body:              body,
+		ContentType:       "application/json",
+		Timeout:           DefaultRawRequestTimeout,
+		MaxResponseBytes:  64 << 10,
+		MaxErrorBodyBytes: DefaultRawErrorBodyLimit,
+	})
+	if err != nil {
+		return false, fmt.Errorf("perform SelfSubjectAccessReview: %w", err)
+	}
+	var response struct {
+		Status struct {
+			Allowed bool `json:"allowed"`
+		} `json:"status"`
+	}
+	if err := json.Unmarshal(responseBody, &response); err != nil {
+		return false, fmt.Errorf("decode SelfSubjectAccessReview: %w", err)
+	}
+	return response.Status.Allowed, nil
 }
 
 // AttemptEveryAccount runs args with each discovered principal and restores cfg.

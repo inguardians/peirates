@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -20,6 +21,18 @@ type Mount struct {
 	FSType         string
 	Source         string
 	SuperOptions   []string
+}
+
+// HostLogMount describes a writable mount that may expose the node's /var/log
+// tree. URLPrefix is the slash-separated path below kubelet's /logs/ endpoint.
+// HostPathOriginUnproven distinguishes the narrow destination-only fallback
+// used when runtime staging obscures the source of a mount placed exactly at
+// /var/log.
+type HostLogMount struct {
+	MountPoint             string
+	Root                   string
+	URLPrefix              string
+	HostPathOriginUnproven bool
 }
 
 // ParseMountInfo parses Linux mountinfo and decodes the kernel's octal path
@@ -144,6 +157,95 @@ func HostRootCandidates(mounts []Mount) []string {
 		candidates = append(candidates, filepath.Clean(mount.MountPoint))
 	}
 	return SortedUnique(candidates)
+}
+
+// HostLogCandidates returns normalized, writable mounts rooted at /var/log or
+// one of its true descendants. Kubernetes runtime staging can obscure the bind
+// source with a runtime-specific root; in that case only an exact container
+// destination of /var/log is accepted, and its hostPath origin remains
+// explicitly unproven. Arbitrary destinations and descendant destinations do
+// not qualify through this fallback. Action modules must still verify directory
+// type and effective write/search access immediately before mutation.
+func HostLogCandidates(mounts []Mount) []HostLogMount {
+	const hostLogRoot = "/var/log"
+
+	seen := make(map[HostLogMount]struct{})
+	var candidates []HostLogMount
+	for _, mount := range mounts {
+		if !isAbsoluteNormalizedPath(mount.Root) || !isAbsoluteNormalizedPath(mount.MountPoint) ||
+			!containsMountOption(mount.Options, "rw") {
+			continue
+		}
+
+		var candidate HostLogMount
+		switch {
+		case pathWithin(hostLogRoot, mount.Root):
+			prefix := strings.TrimPrefix(mount.Root, hostLogRoot)
+			prefix = strings.TrimPrefix(prefix, string(filepath.Separator))
+			candidate = HostLogMount{
+				MountPoint: mount.MountPoint,
+				Root:       mount.Root,
+				URLPrefix:  filepath.ToSlash(prefix),
+			}
+		case mount.MountPoint == hostLogRoot:
+			candidate = HostLogMount{
+				MountPoint:             mount.MountPoint,
+				Root:                   hostLogRoot,
+				HostPathOriginUnproven: true,
+			}
+		default:
+			continue
+		}
+		if _, exists := seen[candidate]; exists {
+			continue
+		}
+		seen[candidate] = struct{}{}
+		candidates = append(candidates, candidate)
+	}
+
+	sort.Slice(candidates, func(first, second int) bool {
+		if candidates[first].MountPoint != candidates[second].MountPoint {
+			return candidates[first].MountPoint < candidates[second].MountPoint
+		}
+		if candidates[first].Root != candidates[second].Root {
+			return candidates[first].Root < candidates[second].Root
+		}
+		if candidates[first].URLPrefix != candidates[second].URLPrefix {
+			return candidates[first].URLPrefix < candidates[second].URLPrefix
+		}
+		return !candidates[first].HostPathOriginUnproven && candidates[second].HostPathOriginUnproven
+	})
+	deduplicated := candidates[:0]
+	for _, candidate := range candidates {
+		if len(deduplicated) > 0 {
+			previous := deduplicated[len(deduplicated)-1]
+			if previous.MountPoint == candidate.MountPoint && previous.Root == candidate.Root &&
+				previous.URLPrefix == candidate.URLPrefix {
+				continue
+			}
+		}
+		deduplicated = append(deduplicated, candidate)
+	}
+	return deduplicated
+}
+
+func isAbsoluteNormalizedPath(value string) bool {
+	return filepath.IsAbs(value) && filepath.Clean(value) == value
+}
+
+func pathWithin(parent, candidate string) bool {
+	relative, err := filepath.Rel(parent, candidate)
+	return err == nil && relative != ".." &&
+		!strings.HasPrefix(relative, ".."+string(filepath.Separator))
+}
+
+func containsMountOption(options []string, expected string) bool {
+	for _, option := range options {
+		if option == expected {
+			return true
+		}
+	}
+	return false
 }
 
 // OutermostPaths removes paths nested beneath another path in the same set.

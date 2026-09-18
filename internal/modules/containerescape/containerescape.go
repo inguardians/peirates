@@ -12,12 +12,13 @@ import (
 )
 
 const (
-	TechniqueHostPID       = "hostpid-breakout"
-	TechniqueHostRoot      = "hostroot-breakout"
-	TechniqueDockerSocket  = "docker-socket-breakout"
-	TechniqueCgroupRelease = "cgroup-release-agent-breakout"
-	TechniqueCorePattern   = "hostproc-core-pattern-breakout"
-	TechniqueHostPIDPtrace = "hostpid-ptrace-breakout"
+	TechniqueHostPID            = "hostpid-breakout"
+	TechniqueHostRoot           = "hostroot-breakout"
+	TechniqueHostLogSymlinkRead = "hostlog-symlink-read"
+	TechniqueDockerSocket       = "docker-socket-breakout"
+	TechniqueCgroupRelease      = "cgroup-release-agent-breakout"
+	TechniqueCorePattern        = "hostproc-core-pattern-breakout"
+	TechniqueHostPIDPtrace      = "hostpid-ptrace-breakout"
 )
 
 const (
@@ -82,10 +83,11 @@ func Run(ctx context.Context, output io.Writer) error {
 }
 
 func unsupportedFindings() []escapeutil.Finding {
-	result := make([]escapeutil.Finding, 0, 6)
+	result := make([]escapeutil.Finding, 0, 7)
 	for _, technique := range []string{
 		TechniqueHostPID,
 		TechniqueHostRoot,
+		TechniqueHostLogSymlinkRead,
 		TechniqueDockerSocket,
 		TechniqueCgroupRelease,
 		TechniqueCorePattern,
