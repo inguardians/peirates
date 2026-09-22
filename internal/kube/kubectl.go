@@ -179,6 +179,7 @@ type ResourceAttributes struct {
 	Group       string `json:"group,omitempty"`
 	Resource    string `json:"resource"`
 	Subresource string `json:"subresource,omitempty"`
+	Name        string `json:"name,omitempty"`
 	Verb        string `json:"verb"`
 	Namespace   string `json:"namespace,omitempty"`
 }

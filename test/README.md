@@ -49,7 +49,7 @@ deletes only a cluster positively owned by the current invocation.
 make kind-test
 ```
 
-`make kind-test` remains the short namespace API smoke test. To run all 20
+`make kind-test` remains the short namespace API smoke test. To run all 21
 automated Kind scenarios serially, use:
 
 ```sh
@@ -178,6 +178,30 @@ already exist, and a caller-supplied path is never removed automatically. A
 relative path is converted to an absolute path for the printed handoff commands.
 Colon-separated kubeconfig path lists are rejected because this harness must
 retain and report exactly one file.
+
+## Nodes/proxy interactive Kind test
+
+Run `test/nodes-proxy-exec-kind-manual.sh` from an interactive terminal to
+exercise `nodes-proxy-exec` by hand against a disposable Kind cluster. This
+manual harness is intentionally separate from the 21 automated Kind targets.
+It starts Peirates directly in a runner Pod, prints the exact node, stored-token
+index, kubelet origin, verified-TLS settings, marker command, and confirmation
+string to enter, and asks the operator to choose the displayed row for the
+dedicated target container.
+
+The fixture uses an ordinary authenticated, webhook-authorized kubelet. The
+runner's active token and one later stored token are denied; only stored token
+index `1` receives node-specific `get nodes/proxy`. That identity remains
+denied `create nodes/proxy` and `create pods/exec`. The kubelet serving
+certificate is mounted as a public trust anchor, so the positive path does not
+use insecure TLS.
+
+After Peirates exits, the harness independently checks the documented marker,
+reasserts the negative RBAC controls and API health, and automatically removes
+its proven-owned cluster and private kubeconfig. Ctrl-C also invokes cleanup.
+It refuses a pre-existing cluster named
+`peirates-nodes-proxy-manual-cluster`; override the dedicated name with
+`PEIRATES_NODES_PROXY_EXEC_MANUAL_CLUSTER`.
 
 ## API pod-exec integration test
 

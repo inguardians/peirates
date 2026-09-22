@@ -208,7 +208,7 @@ func TestMainRunsMenuModulesWithoutTerminalInput(t *testing.T) {
 		"inject-and-exec", "attack-pod-hostpath-mount", "nodefs-steal-secrets", "bash", "sh",
 		"get-pods", "dump-pod-info", "find-volume-mounts", "list-secrets", "secret-to-sa",
 		"exec-via-kubelet", "leakyvessels", "hostpid-breakout", "hostpid-ptrace-breakout", "container-escape-scan",
-		"docker-socket-breakout", "hostroot-breakout", "hostlog-symlink-read", "tcpscan", "enumerate-dns",
+		"docker-socket-breakout", "hostroot-breakout", "hostlog-symlink-read", "nodes-proxy-exec", "tcpscan", "enumerate-dns",
 		"aws-get-token", "attack-aws-kops-1", "gcp-attack-kops-1", "gcp-get-token", "gcp-attack-kube-env",
 	} {
 		t.Run(module, func(t *testing.T) {
@@ -249,7 +249,7 @@ func TestMainMenuCompletionIncludesEveryCanonicalModule(t *testing.T) {
 		"attack-kops-aws-1", "aws-attack-kops-1", "aws-s3-ls",
 		"aws-s3-ls-objects", "attack-pod-hostpath-mount", "exec-via-api",
 		"exec-via-kubelet", "leakyvessels", "hostpid-breakout", "hostpid-ptrace-breakout", "container-escape-scan", "docker-socket-breakout",
-		"hostroot-breakout", "hostlog-symlink-read", "hostlog-read", "nodefs-steal-secrets", "nodefs-secrets-list",
+		"hostroot-breakout", "hostlog-symlink-read", "hostlog-read", "nodes-proxy-exec", "nodefs-steal-secrets", "nodefs-secrets-list",
 		"inject-and-exec",
 		"kubectl", "kubectl-try-all", "kubectl-try-all-until-success", "curl",
 		"set-auth-can-i", "tcpscan", "enumerate-dns", "cd", "pwd", "ls", "cat",
@@ -307,6 +307,7 @@ func TestCanonicalModuleCommandsRemainUnchanged(t *testing.T) {
 		"aws-get-token", "gcp-get-token", "gcp-attack-kube-env", "gcp-attack-kops-1", "aws-attack-kops-1",
 		"aws-s3-ls", "aws-s3-ls-objects", "exec-via-api", "exec-via-kubelet", "leakyvessels", "hostpid-breakout", "hostpid-ptrace-breakout",
 		"container-escape-scan", "docker-socket-breakout", "hostroot-breakout", "hostlog-symlink-read",
+		"nodes-proxy-exec",
 		"nodefs-steal-secrets", "nodefs-secrets-list", "inject-and-exec", "curl", "set-auth-can-i", "tcpscan",
 		"enumerate-dns", "bash", "sh", "full", "short", "exit", "quit",
 	} {
@@ -417,5 +418,39 @@ func TestHostLogSymlinkReadDispatchFormsUseOneHandler(t *testing.T) {
 	}
 	if calls != 3 {
 		t.Fatalf("host-log launcher calls = %d, want 3", calls)
+	}
+}
+
+func TestNodesProxyExecDispatchUsesSessionValueSnapshot(t *testing.T) {
+	original := launchNodesProxyExec
+	t.Cleanup(func() { launchNodesProxyExec = original })
+
+	session := NewSession(ServerInfo{APIServer: "https://api.example", Token: "active"})
+	session.ServiceAccounts = []ServiceAccount{{Name: "first", Token: "one"}, {Name: "second", Token: "two"}}
+	var gotConnection ServerInfo
+	var gotAccounts []ServiceAccount
+	launchNodesProxyExec = func(connection ServerInfo, accounts []ServiceAccount) error {
+		gotConnection = connection
+		gotAccounts = append([]ServiceAccount(nil), accounts...)
+		accounts[0].Name = "changed-copy"
+		accounts = append(accounts, ServiceAccount{Name: "third"})
+		return nil
+	}
+
+	result, found := newModuleRegistry(session).Run(canonicalModuleCommand("34"))
+	if !found || result != modules.Continue {
+		t.Fatalf("nodes-proxy-exec dispatch = (%v, %t), want (Continue, true)", result, found)
+	}
+	if gotConnection != session.Connection {
+		t.Fatalf("connection passed to launcher = %#v, want %#v", gotConnection, session.Connection)
+	}
+	if len(gotAccounts) != 2 || gotAccounts[0].Token != "one" || gotAccounts[1].Token != "two" {
+		t.Fatalf("launcher account snapshot = %#v", gotAccounts)
+	}
+	if session.ServiceAccounts[0].Name != "first" || len(session.ServiceAccounts) != 2 {
+		t.Fatalf("launcher mutated live service accounts: %#v", session.ServiceAccounts)
+	}
+	if session.Connection.Token != "active" {
+		t.Fatalf("launcher mutated active identity: %#v", session.Connection)
 	}
 }

@@ -84,6 +84,7 @@ Compromise |
 [29] Enter the host through a writable host core_pattern [hostproc-core-pattern-breakout]
 [32] Open an interactive shell through an explicitly selected disposable host process [hostpid-ptrace-breakout]
 [33] Read one host file through a writable host-log mount and the kubelet log proxy [hostlog-symlink-read]
+[34] Execute one command through direct kubelet WebSocket access [nodes-proxy-exec]
 -------------+
 Node Attacks |
 -------------+
@@ -291,6 +292,8 @@ func setUpCompletionMainMenu() *readline.PrefixCompleter {
 		// [33] Read one host file through a writable host-log mount and the kubelet log proxy [hostlog-symlink-read]
 		readline.PcItem("hostlog-symlink-read"),
 		readline.PcItem("hostlog-read"),
+		// [34] Execute one command through direct kubelet WebSocket access [nodes-proxy-exec]
+		readline.PcItem("nodes-proxy-exec"),
 		// [30] Steal secrets from the node filesystem [nodefs-steal-secrets]
 		readline.PcItem("nodefs-steal-secrets"),
 		// [31] List secrets already gathered from the node filesystem

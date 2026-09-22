@@ -352,6 +352,7 @@ func TestAuthCanIResource(t *testing.T) {
 		Group:       "",
 		Resource:    "nodes",
 		Subresource: "proxy",
+		Name:        "worker-a",
 		Namespace:   "",
 	}
 	var calls int
