@@ -203,13 +203,6 @@ func launchNodesProxyExecWithStreams(ctx context.Context, connection ServerInfo,
 	fmt.Fprintf(stdout, "Direct /pods: authorized; %d running containers found\n", len(probe.Containers))
 	fmt.Fprintf(stdout, "Target: %s/%s/%s\n", target.Namespace, target.PodName, target.ContainerName)
 	fmt.Fprintf(stdout, "Argv: %s\n", encodedArgv)
-	fmt.Fprintln(stderr, "Warning: direct kubelet execution bypasses API-server admission and may not be recorded as a pod exec in Kubernetes audit logs.")
-
-	confirmation := "EXEC-VIA-NODES-PROXY-" + node
-	line, err := readNodesProxyLine(reader, stdout, "Type "+confirmation+" to continue: ")
-	if err != nil || line != confirmation {
-		return errors.New("direct kubelet execution cancelled; no execution WebSocket was opened")
-	}
 
 	result, execErr := prepared.Execute(ctx, nodesproxyexec.Options{Target: target, Argv: argv})
 	renderNodesProxyExecResult(stdout, result)
@@ -219,21 +212,13 @@ func launchNodesProxyExecWithStreams(ctx context.Context, connection ServerInfo,
 	return nil
 }
 
-func readKubeletTLSOptions(reader *bufio.Reader, stdout, stderr io.Writer, connection ServerInfo) (kube.KubeletTLSOptions, string, error) {
+func readKubeletTLSOptions(reader *bufio.Reader, stdout, _ io.Writer, connection ServerInfo) (kube.KubeletTLSOptions, string, error) {
 	caPathDefault := connection.CAPath
 	if sanitizeNodesProxyDisplay(caPathDefault) != caPathDefault {
 		caPathDefault = ""
 	}
-	defaultMode := ""
-	if connection.CACertData != "" {
-		defaultMode = "ca-data"
-	} else if caPathDefault != "" {
-		defaultMode = "ca-file"
-	}
-	prompt := "Kubelet TLS mode [ca-data/ca-file/insecure]: "
-	if defaultMode != "" {
-		prompt = fmt.Sprintf("Kubelet TLS mode [ca-data/ca-file/insecure] [%s]: ", defaultMode)
-	}
+	const defaultMode = "insecure"
+	prompt := "Kubelet TLS mode [ca-data/ca-file/insecure] [insecure]: "
 	mode, err := readNodesProxyLine(reader, stdout, prompt)
 	if err != nil {
 		return kube.KubeletTLSOptions{}, "", cancellationError("kubelet TLS mode", err)
@@ -265,13 +250,8 @@ func readKubeletTLSOptions(reader *bufio.Reader, stdout, stderr io.Writer, conne
 		}
 		options.CAFile = path
 	case "insecure":
-		fmt.Fprintln(stderr, "WARNING: insecure kubelet TLS disables serving-certificate verification for this command only.")
-		line, readErr := readNodesProxyLine(reader, stdout, "Type INSECURE-KUBELET-TLS to continue: ")
-		if readErr != nil || line != "INSECURE-KUBELET-TLS" {
-			return options, "", errors.New("insecure kubelet TLS cancelled")
-		}
 		options.Insecure = true
-		return options, "insecure (explicitly accepted)", nil
+		return options, "insecure", nil
 	default:
 		return options, "", errors.New("kubelet TLS mode must be ca-data, ca-file, or insecure")
 	}

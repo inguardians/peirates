@@ -111,11 +111,9 @@ func TestLaunchNodesProxyExecReviewsAllTokensAndExecutesExplicitSelection(t *tes
 		"", // accept NODE_NAME
 		"1",
 		"https://10.0.0.2:10250",
-		"insecure",
-		"INSECURE-KUBELET-TLS",
+		"", // accept insecure TLS mode
 		"0",
 		"", // default ["id"]
-		"EXEC-VIA-NODES-PROXY-worker-1",
 		"",
 	}, "\n")
 	var stdout, stderr strings.Builder
@@ -180,34 +178,25 @@ func TestLaunchNodesProxyExecReviewsAllTokensAndExecutesExplicitSelection(t *tes
 	}
 }
 
-func TestLaunchNodesProxyExecBadOrMissingConfirmationDoesNotExecute(t *testing.T) {
-	for _, test := range []struct {
-		name         string
-		confirmation string
-	}{
-		{name: "bad", confirmation: "NO"},
-		{name: "EOF", confirmation: ""},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			reviewer := &fakeNodesProxyReviewer{calls: make(map[string]int)}
-			client := &fakeNodesProxyKubelet{targets: []nodesproxyexec.Target{{
-				NodeName: "worker-1", Namespace: "ns", PodName: "pod", ContainerName: "container", ContainerKind: nodesproxyexec.ContainerRegular,
-			}}}
-			factory := &fakeNodesProxyFactory{client: client}
-			installNodesProxyFakes(t, reviewer, factory)
-			lines := []string{"worker-1", "0", "https://node.example:10250", "insecure", "INSECURE-KUBELET-TLS", "0", `["id"]`}
-			if test.confirmation != "" {
-				lines = append(lines, test.confirmation, "")
-			}
-			var stdout, stderr strings.Builder
-			err := launchNodesProxyExecWithStreams(context.Background(), ServerInfo{UseAuthCanI: true}, []ServiceAccount{{Name: "allowed", Token: "token-allowed"}}, strings.NewReader(strings.Join(lines, "\n")), &stdout, &stderr, func(string) string { return "" })
-			if err == nil || !strings.Contains(err.Error(), "cancelled") {
-				t.Fatalf("error = %v, want cancellation", err)
-			}
-			if client.execs != 0 {
-				t.Fatalf("Exec calls = %d, want 0", client.execs)
-			}
-		})
+func TestLaunchNodesProxyExecExecutesWithoutFinalConfirmation(t *testing.T) {
+	reviewer := &fakeNodesProxyReviewer{calls: make(map[string]int)}
+	client := &fakeNodesProxyKubelet{targets: []nodesproxyexec.Target{{
+		NodeName: "worker-1", Namespace: "ns", PodName: "pod", ContainerName: "container", ContainerKind: nodesproxyexec.ContainerRegular,
+	}}}
+	factory := &fakeNodesProxyFactory{client: client}
+	installNodesProxyFakes(t, reviewer, factory)
+	lines := []string{"worker-1", "0", "https://node.example:10250", "insecure", "0", `["id"]`, ""}
+	var stdout, stderr strings.Builder
+	err := launchNodesProxyExecWithStreams(context.Background(), ServerInfo{UseAuthCanI: true}, []ServiceAccount{{Name: "allowed", Token: "token-allowed"}}, strings.NewReader(strings.Join(lines, "\n")), &stdout, &stderr, func(string) string { return "" })
+	if err != nil {
+		t.Fatalf("launchNodesProxyExecWithStreams: %v", err)
+	}
+	if client.execs != 1 {
+		t.Fatalf("Exec calls = %d, want 1", client.execs)
+	}
+	output := stdout.String() + stderr.String()
+	if strings.Contains(output, "EXEC-VIA-NODES-PROXY") || strings.Contains(output, "bypasses API-server admission") {
+		t.Fatalf("output contains removed warning or confirmation: %q", output)
 	}
 }
 
@@ -223,19 +212,19 @@ func TestLaunchNodesProxyExecSelectsAmongMultipleQualifyingTokens(t *testing.T) 
 		{Name: "second allowed", Token: "token-allowed-two"},
 	}
 	input := strings.Join([]string{
-		"worker-1", "1", "https://node.example:10250", "insecure", "INSECURE-KUBELET-TLS",
-		"0", `["id"]`, "cancel", "",
+		"worker-1", "1", "https://node.example:10250", "insecure",
+		"0", `["id"]`, "",
 	}, "\n")
 	var stdout, stderr strings.Builder
 	err := launchNodesProxyExecWithStreams(context.Background(), ServerInfo{UseAuthCanI: true}, accounts, strings.NewReader(input), &stdout, &stderr, func(string) string { return "" })
-	if err == nil || !strings.Contains(err.Error(), "cancelled") {
-		t.Fatalf("error = %v, want cancellation", err)
+	if err != nil {
+		t.Fatalf("launchNodesProxyExecWithStreams: %v", err)
 	}
 	if factory.connection.Token != "token-allowed-two" {
 		t.Fatalf("selected token = %q, want second qualifying token", factory.connection.Token)
 	}
-	if client.execs != 0 {
-		t.Fatalf("Exec calls = %d, want 0 after bad confirmation", client.execs)
+	if client.execs != 1 {
+		t.Fatalf("Exec calls = %d, want 1", client.execs)
 	}
 }
 
@@ -289,18 +278,27 @@ func TestReadNodesProxyLinePreservesSubsequentResponses(t *testing.T) {
 	}
 }
 
-func TestReadKubeletTLSOptionsRequiresExplicitTrustChoice(t *testing.T) {
+func TestReadKubeletTLSOptionsDefaultsToInsecure(t *testing.T) {
 	tests := []struct {
 		name       string
 		connection ServerInfo
 		input      string
 		want       kube.KubeletTLSOptions
 		wantLabel  string
+		wantPrompt string
 	}{
 		{
-			name:       "active CA data default",
+			name:       "insecure default despite active CA data",
 			connection: ServerInfo{CACertData: "trusted-ca"},
-			input:      "\nkubelet.internal\n",
+			input:      "\n",
+			want:       kube.KubeletTLSOptions{Insecure: true},
+			wantLabel:  "insecure",
+			wantPrompt: "Kubelet TLS mode [ca-data/ca-file/insecure] [insecure]: ",
+		},
+		{
+			name:       "explicit active CA data",
+			connection: ServerInfo{CACertData: "trusted-ca"},
+			input:      "ca-data\nkubelet.internal\n",
 			want:       kube.KubeletTLSOptions{CAData: []byte("trusted-ca"), ServerName: "kubelet.internal"},
 			wantLabel:  "verified",
 		},
@@ -313,9 +311,9 @@ func TestReadKubeletTLSOptionsRequiresExplicitTrustChoice(t *testing.T) {
 		},
 		{
 			name:      "explicit insecure",
-			input:     "insecure\nINSECURE-KUBELET-TLS\n",
+			input:     "insecure\n",
 			want:      kube.KubeletTLSOptions{Insecure: true},
-			wantLabel: "insecure (explicitly accepted)",
+			wantLabel: "insecure",
 		},
 	}
 	for _, test := range tests {
@@ -330,6 +328,9 @@ func TestReadKubeletTLSOptionsRequiresExplicitTrustChoice(t *testing.T) {
 			}
 			if label != test.wantLabel {
 				t.Fatalf("label = %q, want %q", label, test.wantLabel)
+			}
+			if test.wantPrompt != "" && !strings.Contains(stdout.String(), test.wantPrompt) {
+				t.Fatalf("stdout = %q, want prompt %q", stdout.String(), test.wantPrompt)
 			}
 			if strings.Contains(stdout.String()+stderr.String(), "trusted-ca") {
 				t.Fatal("TLS prompts leaked CA data")

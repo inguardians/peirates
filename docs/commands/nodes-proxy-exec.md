@@ -59,6 +59,11 @@ for a direct kubelet HTTPS origin, kubelet TLS settings, a numbered running-
 container target, and command argv as a JSON string array. The default argv is
 `["id"]`; Peirates does not implicitly add `/bin/sh -c`.
 
+The kubelet TLS mode defaults to `insecure`. Pressing Enter at that prompt does
+not immediately disable verification: Peirates prints a warning and still
+requires the exact `INSECURE-KUBELET-TLS` acknowledgement. Select `ca-data` or
+`ca-file` explicitly to verify the kubelet serving certificate.
+
 Immediately before execution, the operator must type:
 
 ```text

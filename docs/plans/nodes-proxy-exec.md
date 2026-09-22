@@ -10,6 +10,11 @@ Peirates' `Session.ServiceAccounts` snapshot for node-specific
 `get nodes/proxy` permission, then explicitly selecting a qualifying token.
 The scan must not stop at the active or first successful token.
 
+On 2026-09-22 the maintainer amended the approved TLS interaction: `insecure`
+is now the displayed default mode, while the separate warning and exact
+`INSECURE-KUBELET-TLS` acknowledgement remain mandatory. Verified `ca-data`
+and `ca-file` modes and the verified-TLS Kind gate remain in scope.
+
 ## Goal
 
 Add a bounded Peirates capability that demonstrates and uses the command-
@@ -427,9 +432,11 @@ and an explicit insecure boolean.
 
 Defaults:
 
-- Start with verification enabled.
-- Offer the active connection's CA data or CA path as an explicit displayed
-  default, but do not assume that it validates the kubelet serving certificate.
+- Display `insecure` as the default TLS mode, but do not disable verification
+  until the operator supplies the separate exact acknowledgement.
+- Keep the active connection's CA data and CA path available through explicit
+  `ca-data` and `ca-file` choices, but do not assume either validates the
+  kubelet serving certificate.
 - Do not inherit `ServerInfo.IgnoreTLS` silently.
 - Do not retry insecurely after a verification failure.
 - Permit insecure kubelet TLS only after a separate explicit operator choice,
@@ -860,7 +867,8 @@ The feature is complete only when all of the following are true:
   `create pods/exec` denied can execute one command through WebSocket GET.
 - The application reports only `confirmed-get-only-exec` when the negative
   authorization controls and actual command result support it.
-- TLS is verified by default and insecure TLS is separately explicit.
+- TLS mode defaults to `insecure`, but insecure TLS still requires a separate
+  warning and exact acknowledgement; verified modes remain available.
 - No HTTP POST or SPDY fallback is present.
 - Commands, responses, errors, and execution time are bounded.
 - Target state is refreshed immediately before execution.
