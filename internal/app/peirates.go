@@ -23,7 +23,7 @@ var Verbose bool
 // Main starts Peirates[]
 func Main() {
 	// Peirates version string
-	var version = "1.1.32"
+	var version = "1.1.33"
 
 	var err error
 

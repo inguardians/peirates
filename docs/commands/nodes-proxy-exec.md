@@ -6,6 +6,7 @@
 - **Canonical command:** `nodes-proxy-exec`
 - **Aliases:** None
 - **Maturity:** Experimental; executes one bounded command in one explicitly selected container
+- **Credit:** Graham Helton (@GrahamHelton3) for vulnerability disclosure and POC
 
 ## Purpose
 
@@ -16,8 +17,10 @@ select one token whose node-specific review succeeded, and uses that token to
 contact one kubelet directly over HTTPS. It then executes one non-interactive
 command through a WebSocket HTTP `GET` request.
 
-This behavior is not a CVE. Kubernetes documents that `get nodes/proxy` is not
-read-only and can reach kubelet APIs capable of command execution.
+This behavior is currently classified as "not a CVE", though it is a boon to 
+penetration testers and threat actors alike. The reasoning is that Kubernetes 
+documents that `get nodes/proxy` is not read-only and can reach kubelet APIs 
+capable of command execution.
 
 ## Prerequisites and authorization
 
