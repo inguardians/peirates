@@ -10,10 +10,15 @@ Peirates' `Session.ServiceAccounts` snapshot for node-specific
 `get nodes/proxy` permission, then explicitly selecting a qualifying token.
 The scan must not stop at the active or first successful token.
 
-On 2026-09-22 the maintainer amended the approved TLS interaction: `insecure`
-is now the displayed default mode, while the separate warning and exact
-`INSECURE-KUBELET-TLS` acknowledgement remain mandatory. Verified `ca-data`
-and `ca-file` modes and the verified-TLS Kind gate remain in scope.
+On 2026-09-22 the maintainer amended the approved interaction: `insecure` is
+the displayed TLS default and takes effect immediately when selected, without
+a second acknowledgement. The execution warning and node-specific final
+confirmation were also removed. Verified `ca-data` and `ca-file` modes and the
+verified-TLS Kind gate remain in scope.
+
+The maintainer also replaced JSON argv input with a plain command line. Peirates
+parses quoting and escaping locally and constructs the argv array; it does not
+invoke a shell or perform expansion.
 
 ## Goal
 
@@ -57,7 +62,7 @@ The following values are proposed and must be frozen at approval:
 | Canonical command | `nodes-proxy-exec` |
 | Aliases | None |
 | Menu text | Execute one command through direct kubelet WebSocket access |
-| Default proof argv | `["id"]` |
+| Default proof command | `id` |
 | Kubelet HTTPS port | Explicit origin, normally `10250` |
 | Pod-list response limit | 8 MiB |
 | Combined command-output limit | 1 MiB |
@@ -68,7 +73,6 @@ The following values are proposed and must be frozen at approval:
 | Stored-token scope | Every entry in `Session.ServiceAccounts` at module start |
 | Access-review concurrency | At most 4 stored tokens concurrently |
 | Credential selection | Explicit; never auto-select a token |
-| Confirmation | `EXEC-VIA-NODES-PROXY-<node-name>` |
 
 Menu item 34 is the next unassigned value after the implemented item 33. The
 new feature must not change the behavior or aliases of menu item 22,
@@ -81,17 +85,17 @@ The action uses this line-oriented flow:
 3. An explicit numbered choice from the tokens allowed to `get nodes/proxy`.
 4. A direct kubelet HTTPS origin, such as `https://10.0.0.12:10250`.
 5. A numbered running-container target obtained from the selected kubelet.
-6. Command argv encoded as a JSON string array, defaulting to `["id"]`.
-7. The exact node-specific confirmation string.
+6. A plain command line, defaulting to `id`, which Peirates parses into argv.
 
-JSON argv preserves argument boundaries without introducing a shell parser.
-Peirates must not implicitly prepend `/bin/sh -c`. An operator who needs shell
-evaluation can explicitly supply argv such as
-`["/bin/sh","-c","printf ready"]`.
+The command-line parser preserves argument boundaries using whitespace, single
+quotes, double quotes, and backslash escaping. Peirates must not invoke a shell,
+perform variable or glob expansion, or implicitly prepend `/bin/sh -c`. An
+operator who needs shell evaluation can explicitly enter a command such as
+`/bin/sh -c "printf ready"`.
 
 Direct `peirates -m nodes-proxy-exec` invocation uses the same prompts and
-safety checks. EOF or an incorrect confirmation cancels without opening the
-execution WebSocket.
+validation. Execution starts after the command argv is accepted and the target
+is freshly revalidated, without an additional warning or confirmation prompt.
 
 ## Why this is a separate command
 
@@ -316,8 +320,8 @@ serialized and that existing callers remain unchanged when it is empty.
 
 ### Application orchestration
 
-Add `internal/app/nodes_proxy_exec.go` for prompts, warnings, confirmation,
-signal-aware context setup, and rendering. It creates the internal/kube client
+Add `internal/app/nodes_proxy_exec.go` for prompts, signal-aware context setup,
+and rendering. It creates the internal/kube client
 and passes only the required interfaces into the capability package. The
 registry handler must pass both `session.Connection` and a value snapshot of
 `session.ServiceAccounts`; the module must not operate through a pointer to the
@@ -399,7 +403,7 @@ Node-name behavior:
 - Offer trimmed `NODE_NAME` as a default.
 - Validate it as a Kubernetes DNS subdomain.
 - Do not use the pod hostname as proof of node identity.
-- Use it in node-specific access reviews and confirmation text.
+- Use it in node-specific access reviews and target validation.
 
 Origin behavior:
 
@@ -413,7 +417,8 @@ Origin behavior:
 
 As an optional convenience, when the selected stored token can `get` the
 selected Node object, Peirates may offer that object's `InternalIP` as the origin
-default. It must show the resolved value and still require confirmation. A
+default. It must show the resolved value and still require explicit operator
+input. A
 manual origin remains available when Node-object access is denied. Automatic
 cluster-wide Node listing is outside the first release.
 
@@ -432,15 +437,16 @@ and an explicit insecure boolean.
 
 Defaults:
 
-- Display `insecure` as the default TLS mode, but do not disable verification
-  until the operator supplies the separate exact acknowledgement.
+- Display `insecure` as the default TLS mode and apply it immediately when the
+  operator selects it or presses Enter.
 - Keep the active connection's CA data and CA path available through explicit
   `ca-data` and `ca-file` choices, but do not assume either validates the
   kubelet serving certificate.
 - Do not inherit `ServerInfo.IgnoreTLS` silently.
 - Do not retry insecurely after a verification failure.
-- Permit insecure kubelet TLS only after a separate explicit operator choice,
-  with a warning and a narrowly annotated gosec exception at TLS construction.
+- Permit insecure kubelet TLS when the operator selects it or accepts it as the
+  displayed default, with no second warning or acknowledgement prompt. Keep a
+  narrowly annotated gosec exception at TLS construction.
 - Require TLS 1.2 or newer.
 
 The transport must not log tokens, certificate material, request headers, or
@@ -499,7 +505,7 @@ Execution rules:
 
 - No stdin and no TTY in the first release.
 - Use a context covering handshake, execution, stream draining, and close.
-- Apply the 30-second default timeout after final confirmation.
+- Apply the 30-second default timeout when execution begins.
 - Bound stdout and stderr to 1 MiB combined. Reaching the limit cancels the
   context, closes the WebSocket, and returns a stable truncation error.
 - Preserve stdout and stderr separately within the combined budget.
@@ -511,8 +517,8 @@ Execution rules:
 - Never automatically rerun a failed command.
 
 The default `id` command is a minimally persistent proof but still creates a
-process in another container. Print the warning and confirmation requirement
-before opening the execution WebSocket.
+process in another container. Open the execution WebSocket immediately after
+the operator's argv is accepted and the target is revalidated.
 
 ## Operator output
 
@@ -531,13 +537,8 @@ Target: kube-system/example/example
 Argv: ["id"]
 ```
 
-Then warn:
-
-```text
-Warning: direct kubelet execution bypasses API-server admission and may not be
-recorded as a pod exec in Kubernetes audit logs.
-Type EXEC-VIA-NODES-PROXY-worker-1 to continue:
-```
+The execution starts immediately after this summary, without a separate
+warning or confirmation prompt.
 
 After execution, report:
 
@@ -611,10 +612,10 @@ Add tests for:
 - passing all stored session tokens from the registry without changing the
   active session identity;
 - default `NODE_NAME`, stable per-token RBAC table, explicit token selection,
-  explicit origin, target choice, JSON argv, warning, and exact confirmation;
+  explicit origin, target choice, and plain command input;
 - no stored tokens, one qualifying token, multiple qualifying tokens, and a
   qualifying non-active token;
-- EOF and bad confirmation exiting without execution;
+- EOF at any required input exiting without execution;
 - command errors returning control to the menu; and
 - secrets never appearing in rendered errors.
 
@@ -674,7 +675,7 @@ Negative controls must prove:
   direct kubelet access;
 - scanning continues through denied entries and does not stop after finding
   the allowed attacker token;
-- an incorrect confirmation creates no marker;
+- invalid command syntax creates no marker;
 - a nonexistent or non-running target creates no marker;
 - the attacker still lacks `create nodes/proxy` and `create pods/exec` after
   successful execution; and
@@ -771,8 +772,8 @@ The maintainer approves or edits:
   stable output order, and explicit qualifying-token selection;
 - treatment of duplicate tokens, per-token errors, disabled access reviews,
   and the no-stored-token case;
-- JSON argv input and default `id` command;
-- confirmation phrase;
+- plain command input, quote-aware argv construction, and default `id` command;
+- immediate execution after command submission;
 - endpoint and kubelet-specific TLS behavior;
 - time and byte limits;
 - result classifications; and
@@ -807,13 +808,13 @@ and execution state has deterministic coverage.
 
 ### Phase 3: application and command contract
 
-1. Add prompts, warning, exact confirmation, and renderer.
+1. Add prompts and renderer without a final confirmation step.
 2. Register menu item 34 and canonical dispatch.
 3. Update completion and exhaustive command-surface tests.
 4. Add command documentation.
 
-Gate: direct module and interactive paths behave identically; EOF and bad
-confirmation perform no execution.
+Gate: direct module and interactive paths behave identically; EOF at required
+input performs no execution.
 
 ### Phase 4: disposable live proof
 
@@ -867,8 +868,8 @@ The feature is complete only when all of the following are true:
   `create pods/exec` denied can execute one command through WebSocket GET.
 - The application reports only `confirmed-get-only-exec` when the negative
   authorization controls and actual command result support it.
-- TLS mode defaults to `insecure`, but insecure TLS still requires a separate
-  warning and exact acknowledgement; verified modes remain available.
+- TLS mode defaults to `insecure` and takes effect without a separate warning
+  or acknowledgement; verified modes remain available.
 - No HTTP POST or SPDY fallback is present.
 - Commands, responses, errors, and execution time are bounded.
 - Target state is refreshed immediately before execution.

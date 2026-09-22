@@ -56,21 +56,16 @@ peirates -m nodes-proxy-exec
 Direct invocation remains interactive. The command asks for a node name,
 reviews all stored tokens, requires an explicit allowed-token index, then asks
 for a direct kubelet HTTPS origin, kubelet TLS settings, a numbered running-
-container target, and command argv as a JSON string array. The default argv is
-`["id"]`; Peirates does not implicitly add `/bin/sh -c`.
+container target, and a plain command line such as `id` or `cat /etc/shadow`.
+The default command is `id`. Peirates splits the line into arguments, honoring
+single quotes, double quotes, and backslash escapes, and constructs the argv
+array itself. It does not implicitly add `/bin/sh -c` or perform shell
+expansion.
 
-The kubelet TLS mode defaults to `insecure`. Pressing Enter at that prompt does
-not immediately disable verification: Peirates prints a warning and still
-requires the exact `INSECURE-KUBELET-TLS` acknowledgement. Select `ca-data` or
-`ca-file` explicitly to verify the kubelet serving certificate.
-
-Immediately before execution, the operator must type:
-
-```text
-EXEC-VIA-NODES-PROXY-<node-name>
-```
-
-EOF or any other response cancels without opening the execution WebSocket.
+The kubelet TLS mode defaults to `insecure`. Pressing Enter selects it
+immediately and disables serving-certificate verification for the direct
+kubelet connection. Select `ca-data` or `ca-file` explicitly to verify the
+kubelet serving certificate.
 
 ## What it does
 
@@ -87,17 +82,18 @@ explicit kubelet origin directly rather than using the API-server
 only currently running regular, init, and ephemeral containers on the selected
 node, and requires an explicit target choice.
 
-After a fresh target revalidation and exact confirmation, Peirates opens one
-HTTP `GET` WebSocket to `/exec/<namespace>/<pod>/<container>`. It requests
+After a fresh target revalidation, Peirates opens one HTTP `GET` WebSocket to
+`/exec/<namespace>/<pod>/<container>`. It requests
 remote-command protocols v5 through v1 in preference order. There is no POST,
 SPDY, API-server-proxy, or insecure-TLS fallback.
 
 ## Expected output
 
-Before confirmation, the command reports the selected node, aggregate and
+Before execution, the command reports the selected node, aggregate and
 per-token access-review states, selected credential label and original index,
-kubelet origin and TLS mode, running-container count, target, and JSON argv.
-Sensitive credential values are omitted.
+kubelet origin and TLS mode, running-container count, target, and encoded argv.
+Sensitive credential values are omitted. Execution begins immediately after
+this summary; there is no additional warning or confirmation prompt.
 
 After execution, Peirates reports the negotiated protocol, exit status,
 separate bounded stdout and stderr, and one classification:
@@ -123,7 +119,7 @@ non-interactive command per invocation. It does not forward stdin, allocate a
 TTY, create workloads, harvest credentials, install persistence, launch a
 reverse shell automatically, or execute across multiple targets. No cluster
 objects require cleanup, but the selected command can itself have side effects;
-review the exact argv before confirming.
+review the command before submitting it.
 
 Read-only requests time out after 10 seconds. Command execution times out after
 30 seconds. The pod-list response is limited to 8 MiB, error details to 4 KiB,
@@ -133,7 +129,7 @@ execution rather than silently truncating it.
 ## Failure modes
 
 - No stored tokens stops before any kubelet request.
-- An invalid node, token index, HTTPS origin, TLS setting, target, or JSON argv
+- An invalid node, token index, HTTPS origin, TLS setting, target, or command
   fails closed.
 - A denied, errored, or missing credential cannot be selected. An unchecked
   credential requires a second warning and explicit acknowledgement.

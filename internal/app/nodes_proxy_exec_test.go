@@ -113,7 +113,7 @@ func TestLaunchNodesProxyExecReviewsAllTokensAndExecutesExplicitSelection(t *tes
 		"https://10.0.0.2:10250",
 		"", // accept insecure TLS mode
 		"0",
-		"", // default ["id"]
+		"", // default id
 		"",
 	}, "\n")
 	var stdout, stderr strings.Builder
@@ -185,7 +185,7 @@ func TestLaunchNodesProxyExecExecutesWithoutFinalConfirmation(t *testing.T) {
 	}}}
 	factory := &fakeNodesProxyFactory{client: client}
 	installNodesProxyFakes(t, reviewer, factory)
-	lines := []string{"worker-1", "0", "https://node.example:10250", "insecure", "0", `["id"]`, ""}
+	lines := []string{"worker-1", "0", "https://node.example:10250", "insecure", "0", "id", ""}
 	var stdout, stderr strings.Builder
 	err := launchNodesProxyExecWithStreams(context.Background(), ServerInfo{UseAuthCanI: true}, []ServiceAccount{{Name: "allowed", Token: "token-allowed"}}, strings.NewReader(strings.Join(lines, "\n")), &stdout, &stderr, func(string) string { return "" })
 	if err != nil {
@@ -213,7 +213,7 @@ func TestLaunchNodesProxyExecSelectsAmongMultipleQualifyingTokens(t *testing.T) 
 	}
 	input := strings.Join([]string{
 		"worker-1", "1", "https://node.example:10250", "insecure",
-		"0", `["id"]`, "",
+		"0", "cat /etc/shadow", "",
 	}, "\n")
 	var stdout, stderr strings.Builder
 	err := launchNodesProxyExecWithStreams(context.Background(), ServerInfo{UseAuthCanI: true}, accounts, strings.NewReader(input), &stdout, &stderr, func(string) string { return "" })
@@ -225,6 +225,9 @@ func TestLaunchNodesProxyExecSelectsAmongMultipleQualifyingTokens(t *testing.T) 
 	}
 	if client.execs != 1 {
 		t.Fatalf("Exec calls = %d, want 1", client.execs)
+	}
+	if fmt.Sprint(client.execArgv) != "[cat /etc/shadow]" {
+		t.Fatalf("exec argv = %#v, want [cat /etc/shadow]", client.execArgv)
 	}
 }
 
@@ -275,6 +278,38 @@ func TestReadNodesProxyLinePreservesSubsequentResponses(t *testing.T) {
 		if got != want {
 			t.Fatalf("read %d = %q, want %q", index, got, want)
 		}
+	}
+}
+
+func TestParseNodesProxyCommand(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		want      []string
+		wantError string
+	}{
+		{name: "words", input: "cat /etc/shadow", want: []string{"cat", "/etc/shadow"}},
+		{name: "quotes and escapes", input: `printf "%s %s" 'two words' escaped\ value ""`, want: []string{"printf", "%s %s", "two words", "escaped value", ""}},
+		{name: "unterminated quote", input: `echo "unfinished`, wantError: "unterminated quote"},
+		{name: "trailing escape", input: `echo trailing\`, wantError: "trailing escape"},
+		{name: "empty", input: "   ", wantError: "command is empty"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := parseNodesProxyCommand(test.input)
+			if test.wantError != "" {
+				if err == nil || !strings.Contains(err.Error(), test.wantError) {
+					t.Fatalf("error = %v, want %q", err, test.wantError)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parseNodesProxyCommand: %v", err)
+			}
+			if fmt.Sprint(got) != fmt.Sprint(test.want) {
+				t.Fatalf("argv = %#v, want %#v", got, test.want)
+			}
+		})
 	}
 }
 

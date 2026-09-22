@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"unicode"
 
 	"github.com/inguardians/peirates/internal/kube"
 	"github.com/inguardians/peirates/internal/model"
@@ -179,16 +180,16 @@ func launchNodesProxyExecWithStreams(ctx context.Context, connection ServerInfo,
 	}
 	target := probe.Containers[targetIndex]
 
-	argvLine, err := readNodesProxyLine(reader, stdout, "Command argv JSON [[\"id\"]]: ")
+	commandLine, err := readNodesProxyLine(reader, stdout, "Command [id]: ")
 	if err != nil {
-		return cancellationError("command argv", err)
+		return cancellationError("command", err)
 	}
-	if argvLine == "" {
-		argvLine = `["id"]`
+	if commandLine == "" {
+		commandLine = "id"
 	}
-	var argv []string
-	if err := json.Unmarshal([]byte(argvLine), &argv); err != nil {
-		return fmt.Errorf("command argv must be a JSON string array: %w", err)
+	argv, err := parseNodesProxyCommand(commandLine)
+	if err != nil {
+		return fmt.Errorf("invalid command line: %w", err)
 	}
 	encodedArgv, _ := json.Marshal(argv)
 
@@ -210,6 +211,69 @@ func launchNodesProxyExecWithStreams(ctx context.Context, connection ServerInfo,
 		return execErr
 	}
 	return nil
+}
+
+func parseNodesProxyCommand(commandLine string) ([]string, error) {
+	var argv []string
+	var current strings.Builder
+	var quote rune
+	escaped := false
+	tokenStarted := false
+
+	flush := func() {
+		argv = append(argv, current.String())
+		current.Reset()
+		tokenStarted = false
+	}
+
+	for _, character := range commandLine {
+		if escaped {
+			current.WriteRune(character)
+			escaped = false
+			tokenStarted = true
+			continue
+		}
+		if quote != 0 {
+			switch {
+			case character == quote:
+				quote = 0
+			case quote == '"' && character == '\\':
+				escaped = true
+			default:
+				current.WriteRune(character)
+			}
+			continue
+		}
+
+		switch {
+		case unicode.IsSpace(character):
+			if tokenStarted {
+				flush()
+			}
+		case character == '\'' || character == '"':
+			quote = character
+			tokenStarted = true
+		case character == '\\':
+			escaped = true
+			tokenStarted = true
+		default:
+			current.WriteRune(character)
+			tokenStarted = true
+		}
+	}
+	if escaped {
+		return nil, errors.New("trailing escape")
+	}
+	if quote != 0 {
+		return nil, errors.New("unterminated quote")
+	}
+	if tokenStarted {
+		flush()
+	}
+	if len(argv) == 0 {
+		return nil, errors.New("command is empty")
+	}
+	return argv, nil
 }
 
 func readKubeletTLSOptions(reader *bufio.Reader, stdout, _ io.Writer, connection ServerInfo) (kube.KubeletTLSOptions, string, error) {

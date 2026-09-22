@@ -7,7 +7,7 @@
 # - node-specific get nodes/proxy without create nodes/proxy or pods/exec
 # - verified direct kubelet TLS using the disposable node's serving certificate
 # - explicit operator selection of the stored token and running container
-# - one operator-confirmed WebSocket GET command and an independent marker check
+# - one operator-entered WebSocket GET command and an independent marker check
 # - claim-aware cleanup of only the cluster created by this invocation
 
 # Stop on command, pipeline, or unset-variable failures.
@@ -284,10 +284,8 @@ Enter the following values when prompted:
     ${node_name}
   Running container index:
     choose the row for ${namespace}/${target_pod}/${target_container}
-  Command argv JSON:
-    ["/bin/sh","-c","printf '%s' '${marker_value}' > ${marker_path}"]
-  Final confirmation:
-    EXEC-VIA-NODES-PROXY-${node_name}
+  Command:
+    /bin/sh -c "printf '%s' '${marker_value}' > ${marker_path}"
 
 The cluster will be deleted automatically after Peirates exits. Press Ctrl-C
 to cancel safely; cancellation will also run ownership-checked cleanup.

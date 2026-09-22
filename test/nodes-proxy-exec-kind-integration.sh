@@ -9,7 +9,7 @@
 # - verified kubelet TLS and direct port 10250 access
 # - deterministic stored-token and running-container selection
 # - independent marker verification after WebSocket command execution
-# - denial and confirmation controls that create no marker
+# - denial and invalid-input controls that create no marker
 # - token and token-digest redaction plus claim-aware cluster cleanup
 
 # Stop on command, pipeline, or unset-variable failures.
@@ -355,24 +355,24 @@ assert_no_credentials "${denied_output}" "denied selection"
 kubectl --context "${context}" -n "${namespace}" exec "${target_pod}" \
     -c "${target_container}" -- test ! -e "${denied_marker_path}"
 
-# Incorrect final confirmation reaches no execution side effect.
-denied_argv="[\"/bin/sh\",\"-c\",\"printf denied > ${denied_marker_path}\"]"
-wrong_confirmation_input="$(printf '\n1\n%s\nca-file\n%s\n%s\n%s\n%s\nNO\n' \
+# Invalid command syntax reaches no execution side effect.
+invalid_command='echo "unterminated'
+invalid_command_input="$(printf '\n1\n%s\nca-file\n%s\n%s\n%s\n%s\n' \
     "${kubelet_origin}" "${kubelet_ca_path}" "${node_name}" \
-    "${target_index}" "${denied_argv}")"
-wrong_confirmation_input+=$'\n'
-wrong_confirmation_output="$(run_module "${wrong_confirmation_input}" nodes-proxy-exec)"
-assert_contains "${wrong_confirmation_output}" \
-    "Type EXEC-VIA-NODES-PROXY-${node_name} to continue:" "confirmation prompt"
-assert_no_credentials "${wrong_confirmation_output}" "wrong confirmation"
+    "${target_index}" "${invalid_command}")"
+invalid_command_input+=$'\n'
+invalid_command_output="$(run_module "${invalid_command_input}" nodes-proxy-exec)"
+assert_contains "${invalid_command_output}" \
+    "invalid command line: unterminated quote" "invalid command rejection"
+assert_no_credentials "${invalid_command_output}" "invalid command"
 kubectl --context "${context}" -n "${namespace}" exec "${target_pod}" \
     -c "${target_container}" -- test ! -e "${denied_marker_path}"
 
 # Select the non-active allowed token and execute one bounded marker command.
-positive_argv="[\"/bin/sh\",\"-c\",\"printf '%s' '${marker_value}' > ${marker_path}\"]"
-positive_input="$(printf '\n1\n%s\nca-file\n%s\n%s\n%s\n%s\nEXEC-VIA-NODES-PROXY-%s\n' \
+positive_command="/bin/sh -c \"printf '%s' '${marker_value}' > ${marker_path}\""
+positive_input="$(printf '\n1\n%s\nca-file\n%s\n%s\n%s\n%s\n' \
     "${kubelet_origin}" "${kubelet_ca_path}" "${node_name}" \
-    "${target_index}" "${positive_argv}" "${node_name}")"
+    "${target_index}" "${positive_command}")"
 positive_input+=$'\n'
 positive_output="$(run_module "${positive_input}" nodes-proxy-exec)"
 assert_contains "${positive_output}" "Selected token: [1] ${attacker_name}" \
