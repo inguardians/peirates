@@ -47,6 +47,7 @@ Commands can normally be selected interactively by number, canonical name, or al
 | 29 | `hostproc-core-pattern-breakout` | [Enter a host through a writable host core pattern](hostproc-core-pattern-breakout.md) |
 | 30 | `nodefs-steal-secrets` | [Collect credentials from the node filesystem](nodefs-steal-secrets.md) |
 | 32 | `hostpid-ptrace-breakout` | [Open an interactive shell through a disposable host process](hostpid-ptrace-breakout.md) |
+| 33 | `hostlog-symlink-read` | [Read one host file through a writable host-log mount](hostlog-symlink-read.md) |
 
 ## General utilities
 

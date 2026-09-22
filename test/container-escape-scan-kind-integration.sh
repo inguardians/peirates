@@ -8,6 +8,7 @@
 # - blocked baseline findings in an unprivileged container
 # - an available mounted-root finding backed by the disposable Kind node root
 # - a candidate Docker-socket finding backed only by a nested Docker-in-Docker daemon
+# - writable and read-only host /var/log mount classification without endpoint probing
 # - cgroup v2 unsupported and host-proc core-pattern blocked findings
 # - operation without service-account credentials or RBAC
 # - preservation of Kubernetes, Docker, and node-marker state across every scan
@@ -26,6 +27,10 @@ namespace="peirates-container-escape-scan-test"
 baseline_pod="peirates-scan-baseline"
 hostroot_pod="peirates-scan-hostroot"
 docker_pod="peirates-scan-nested-docker"
+hostlog_writable_pod="peirates-scan-hostlog-writable"
+hostlog_readonly_pod="peirates-scan-hostlog-readonly"
+hostlog_mount="/var/log"
+hostlog_probe_name=".peirates-hostlog-scan-write-probe"
 nested_socket="/run/nested-docker/docker.sock"
 marker_path="/peirates-container-escape-scan-marker"
 marker_value="peirates-container-escape-scan-node-root"
@@ -74,9 +79,10 @@ kubectl --context "${context}" create namespace "${namespace}"
 docker exec "${node_name}" sh -c "printf '%s\n' '${marker_value}' > '${marker_path}'"
 node_root_identity="$(docker exec "${node_name}" stat -c '%d:%i' /)"
 
-# Create three isolated fixtures. No Pod receives a service-account token. The
+# Create five isolated fixtures. No Pod receives a service-account token. The
 # scanner Pod never receives host procfs, cgroups, or a host Docker socket. Its
-# Docker socket is an emptyDir shared only with the nested daemon sidecar.
+# Docker socket is an emptyDir shared only with the nested daemon sidecar. Both
+# host-log mounts expose only /var/log inside the disposable Kind node.
 kubectl --context "${context}" -n "${namespace}" apply -f - <<PODS
 apiVersion: v1
 kind: Pod
@@ -168,6 +174,61 @@ spec:
   volumes:
   - name: nested-docker-socket
     emptyDir: {}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ${hostlog_writable_pod}
+spec:
+  automountServiceAccountToken: false
+  containers:
+  - name: scanner
+    image: busybox:1.36.1
+    command: ["sh", "-c", "sleep 3600"]
+    env:
+    - name: SCANNER_SECRET_SENTINEL
+      value: ${secret_sentinel}
+    securityContext:
+      runAsUser: 0
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    volumeMounts:
+    - name: node-logs
+      mountPath: ${hostlog_mount}
+  volumes:
+  - name: node-logs
+    hostPath:
+      path: /var/log
+      type: Directory
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ${hostlog_readonly_pod}
+spec:
+  automountServiceAccountToken: false
+  containers:
+  - name: scanner
+    image: busybox:1.36.1
+    command: ["sh", "-c", "sleep 3600"]
+    env:
+    - name: SCANNER_SECRET_SENTINEL
+      value: ${secret_sentinel}
+    securityContext:
+      runAsUser: 0
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    volumeMounts:
+    - name: node-logs
+      mountPath: ${hostlog_mount}
+      readOnly: true
+  volumes:
+  - name: node-logs
+    hostPath:
+      path: /var/log
+      type: Directory
 PODS
 kubectl --context "${context}" -n "${namespace}" wait \
     --for=condition=Ready pod --all --timeout=180s
@@ -190,7 +251,8 @@ fi
 # Build one CGO-disabled static binary for the node architecture and install it
 # in scanner containers using the operator kubeconfig, never an in-Pod token.
 build_peirates_for_kind_node "${root_dir}" "${peirates_binary}" "${node_name}"
-for pod in "${baseline_pod}" "${hostroot_pod}" "${docker_pod}"; do
+for pod in "${baseline_pod}" "${hostroot_pod}" "${docker_pod}" \
+    "${hostlog_writable_pod}" "${hostlog_readonly_pod}"; do
     kubectl --context "${context}" -n "${namespace}" cp -c scanner \
         "${peirates_binary}" "${pod}:/tmp/peirates"
     kubectl --context "${context}" -n "${namespace}" exec "${pod}" -c scanner -- \
@@ -229,8 +291,42 @@ kubectl --context "${context}" -n "${namespace}" exec "${docker_pod}" -c scanner
 kubectl --context "${context}" -n "${namespace}" exec "${docker_pod}" -c scanner -- \
     sh -c 'test ! -S /var/run/docker.sock && test ! -e /hostroot'
 
+# Prove both host-log fixtures map the disposable node's /var/log at the same
+# container path, and prove only the writable fixture can mutate it. Kind's
+# staged bind mount can hide /var/log from mountinfo Root, so this exercises the
+# exact-destination fallback without treating arbitrary writable mounts as logs.
+node_log_identity="$(docker exec "${node_name}" stat -c '%d:%i' /var/log)"
+writable_log_identity="$(kubectl --context "${context}" -n "${namespace}" exec \
+    "${hostlog_writable_pod}" -c scanner -- stat -c '%d:%i' "${hostlog_mount}")"
+readonly_log_identity="$(kubectl --context "${context}" -n "${namespace}" exec \
+    "${hostlog_readonly_pod}" -c scanner -- stat -c '%d:%i' "${hostlog_mount}")"
+if [[ "${writable_log_identity}" != "${node_log_identity}" ||
+    "${readonly_log_identity}" != "${node_log_identity}" ]]; then
+    echo "host-log fixtures do not map the disposable node /var/log" >&2
+    printf 'node=%s writable=%s read-only=%s\n' \
+        "${node_log_identity}" "${writable_log_identity}" "${readonly_log_identity}" >&2
+    exit 1
+fi
+kubectl --context "${context}" -n "${namespace}" exec "${hostlog_writable_pod}" -c scanner -- \
+    sh -c "printf probe > '${hostlog_mount}/${hostlog_probe_name}'"
+docker exec "${node_name}" test -f "/var/log/${hostlog_probe_name}"
+kubectl --context "${context}" -n "${namespace}" exec "${hostlog_writable_pod}" -c scanner -- \
+    rm -f -- "${hostlog_mount}/${hostlog_probe_name}"
+docker exec "${node_name}" test ! -e "/var/log/${hostlog_probe_name}"
+if kubectl --context "${context}" -n "${namespace}" exec "${hostlog_readonly_pod}" -c scanner -- \
+    sh -c "printf probe > '${hostlog_mount}/${hostlog_probe_name}'" 2>/dev/null; then
+    echo "read-only host-log fixture unexpectedly accepted a write" >&2
+    exit 1
+fi
+docker exec "${node_name}" test ! -e "/var/log/${hostlog_probe_name}"
+if [[ -n "$(docker exec "${node_name}" find /var/log -maxdepth 1 \
+    -name '.peirates-hostlog-*' -print -quit)" ]]; then
+    echo "host-log fixture started with a Peirates temporary path" >&2
+    exit 1
+fi
+
 # Snapshot all namespace-scoped resources and all nested Docker object IDs.
-# These exact snapshots must remain unchanged after the three scan invocations.
+# These exact snapshots must remain unchanged after all scan invocations.
 kubernetes_before="$(kubectl --context "${context}" -n "${namespace}" get \
     pod,service,configmap,secret,serviceaccount,role,rolebinding,job,cronjob \
     -o name --ignore-not-found | LC_ALL=C sort)"
@@ -272,6 +368,7 @@ assert_contains "${baseline_output}" "[blocked] hostroot-breakout:" "baseline ho
 assert_contains "${baseline_output}" "[blocked] docker-socket-breakout:" "baseline Docker socket"
 assert_contains "${baseline_output}" "[unsupported] cgroup-release-agent-breakout:" "baseline cgroup v2"
 assert_contains "${baseline_output}" "[blocked] hostproc-core-pattern-breakout:" "baseline host procfs"
+assert_contains "${baseline_output}" "[blocked] hostlog-symlink-read:" "baseline host log"
 
 # Exercise canonical dispatch where an independently qualified disposable node
 # root is mounted. No shell is launched and the marker content is never read.
@@ -297,6 +394,31 @@ assert_contains "${docker_output}" "[candidate] docker-socket-breakout:" \
 assert_contains "${docker_output}" \
     "Docker-compatible API responded on ${nested_socket} (API " "nested Docker evidence"
 
+# Verify that a writable direct /var/log mount is only a candidate because the
+# read-only scanner deliberately does not test RBAC or the kubelet endpoint.
+hostlog_writable_output="$(timeout 90s kubectl --context "${context}" -n "${namespace}" exec \
+    "${hostlog_writable_pod}" -c scanner -- /tmp/peirates -c -m container-escapes 2>&1)"
+assert_contains "${hostlog_writable_output}" \
+    "Attempting menu option container-escapes" "writable host-log dispatch"
+assert_read_only_output "${hostlog_writable_output}" "writable host-log fixture"
+assert_contains "${hostlog_writable_output}" \
+    "[candidate] hostlog-symlink-read: one writable host-log mount is locally usable; nodes/proxy and kubelet /logs/ endpoint access remain unproven" \
+    "writable host-log candidate"
+assert_contains "${hostlog_writable_output}" \
+    "qualified mount ${hostlog_mount} maps to logical kubelet /logs/ with rw and effective write/search access; mountinfo did not retain a /var/log root, so hostPath origin remains unproven" \
+    "writable host-log evidence"
+assert_contains "${hostlog_writable_output}" \
+    "nodes/proxy authorization and kubelet /logs/ endpoint access were not tested" \
+    "writable host-log unproven endpoint"
+
+# Verify that mounting the same node directory read-only blocks the primitive.
+hostlog_readonly_output="$(timeout 90s kubectl --context "${context}" -n "${namespace}" exec \
+    "${hostlog_readonly_pod}" -c scanner -- /tmp/peirates -c -m container-escape-scan 2>&1)"
+assert_read_only_output "${hostlog_readonly_output}" "read-only host-log fixture"
+assert_contains "${hostlog_readonly_output}" \
+    "[blocked] hostlog-symlink-read: no writable direct mount rooted at /var/log with effective write and search access was found" \
+    "read-only host-log blocker"
+
 # Prove the scan created no Kubernetes or nested-Docker object and did not
 # alter the disposable node marker.
 kubernetes_after="$(kubectl --context "${context}" -n "${namespace}" get \
@@ -318,6 +440,11 @@ if [[ "${nested_docker_after}" != "${nested_docker_before}" ]]; then
 fi
 if [[ "$(docker exec "${node_name}" cat "${marker_path}")" != "${marker_value}" ]]; then
     echo "disposable node marker changed during container escape scans" >&2
+    exit 1
+fi
+if [[ -n "$(docker exec "${node_name}" find /var/log -maxdepth 1 \
+    -name '.peirates-hostlog-*' -print -quit)" ]]; then
+    echo "container escape scan left a temporary host-log path behind" >&2
     exit 1
 fi
 

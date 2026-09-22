@@ -145,6 +145,19 @@ func newModuleRegistry(session *Session) *modules.Registry {
 		return modules.Continue
 	}, "hostpid-ptrace-breakout")
 	registry.Register(func() modules.Result {
+		if err := launchHostLogSymlinkRead(session.Connection); err != nil {
+			fmt.Fprintf(os.Stderr, "[hostlog-symlink-read] %v\n", err)
+		}
+		return modules.Continue
+	}, "hostlog-symlink-read")
+	registry.Register(func() modules.Result {
+		accounts := append([]ServiceAccount(nil), session.ServiceAccounts...)
+		if err := launchNodesProxyExec(session.Connection, accounts); err != nil {
+			fmt.Fprintf(os.Stderr, "[nodes-proxy-exec] %v\n", err)
+		}
+		return modules.Continue
+	}, "nodes-proxy-exec")
+	registry.Register(func() modules.Result {
 		println("\nAttempting to steal secrets from the node filesystem - this will return no output if run in a container or if /var/lib/kubelet is inaccessible.\n")
 		gatherPodCredentials(&session.ServiceAccounts, true, true)
 		return modules.Continue

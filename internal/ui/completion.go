@@ -12,7 +12,8 @@ var mainMenuCommands = []string{
 	"exec-via-kubelet", "leakyvessels", "hostpid-breakout", "container-escape-scan", "escape-scan", "container-escapes",
 	"docker-socket-breakout", "docker-breakout", "dockersock-breakout", "hostroot-breakout", "host-root-breakout", "hostfs-breakout",
 	"hostproc-core-pattern-breakout", "nodefs-steal-secrets", "nodefs-secrets-list", "inject-and-exec", "kubectl",
-	"hostpid-ptrace-breakout",
+	"hostpid-ptrace-breakout", "hostlog-symlink-read", "hostlog-read",
+	"nodes-proxy-exec",
 	"kubectl-try-all-until-success", "kubectl-try-all", "curl", "set-auth-can-i", "tcpscan", "enumerate-dns",
 	"cd", "pwd", "ls", "cat", "shell", "short", "full", "outputfile", "exit",
 }

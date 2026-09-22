@@ -24,6 +24,7 @@ type fakeScannerSystem struct {
 	dockerErrors  map[string]error
 	readPaths     []string
 	accessPaths   []string
+	accessModes   []uint32
 	dockerPaths   []string
 }
 
@@ -37,7 +38,8 @@ func newFakeScannerSystem() *fakeScannerSystem {
 				"1 0 0:1 / / rw - overlay overlay rw,upperdir=/host/upper\n" +
 					"2 1 8:1 / /hostroot rw - ext4 /dev/sda1 rw\n" +
 					"3 1 0:3 / /proc rw - proc proc rw\n" +
-					"4 1 0:4 / /sys/fs/cgroup/memory rw - cgroup cgroup rw,memory\n"),
+					"4 1 0:4 / /sys/fs/cgroup/memory rw - cgroup cgroup rw,memory\n" +
+					"5 1 8:2 /var/log /hostlogs rw - ext4 /dev/sdb1 rw\n"),
 			procSelfCgroup: []byte("2:memory:/workload\n"),
 		},
 		identities:    make(map[string]escapeutil.FileIdentity),
@@ -55,12 +57,14 @@ func newFakeScannerSystem() *fakeScannerSystem {
 	system.identities["/proc/1/root"] = escapeutil.FileIdentity{Device: 2, Inode: 1}
 	system.identities["/hostroot"] = escapeutil.FileIdentity{Device: 3, Inode: 1}
 	system.kinds["/hostroot"] = pathDirectory
+	system.kinds["/hostlogs"] = pathDirectory
 	for _, path := range []string{
 		"/proc/1/root/bin/sh",
 		"/hostroot/bin/sh",
 		"/sys/fs/cgroup/memory/release_agent",
 		"/sys/fs/cgroup/memory/workload/notify_on_release",
 		"/proc/sys/kernel/core_pattern",
+		"/hostlogs",
 	} {
 		system.accessible[path] = true
 	}
@@ -93,8 +97,9 @@ func (system *fakeScannerSystem) pathKind(path string) (pathKind, error) {
 	}
 	return kind, nil
 }
-func (system *fakeScannerSystem) access(path string, _ uint32) error {
+func (system *fakeScannerSystem) access(path string, mode uint32) error {
 	system.accessPaths = append(system.accessPaths, path)
+	system.accessModes = append(system.accessModes, mode)
 	if system.accessible[path] {
 		return nil
 	}
@@ -119,15 +124,30 @@ func TestScanWithSystemFindsObservableCandidates(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]escapeutil.Status{
-		TechniqueHostPID:       escapeutil.StatusAvailable,
-		TechniqueHostRoot:      escapeutil.StatusAvailable,
-		TechniqueDockerSocket:  escapeutil.StatusCandidate,
-		TechniqueCgroupRelease: escapeutil.StatusCandidate,
-		TechniqueCorePattern:   escapeutil.StatusCandidate,
-		TechniqueHostPIDPtrace: escapeutil.StatusCandidate,
+		TechniqueHostPID:            escapeutil.StatusAvailable,
+		TechniqueHostRoot:           escapeutil.StatusAvailable,
+		TechniqueHostLogSymlinkRead: escapeutil.StatusCandidate,
+		TechniqueDockerSocket:       escapeutil.StatusCandidate,
+		TechniqueCgroupRelease:      escapeutil.StatusCandidate,
+		TechniqueCorePattern:        escapeutil.StatusCandidate,
+		TechniqueHostPIDPtrace:      escapeutil.StatusCandidate,
 	}
 	if len(findings) != len(want) {
 		t.Fatalf("finding count = %d, want %d: %#v", len(findings), len(want), findings)
+	}
+	wantOrder := []string{
+		TechniqueHostPID,
+		TechniqueHostPIDPtrace,
+		TechniqueHostRoot,
+		TechniqueHostLogSymlinkRead,
+		TechniqueDockerSocket,
+		TechniqueCgroupRelease,
+		TechniqueCorePattern,
+	}
+	for index, technique := range wantOrder {
+		if findings[index].Technique != technique {
+			t.Fatalf("finding %d = %q, want %q", index, findings[index].Technique, technique)
+		}
 	}
 	for _, finding := range findings {
 		if err := escapeutil.ValidateFinding(finding); err != nil {
@@ -160,12 +180,13 @@ func TestScanWithSystemFailsClosed(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]escapeutil.Status{
-		TechniqueHostPID:       escapeutil.StatusBlocked,
-		TechniqueHostRoot:      escapeutil.StatusBlocked,
-		TechniqueDockerSocket:  escapeutil.StatusBlocked,
-		TechniqueCgroupRelease: escapeutil.StatusUnsupported,
-		TechniqueCorePattern:   escapeutil.StatusBlocked,
-		TechniqueHostPIDPtrace: escapeutil.StatusBlocked,
+		TechniqueHostPID:            escapeutil.StatusBlocked,
+		TechniqueHostRoot:           escapeutil.StatusBlocked,
+		TechniqueHostLogSymlinkRead: escapeutil.StatusBlocked,
+		TechniqueDockerSocket:       escapeutil.StatusBlocked,
+		TechniqueCgroupRelease:      escapeutil.StatusUnsupported,
+		TechniqueCorePattern:        escapeutil.StatusBlocked,
+		TechniqueHostPIDPtrace:      escapeutil.StatusBlocked,
 	}
 	for _, finding := range findings {
 		if finding.Status != want[finding.Technique] {
@@ -173,6 +194,106 @@ func TestScanWithSystemFailsClosed(t *testing.T) {
 		}
 	}
 }
+
+func TestHostLogProbeFindsWritableDescendantMountWithoutUIDZero(t *testing.T) {
+	system := newFakeScannerSystem()
+	system.kinds["/mounted-logs"] = pathDirectory
+	system.accessible["/mounted-logs"] = true
+	finding := probeHostLog(system, scanFacts{
+		effectiveUID: 1000,
+		mounts: []escapeutil.Mount{{
+			Root:       "/var/log/pods",
+			MountPoint: "/mounted-logs",
+			Options:    []string{"nosuid", "rw"},
+		}},
+	})
+	if finding.Status != escapeutil.StatusCandidate {
+		t.Fatalf("finding = %#v", finding)
+	}
+	evidence := strings.Join(finding.Evidence, "\n")
+	for _, expected := range []string{
+		"effective UID is 1000",
+		"/mounted-logs",
+		"node root /var/log/pods",
+		"kubelet /logs/pods/",
+		"nodes/proxy authorization",
+	} {
+		if !strings.Contains(evidence, expected) && !strings.Contains(finding.Summary, expected) {
+			t.Errorf("finding does not contain %q: %#v", expected, finding)
+		}
+	}
+	if len(system.readPaths) != 0 || len(system.dockerPaths) != 0 {
+		t.Fatalf("host-log probe performed file reads or network probes: reads=%#v docker=%#v", system.readPaths, system.dockerPaths)
+	}
+	if len(system.accessPaths) != 1 || system.accessPaths[0] != "/mounted-logs" ||
+		len(system.accessModes) != 1 || system.accessModes[0] != unix.W_OK|unix.X_OK {
+		t.Fatalf("access probes = paths %#v modes %#v", system.accessPaths, system.accessModes)
+	}
+}
+
+func TestHostLogProbeLabelsExactDestinationFallbackAsUnproven(t *testing.T) {
+	system := newFakeScannerSystem()
+	system.kinds["/var/log"] = pathDirectory
+	system.accessible["/var/log"] = true
+	finding := probeHostLog(system, scanFacts{
+		effectiveUID: 0,
+		mounts: []escapeutil.Mount{{
+			Root:       "/var/lib/runtime/volumes/id/_data/log",
+			MountPoint: "/var/log",
+			Options:    []string{"rw"},
+		}},
+	})
+	if finding.Status != escapeutil.StatusCandidate {
+		t.Fatalf("finding = %#v", finding)
+	}
+	evidence := strings.Join(finding.Evidence, "\n")
+	for _, expected := range []string{
+		"qualified mount /var/log maps to logical kubelet /logs/",
+		"mountinfo did not retain a /var/log root",
+		"hostPath origin remains unproven",
+	} {
+		if !strings.Contains(evidence, expected) {
+			t.Errorf("evidence does not contain %q: %s", expected, evidence)
+		}
+	}
+}
+
+func TestHostLogProbeBlocksIncompleteLocalPrerequisites(t *testing.T) {
+	tests := []struct {
+		name       string
+		mounts     []escapeutil.Mount
+		kind       *pathKind
+		accessible bool
+	}{
+		{name: "no mount"},
+		{name: "read only", mounts: []escapeutil.Mount{{Root: "/var/log", MountPoint: "/mounted-logs", Options: []string{"ro"}}}},
+		{name: "missing", mounts: []escapeutil.Mount{{Root: "/var/log", MountPoint: "/mounted-logs", Options: []string{"rw"}}}},
+		{name: "regular file", mounts: []escapeutil.Mount{{Root: "/var/log", MountPoint: "/mounted-logs", Options: []string{"rw"}}}, kind: pathKindPointer(pathOther), accessible: true},
+		{name: "inaccessible", mounts: []escapeutil.Mount{{Root: "/var/log", MountPoint: "/mounted-logs", Options: []string{"rw"}}}, kind: pathKindPointer(pathDirectory)},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			system := newFakeScannerSystem()
+			delete(system.kinds, "/mounted-logs")
+			delete(system.accessible, "/mounted-logs")
+			if test.kind != nil {
+				system.kinds["/mounted-logs"] = *test.kind
+			}
+			if test.accessible {
+				system.accessible["/mounted-logs"] = true
+			}
+			finding := probeHostLog(system, scanFacts{effectiveUID: 1000, mounts: test.mounts})
+			if finding.Status != escapeutil.StatusBlocked {
+				t.Fatalf("finding = %#v", finding)
+			}
+			if !strings.Contains(finding.Summary, "no writable direct mount") {
+				t.Fatalf("summary = %q", finding.Summary)
+			}
+		})
+	}
+}
+
+func pathKindPointer(kind pathKind) *pathKind { return &kind }
 
 func TestHostPIDPtraceDoesNotRequireSysAdmin(t *testing.T) {
 	system := newFakeScannerSystem()

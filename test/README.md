@@ -49,8 +49,8 @@ deletes only a cluster positively owned by the current invocation.
 make kind-test
 ```
 
-`make kind-test` remains the short namespace API smoke test. To run every
-automated Kind scenario serially, use:
+`make kind-test` remains the short namespace API smoke test. To run all 21
+automated Kind scenarios serially, use:
 
 ```sh
 make kind-tests
@@ -178,6 +178,30 @@ already exist, and a caller-supplied path is never removed automatically. A
 relative path is converted to an absolute path for the printed handoff commands.
 Colon-separated kubeconfig path lists are rejected because this harness must
 retain and report exactly one file.
+
+## Nodes/proxy interactive Kind test
+
+Run `test/nodes-proxy-exec-kind-manual.sh` from an interactive terminal to
+exercise `nodes-proxy-exec` by hand against a disposable Kind cluster. This
+manual harness is intentionally separate from the 21 automated Kind targets.
+It starts Peirates directly in a runner Pod, prints the exact node, stored-token
+index, kubelet origin, verified-TLS settings, marker command, and confirmation
+string to enter, and asks the operator to choose the displayed row for the
+dedicated target container.
+
+The fixture uses an ordinary authenticated, webhook-authorized kubelet. The
+runner's active token and one later stored token are denied; only stored token
+index `1` receives node-specific `get nodes/proxy`. That identity remains
+denied `create nodes/proxy` and `create pods/exec`. The kubelet serving
+certificate is mounted as a public trust anchor, so the positive path does not
+use insecure TLS.
+
+After Peirates exits, the harness independently checks the documented marker,
+reasserts the negative RBAC controls and API health, and automatically removes
+its proven-owned cluster and private kubeconfig. Ctrl-C also invokes cleanup.
+It refuses a pre-existing cluster named
+`peirates-nodes-proxy-manual-cluster`; override the dedicated name with
+`PEIRATES_NODES_PROXY_EXEC_MANUAL_CLUSTER`.
 
 ## API pod-exec integration test
 
@@ -337,9 +361,10 @@ its proven-owned cluster. Override the name with
 Run `make container-escape-scan-kind-test` to verify that main-menu item 25
 assesses container escape prerequisites without mutating its Kubernetes,
 nested-Docker, or disposable-node fixtures. The test runs an
-architecture-matched static Peirates binary in three Pods: an unprivileged
-baseline, a container with a read-only mount of the Kind node root, and a
-client connected only to a Docker-in-Docker Unix socket.
+architecture-matched static Peirates binary in five Pods: an unprivileged
+baseline, a container with a read-only mount of the Kind node root, a client
+connected only to a Docker-in-Docker Unix socket, and writable and read-only
+mounts of the disposable node's `/var/log` at the same container path.
 
 Tested behavior:
 
@@ -352,6 +377,15 @@ Tested behavior:
   the disposable Kind node root observed outside Peirates.
 - The nested Docker fixture reports a candidate only after its bounded `_ping`
   and `/version` requests reach the isolated daemon socket.
+- The writable host-log fixture reports `hostlog-symlink-read` as a candidate,
+  identifies the `/var/log` mount, and states that
+  `nodes/proxy` authorization and kubelet `/logs/` access remain unproven.
+- The same host-log path mounted read-only reports the technique as blocked.
+  Independent writes through both fixtures prove the effective access modes.
+- Kind's staged bind mount can hide the original `/var/log` source from
+  mountinfo, so this fixture exercises the exact `/var/log` destination
+  fallback. Nonstandard container paths qualify only when mountinfo retains a
+  root at `/var/log` or one of its descendants.
 - Output includes the read-only/not-proof warning and does not disclose a
   sentinel environment value or the node marker contents.
 - Before-and-after snapshots prove that no Kubernetes resource, nested Docker
@@ -369,6 +403,7 @@ test.
 No Pod receives a service-account token or RBAC permission. The Kind node
 configuration mounts no physical-host path. The host-root fixture receives
 only the disposable Kind node container's `/` at read-only `/hostroot`; the
+host-log fixtures receive only that node container's `/var/log`; and the
 nested daemon shares only an `emptyDir` socket. The test never exposes the
 workstation or CI Docker socket, host procfs, or host cgroup controls.
 
@@ -377,6 +412,55 @@ exercise the kernel-global cgroup v1 `release_agent` or host `core_pattern`
 techniques. It verifies only their safe detection, blocked, or unsupported
 results. Positive coverage for either technique requires the separately
 approved independent-kernel VM harness described in the container-escape plan.
+
+## Host-log symlink read integration test
+
+Run `make hostlog-read-kind-test` to verify that main-menu item 33 reads one
+synthetic host file through a writable `/var/log` mount and the disposable
+node kubelet's `/logs/` handler. The test exercises numeric item `33`, canonical
+command `hostlog-symlink-read`, and alias `hostlog-read` through a real,
+architecture-matched static Peirates binary.
+
+Tested behavior:
+
+- A root runner with all capabilities dropped mounts only the Kind node
+  container's `/var/log` at the same `/var/log` path; `NODE_NAME` comes from the
+  downward API.
+- Its dedicated service account receives only `get` on cluster-scoped
+  `nodes/proxy`. The test proves it cannot get nodes, list Secrets, or create
+  Pods.
+- Every dispatch form returns the exact bytes of a synthetic marker under the
+  disposable node's `/tmp`, outside `/var/log` and outside the Pod's mounts.
+  Each Pod independently proves that the same `/tmp` target path is absent in
+  its own filesystem.
+- Peirates reports one randomized temporary symlink and removes it before
+  returning content. Docker-side checks prove that the exact link and every
+  Peirates-prefixed link are absent afterward.
+- The marker's device, inode, mode, owner, size, and SHA-256 digest remain
+  unchanged, and no ordinary `/var/log/tmp` path exposes the marker.
+- A service account without `nodes/proxy` fails endpoint preflight before
+  mutation; the same node log directory mounted read-only fails local
+  qualification; and a missing target still leaves no temporary link.
+- Namespace and test RBAC object inventories remain unchanged, all fixture
+  Pods remain Ready, and both the API server and kubelet report healthy.
+
+The single-node Kind configuration explicitly enables
+`enableDebuggingHandlers` and `enableSystemLogHandler` while disabling
+`enableSystemLogQuery`, which isolates the legacy file-server behavior under
+test. Granting `nodes/proxy` is powerful and unsafe on a shared cluster; this
+grant exists only in the uniquely named disposable fixture. The Kind
+configuration has no `extraMounts`, so the Pod hostPath reaches the Kind node
+container rather than the workstation or CI host filesystem.
+Kind's staged bind can hide its original source from mountinfo; the same-path
+fixture therefore exercises the exact `/var/log` fallback. A nonstandard
+container destination is accepted only when mountinfo preserves a root at
+`/var/log` or one of its descendants.
+
+The harness refuses a pre-existing cluster named
+`peirates-hostlog-read-integration`, uses the shared private-kubeconfig,
+cluster-claim, provenance, and fail-closed cleanup protections, and deletes
+only its proven-owned cluster. Override the name with
+`PEIRATES_HOSTLOG_READ_KIND_CLUSTER`, using a name reserved for this test.
 
 ## Docker socket breakout integration test
 

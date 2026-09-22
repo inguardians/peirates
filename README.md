@@ -59,11 +59,26 @@ docker pull bustakube/alpine-peirates:v1.1.32
 
 However, if you want to build from source, read on!
 
-    make build
+    make build-amd64
+    make build-arm
+    make build-arm64
+    make build-86
 
 The default `build` target generates a statically linked Linux AMD64 executable
 named `peirates` in the repository root. You can also invoke it explicitly with
-`make build`.
+`make build`. 
+
+    make build
+
+To build another single architecture without creating a
+distribution archive, use a target like so:
+
+    make build-amd64
+    make build-arm
+    make build-arm64
+    make build-x86
+
+The output file's name uses `BINARY` and defaults to `peirates` in the repository root.
 
 Build compressed Linux distributions for AMD64, ARM, ARM64, and 386:
 

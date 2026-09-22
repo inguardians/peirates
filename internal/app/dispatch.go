@@ -34,6 +34,8 @@ var commandAliases = map[string]string{
 	"27": "hostroot-breakout", "host-root-breakout": "hostroot-breakout", "hostfs-breakout": "hostroot-breakout",
 	"29": "hostproc-core-pattern-breakout",
 	"32": "hostpid-ptrace-breakout",
+	"33": "hostlog-symlink-read", "hostlog-read": "hostlog-symlink-read",
+	"34": "nodes-proxy-exec",
 	"30": "nodefs-steal-secrets", "steal-nodefs-secrets": "nodefs-steal-secrets", "31": "nodefs-secrets-list", "list-nodefs-secrets": "nodefs-secrets-list",
 	"89": "inject-and-exec", "91": "curl", "92": "set-auth-can-i", "93": "tcpscan", "tcp scan": "tcpscan", "portscan": "tcpscan", "port scan": "tcpscan",
 	"94": "enumerate-dns", "help": "full", "minimal": "short",

@@ -184,6 +184,7 @@ scripts=(
     "test/hostpid-breakout-kind-integration.sh:PEIRATES_HOSTPID_BREAKOUT_KIND_CLUSTER:hostpid"
     "test/hostpid-ptrace-breakout-kind-integration.sh:PEIRATES_HOSTPID_PTRACE_KIND_CLUSTER:hostpid-ptrace"
     "test/container-escape-scan-kind-integration.sh:PEIRATES_CONTAINER_ESCAPE_SCAN_KIND_CLUSTER:escape-scan"
+    "test/hostlog-read-kind-integration.sh:PEIRATES_HOSTLOG_READ_KIND_CLUSTER:hostlog-read"
     "test/docker-socket-breakout-kind-integration.sh:PEIRATES_DOCKER_SOCKET_BREAKOUT_KIND_CLUSTER:docker-socket"
     "test/hostroot-breakout-kind-integration.sh:PEIRATES_HOSTROOT_BREAKOUT_KIND_CLUSTER:hostroot"
 )

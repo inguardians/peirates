@@ -27,6 +27,8 @@ docker-socket-breakout	docker-socket-breakout	docker-socket-breakout.md
 hostroot-breakout	hostroot-breakout	hostroot-breakout.md
 hostproc-core-pattern-breakout	hostproc-core-pattern-breakout	hostproc-core-pattern-breakout.md
 hostpid-ptrace-breakout	hostpid-ptrace-breakout	hostpid-ptrace-breakout.md
+hostlog-symlink-read	hostlog-symlink-read	hostlog-symlink-read.md
+nodes-proxy-exec	nodes-proxy-exec	nodes-proxy-exec.md
 nodefs-steal-secrets	nodefs-steal-secrets	nodefs-steal-secrets.md
 kubectl	kubectl	kubectl.md
 kubectl-try-all-until-success	kubectl-try-all-until-success	kubectl-try-all-until-success.md

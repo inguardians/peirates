@@ -63,7 +63,9 @@ func (realScannerSystem) pathKind(path string) (pathKind, error) {
 	}
 	return pathOther, nil
 }
-func (realScannerSystem) access(path string, mode uint32) error { return unix.Access(path, mode) }
+func (realScannerSystem) access(path string, mode uint32) error {
+	return unix.Faccessat(unix.AT_FDCWD, path, mode, unix.AT_EACCESS)
+}
 func (realScannerSystem) dockerProbe(ctx context.Context, path string, options Options) (dockerProbeResult, error) {
 	return probeDockerSocket(ctx, path, options.DockerTimeout, options.DockerMaxResponseSize)
 }
@@ -104,6 +106,7 @@ func scanWithSystem(ctx context.Context, options Options, system scannerSystem) 
 		probeHostPID(system, facts),
 		probeHostPIDPtrace(facts),
 		probeHostRoot(system, facts),
+		probeHostLog(system, facts),
 		probeDocker(ctx, system, options),
 		probeCgroupRelease(system, facts),
 		probeCorePattern(system, facts),
@@ -293,6 +296,62 @@ func probeHostRoot(system scannerSystem, facts scanFacts) escapeutil.Finding {
 		return finding
 	}
 	return finishFinding(finding, blockers, "one distinct mounted host root is available")
+}
+
+func probeHostLog(system scannerSystem, facts scanFacts) escapeutil.Finding {
+	finding := escapeutil.Finding{
+		Technique: TechniqueHostLogSymlinkRead,
+		Evidence:  []string{fmt.Sprintf("effective UID is %d", facts.effectiveUID)},
+	}
+	const endpointEvidence = "nodes/proxy authorization and kubelet /logs/ endpoint access were not tested"
+	if facts.mountErr != nil {
+		finding.Status = escapeutil.StatusBlocked
+		finding.Summary = "mountinfo could not be inspected for a writable host-log mount"
+		finding.Evidence = append(finding.Evidence, endpointEvidence)
+		return finding
+	}
+
+	var qualified []escapeutil.HostLogMount
+	for _, candidate := range escapeutil.HostLogCandidates(facts.mounts) {
+		kind, err := system.pathKind(candidate.MountPoint)
+		if err != nil || kind != pathDirectory {
+			continue
+		}
+		if err := system.access(candidate.MountPoint, unix.W_OK|unix.X_OK); err != nil {
+			continue
+		}
+		qualified = append(qualified, candidate)
+	}
+	if len(qualified) == 0 {
+		finding.Status = escapeutil.StatusBlocked
+		finding.Summary = "no writable direct mount rooted at /var/log with effective write and search access was found"
+		finding.Evidence = append(finding.Evidence, endpointEvidence)
+		return finding
+	}
+
+	finding.Status = escapeutil.StatusCandidate
+	if len(qualified) == 1 {
+		finding.Summary = "one writable host-log mount is locally usable; nodes/proxy and kubelet /logs/ endpoint access remain unproven"
+	} else {
+		finding.Summary = "multiple writable host-log mounts require explicit selection; nodes/proxy and kubelet /logs/ endpoint access remain unproven"
+	}
+	for _, candidate := range qualified {
+		endpoint := "/logs/"
+		if candidate.URLPrefix != "" {
+			endpoint += candidate.URLPrefix + "/"
+		}
+		if candidate.HostPathOriginUnproven {
+			finding.Evidence = append(finding.Evidence, fmt.Sprintf(
+				"qualified mount %s maps to logical kubelet %s with rw and effective write/search access; mountinfo did not retain a /var/log root, so hostPath origin remains unproven",
+				candidate.MountPoint, endpoint))
+			continue
+		}
+		finding.Evidence = append(finding.Evidence, fmt.Sprintf(
+			"qualified mount %s maps node root %s to kubelet %s with rw and effective write/search access",
+			candidate.MountPoint, candidate.Root, endpoint))
+	}
+	finding.Evidence = append(finding.Evidence, endpointEvidence)
+	return finding
 }
 
 func probeDocker(ctx context.Context, system scannerSystem, options Options) escapeutil.Finding {
