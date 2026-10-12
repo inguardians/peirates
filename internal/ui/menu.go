@@ -56,6 +56,7 @@ Steal Service Accounts   |
 [11] Get a service account token from a secret [secret-to-sa]
 [12] Request IAM credentials from AWS Metadata API [aws-get-token] *
 [13] Request IAM credentials from GCP Metadata API [gcp-get-token] *
+[36] Request a managed identity token from Azure IMDS [azure-get-token] *
 [14] Request kube-env from GCP Metadata API [gcp-attack-kube-env] 
 [15] Pull Kubernetes service account tokens from kops' GCS bucket (Google Cloud only) [gcp-attack-kops-gcs-1]  *
 [16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [attack-kops-aws-1] 

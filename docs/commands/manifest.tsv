@@ -13,6 +13,7 @@ secret-to-sa	secret-to-sa	secret-to-sa.md
 scan-configmaps	scan-configmaps	scan-configmaps.md
 aws-get-token	aws-get-token	aws-get-token.md
 gcp-get-token	gcp-get-token	gcp-get-token.md
+azure-get-token	azure-get-token	azure-get-token.md
 gcp-attack-kube-env	gcp-attack-kube-env	gcp-attack-kube-env.md
 gcp-attack-kops-gcs-1	gcp-attack-kops-1	gcp-attack-kops-1.md
 attack-kops-aws-1	aws-attack-kops-1	aws-attack-kops-1.md

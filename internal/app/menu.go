@@ -63,6 +63,7 @@ Steal Service Accounts   |
 [35] Scan ConfigMaps for misplaced credentials with each stored identity [scan-configmaps]
 [12] Request IAM credentials from AWS Metadata API [aws-get-token] *
 [13] Request IAM credentials from GCP Metadata API [gcp-get-token] *
+[36] Request a managed identity token from Azure IMDS [azure-get-token] *
 [14] Request kube-env from GCP Metadata API [gcp-attack-kube-env] 
 [15] Pull Kubernetes service account tokens from kops' GCS bucket (Google Cloud only) [gcp-attack-kops-gcs-1]  *
 [16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [attack-kops-aws-1] 
@@ -253,6 +254,8 @@ func setUpCompletionMainMenu() *readline.PrefixCompleter {
 		// [13] Request IAM credentials from GCP Metadata API [gcp-get-token] *
 		readline.PcItem("get-gcp-token"),
 		readline.PcItem("gcp-get-token"),
+		readline.PcItem("azure-get-token"),
+		readline.PcItem("get-azure-token"),
 		// [14] Request kube-env from GCP Metadata API [gcp-attack-kube-env]
 		readline.PcItem("attack-kube-env-gcp"),
 		readline.PcItem("gcp-attack-kube-env"),

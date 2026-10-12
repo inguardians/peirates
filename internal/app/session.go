@@ -17,6 +17,7 @@ type Session struct {
 	Verbose            bool
 	AWSCredentials     AWSCredentials
 	AssumedAWSRole     AWSCredentials
+	AzureTokens        map[AzureTokenKey]AzureSessionToken
 }
 
 // NewSession returns the historical interactive defaults.

@@ -93,6 +93,7 @@ func newModuleRegistry(session *Session) *modules.Registry {
 		}
 		return modules.Continue
 	}, "aws-get-token")
+	registry.Register(func() modules.Result { requestAzureToken(session, nil, os.Stdin, os.Stdout); return modules.Continue }, "azure-get-token")
 	registry.Register(func() modules.Result { getGCPToken(session.Interactive); return modules.Continue }, "gcp-get-token")
 	registry.Register(func() modules.Result { attackKubeEnvGCP(session.Interactive); return modules.Continue }, "gcp-attack-kube-env")
 	registry.Register(func() modules.Result {

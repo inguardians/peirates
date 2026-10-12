@@ -13,7 +13,7 @@ is grouped by responsibility:
 - `internal/ui` owns stable menu, banner, completion, and output behavior.
 - `internal/kube` contains transport, kubectl, credential value helpers,
   enumeration, and pod execution boundaries.
-- `internal/cloud` and its `aws` and `gcp` children contain provider detection
+- `internal/cloud` and its `aws`, `gcp`, and `azure` children contain provider detection
   and metadata clients.
 - `internal/modules` contains the command registry and local filesystem, DNS,
   port-scanning, and shell capabilities.

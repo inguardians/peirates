@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/ergochat/readline"
 	"github.com/inguardians/peirates/internal/modules"
@@ -119,6 +120,7 @@ func Main() {
 	var input int
 	for ok := true; ok; ok = (input != 2) {
 		banner(session.Connection, detectCloud, eth0IP, session.AWSCredentials, session.AssumedAWSRole)
+		printAzureTokenStatus(os.Stdout, session, time.Now())
 
 		var input string
 
@@ -493,7 +495,7 @@ func Main() {
 		// }
 
 		// Peirates MAIN MENU
-		result, found := moduleRegistry.Run(canonicalModuleCommand(input))
+		result, found := runModuleCommand(moduleRegistry, session, input)
 		if !found {
 			fmt.Println("Command unrecognized.")
 		}

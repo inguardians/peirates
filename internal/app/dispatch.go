@@ -24,6 +24,7 @@ var commandAliases = map[string]string{
 	"5": "find-volume-mounts", "find-mounts": "find-volume-mounts",
 	"20": "attack-pod-hostpath-mount", "attack-hostpath-mount": "attack-pod-hostpath-mount", "attack-pod-mount": "attack-pod-hostpath-mount", "attack-hostmount-pod": "attack-pod-hostpath-mount", "attack-mount-pod": "attack-pod-hostpath-mount",
 	"12": "aws-get-token", "get-aws-token": "aws-get-token", "13": "gcp-get-token", "get-gcp-token": "gcp-get-token",
+	"36": "azure-get-token", "get-azure-token": "azure-get-token",
 	"14": "gcp-attack-kube-env", "attack-kube-env-gcp": "gcp-attack-kube-env", "15": "gcp-attack-kops-1", "attack-kops-gcs-1": "gcp-attack-kops-1",
 	"16": "aws-attack-kops-1", "attack-aws-kops-1": "aws-attack-kops-1", "17": "aws-s3-ls", "aws-ls-s3": "aws-s3-ls", "ls-s3": "aws-s3-ls", "s3-ls": "aws-s3-ls",
 	"18": "aws-s3-ls-objects", "aws-s3-list-objects": "aws-s3-ls-objects", "aws-s3-list-bucket": "aws-s3-ls-objects",
