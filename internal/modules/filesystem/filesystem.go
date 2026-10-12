@@ -2,12 +2,23 @@
 package filesystem
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 )
 
 // DisplayFile prints the contents of the file at filePath.
 func DisplayFile(filePath string) error {
+	return displayFile(filePath, false)
+}
+
+// DisplayJSONFile prints the file's JSON contents with two-space indentation.
+func DisplayJSONFile(filePath string) error {
+	return displayFile(filePath, true)
+}
+
+func displayFile(filePath string, prettyJSON bool) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("failed opening file: %w", err)
@@ -17,6 +28,13 @@ func DisplayFile(filePath string) error {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return fmt.Errorf("failed reading file: %w", err)
+	}
+	if prettyJSON {
+		var formatted bytes.Buffer
+		if err := json.Indent(&formatted, content, "", "  "); err != nil {
+			return fmt.Errorf("failed formatting JSON: %w", err)
+		}
+		content = formatted.Bytes()
 	}
 	fmt.Println(string(content))
 	return nil

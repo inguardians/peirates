@@ -298,16 +298,23 @@ func Main() {
 			continue
 		}
 
-		// cat to display files
+		// cat and json-cat to display files
 		const catSpace = "cat "
-		if strings.HasPrefix(input, catSpace) {
+		const jsonCatSpace = "json-cat "
+		if strings.HasPrefix(input, catSpace) || strings.HasPrefix(input, jsonCatSpace) {
+			prefix := catSpace
+			display := displayFile
+			if strings.HasPrefix(input, jsonCatSpace) {
+				prefix = jsonCatSpace
+				display = displayJSONFile
+			}
 			// Trim off the newline - should we do this for all input anyway?
 			input = strings.TrimSuffix(input, "\n")
-			// remove the cat, then split the rest on whitespace
-			argumentsLine := strings.TrimPrefix(input, catSpace)
+			// Remove the command, then split the rest on whitespace.
+			argumentsLine := strings.TrimPrefix(input, prefix)
 			spaceDelimitedSet := strings.Fields(argumentsLine)
 			for _, file := range spaceDelimitedSet {
-				err := displayFile(file)
+				err := display(file)
 				if err != nil {
 					println("Error displaying file: " + file + " due to " + err.Error())
 				}

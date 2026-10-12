@@ -39,7 +39,7 @@ curl	curl	curl.md
 set-auth-can-i	set-auth-can-i	set-auth-can-i.md
 tcpscan	tcpscan	tcpscan.md
 enumerate-dns	enumerate-dns	enumerate-dns.md
-cd	cd,pwd,ls,cat	filesystem.md
+cd	cd,pwd,ls,cat,json-cat	filesystem.md
 shell	shell	shell.md
 bash	bash,sh	system-shell.md
 short	short	menu-visibility.md

@@ -62,7 +62,7 @@ Commands can normally be selected interactively by number, canonical name, or al
 | 92 | `set-auth-can-i` | [Configure authorization prechecks](set-auth-can-i.md) |
 | 93 | `tcpscan` | [Scan TCP ports](tcpscan.md) |
 | 94 | `enumerate-dns` | [Enumerate services through DNS](enumerate-dns.md) |
-| — | `cd`, `pwd`, `ls`, `cat` | [Filesystem commands](filesystem.md) |
+| — | `cd`, `pwd`, `ls`, `cat`, `json-cat` | [Filesystem commands](filesystem.md) |
 | — | `shell` | [Run local commands](shell.md) |
 | — | `bash`, `sh` | [Start a system shell](system-shell.md) |
 | `short` / `full` | `short`, `full` | [Change menu visibility](menu-visibility.md) |

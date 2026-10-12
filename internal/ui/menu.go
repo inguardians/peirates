@@ -26,7 +26,7 @@ Menu |
 [ set-auth-can-i ]                    Deactivate "auth can-i" checking before attempting actions 
 [ curl ]                              Make an HTTP request (GET or POST) to a user-specified URL 
 [ tcpscan ]                           Run a simple all-ports TCP port scan against an IP address 
-[ cd , pwd , ls , cat ]               Manipulate the filesystem via Golang-native commands
+[ cd , pwd , ls , cat , json-cat ]      Manipulate the filesystem via Golang-native commands
 [ shell <command> ]                   Run a shell command 
 
 [ full ]                              Switch to full (classic menu) with a longer list of commands
@@ -94,7 +94,7 @@ Off-Menu         +
 [92] Deactivate "auth can-i" checking before attempting actions [set-auth-can-i] 
 [93] Run a simple all-ports TCP port scan against an IP address [tcpscan]
 [94] Enumerate services via DNS [enumerate-dns] *
-[] Manipulate the filesystem [ cd , pwd , ls , cat ]
+[] Manipulate the filesystem [ cd , pwd , ls , cat , json-cat ]
 []  Run a shell command [shell <command and arguments>]
 []  Run a Bash or Bourne shell [bash or sh]
 

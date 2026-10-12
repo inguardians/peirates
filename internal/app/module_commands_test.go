@@ -130,6 +130,9 @@ func TestMainRunsNonInteractiveFilesystemModules(t *testing.T) {
 	if err := os.WriteFile(dir+string(os.PathSeparator)+file, []byte("module file contents"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(dir+string(os.PathSeparator)+"example.json", []byte(`{"value":9007199254740993}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	for _, test := range []struct {
 		module string
 		want   string
@@ -137,6 +140,12 @@ func TestMainRunsNonInteractiveFilesystemModules(t *testing.T) {
 		{"pwd", dir},
 		{"ls", file},
 		{"cat " + file, "module file contents"},
+		{"cat example.json", `{"value":9007199254740993}`},
+		{"json-cat example.json", "{\n  \"value\": 9007199254740993\n}\n"},
+		{"json-cat example.json example.json", "{\n  \"value\": 9007199254740993\n}\n{\n  \"value\": 9007199254740993\n}\n"},
+		{"json-cat " + file, "Error displaying file: " + file + " due to failed formatting JSON"},
+		{"json-cat missing.json", "Error displaying file: missing.json due to failed opening file"},
+		{"json-cat " + file + " missing.json example.json", "{\n  \"value\": 9007199254740993\n}\n"},
 		{"cd " + dir, dir},
 		{"outputfile", "deactivating output to file"},
 		{"outputfile output.log", "Output file set to: output.log"},
@@ -258,7 +267,7 @@ func TestMainMenuCompletionIncludesEveryCanonicalModule(t *testing.T) {
 		"hostroot-breakout", "hostlog-symlink-read", "hostlog-read", "nodes-proxy-exec", "scan-configmaps", "nodefs-steal-secrets", "nodefs-secrets-list",
 		"inject-and-exec",
 		"kubectl", "kubectl-try-all", "kubectl-try-all-until-success", "curl",
-		"set-auth-can-i", "tcpscan", "enumerate-dns", "cd", "pwd", "ls", "cat",
+		"set-auth-can-i", "tcpscan", "enumerate-dns", "cd", "pwd", "ls", "cat", "json-cat",
 		"shell", "short", "full", "outputfile", "exit",
 	}
 	for _, command := range want {

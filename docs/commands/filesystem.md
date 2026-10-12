@@ -3,7 +3,7 @@
 ## Menu entry
 
 - **Menu item:** Unnumbered grouped row
-- **Canonical commands:** `cd`, `pwd`, `ls`, `cat`
+- **Canonical commands:** `cd`, `pwd`, `ls`, `cat`, `json-cat`
 - **Maturity:** Supported with intentionally limited syntax
 
 ## Purpose
@@ -22,6 +22,8 @@ ls
 ls /var/run/secrets
 cd /tmp
 cat /path/to/file
+json-cat /path/to/file.json
+json-cat first.json second.json
 ```
 
 Each form also works as one-shot input, for example `peirates -m 'ls /tmp'`.
@@ -30,9 +32,20 @@ Each form also works as one-shot input, for example `peirates -m 'ls /tmp'`.
 
 `pwd` prints the process working directory. `cd` changes that directory for the current process. `ls` prints entry names for the current directory or each supplied directory. `cat` prints each supplied file in order.
 
+`json-cat` works like `cat`, but validates each file as JSON and pretty-prints it with two-space indentation. It preserves key order and numeric values. Each file must contain one JSON value; invalid JSON produces an error and processing continues with the next file.
+
 ## Expected output
 
 Paths, directory entry names, or file contents are printed directly to the terminal.
+
+For a file containing `{"name":"example","enabled":true}`, `json-cat` prints:
+
+```json
+{
+  "name": "example",
+  "enabled": true
+}
+```
 
 ## Side effects and cleanup
 

@@ -15,7 +15,7 @@ var mainMenuCommands = []string{
 	"hostpid-ptrace-breakout", "hostlog-symlink-read", "hostlog-read",
 	"nodes-proxy-exec",
 	"kubectl-try-all-until-success", "kubectl-try-all", "curl", "set-auth-can-i", "tcpscan", "enumerate-dns",
-	"cd", "pwd", "ls", "cat", "shell", "short", "full", "outputfile", "exit",
+	"cd", "pwd", "ls", "cat", "json-cat", "shell", "short", "full", "outputfile", "exit",
 }
 
 // SetUpCompletionMainMenu creates completion entries in their historical order.
