@@ -49,7 +49,7 @@ deletes only a cluster positively owned by the current invocation.
 make kind-test
 ```
 
-`make kind-test` remains the short namespace API smoke test. To run all 22
+`make kind-test` remains the short namespace API smoke test. To run all 23
 automated Kind scenarios serially, use:
 
 ```sh
@@ -576,3 +576,23 @@ Override the name with `PEIRATES_HOSTROOT_BREAKOUT_KIND_CLUSTER`, using a name
 reserved for this test. Deleting that disposable cluster also removes the
 fixture marker and every test Pod; the module itself leaves no persistent
 resource to clean up.
+
+## kubectl-can-i integration test
+
+Run `make kubectl-can-i-kind-test` to check stored service-account tokens and a
+real client certificate against namespace-scoped `create pods` permissions.
+The disposable cluster issues an ordinary client certificate, exposes it at a
+synthetic kubelet discovery path, and mounts allowed and denied token fixtures.
+The test verifies `-n namespace` and `--namespace=namespace`, default/current
+namespace and all-namespace denials, certificate denial after removing its
+RoleBinding, and preservation of the current identity and namespace in the
+interactive menu. Independent kubectl checks authenticate the real certificate
+and verify service-account RBAC. A before/after pod inventory confirms the
+requested creation action was never executed, and output assertions reject
+credential disclosure.
+
+The runner has no create-pods grant. Only the alternate token and certificate
+receive that grant, solely in the target namespace. The test refuses a
+pre-existing `peirates-kubectl-can-i-integration` cluster and uses the shared
+claim, private kubeconfig, provenance, and cleanup helpers to delete only its
+own cluster. Override the name with `PEIRATES_KUBECTL_CAN_I_KIND_CLUSTER`.

@@ -33,6 +33,7 @@ hostlog-symlink-read	hostlog-symlink-read	hostlog-symlink-read.md
 nodes-proxy-exec	nodes-proxy-exec	nodes-proxy-exec.md
 nodefs-steal-secrets	nodefs-steal-secrets	nodefs-steal-secrets.md
 kubectl	kubectl	kubectl.md
+kubectl-can-i	kubectl-can-i	kubectl-can-i.md
 kubectl-try-all-until-success	kubectl-try-all-until-success	kubectl-try-all-until-success.md
 kubectl-try-all	kubectl-try-all	kubectl-try-all.md
 curl	curl	curl.md

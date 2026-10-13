@@ -39,6 +39,7 @@ KIND_TEST_CASES := \
 	hostroot-breakout-kind-test:PEIRATES_HOSTROOT_BREAKOUT_KIND_CLUSTER:peirates-hostroot-breakout-integration:test/hostroot-breakout-kind-integration.sh \
 	exec-via-api-kind-test:PEIRATES_EXEC_API_KIND_CLUSTER:peirates-exec-api-integration:test/exec-via-api-kind-integration.sh \
 	kubectl-try-all-kind-test:PEIRATES_KUBECTL_TRY_ALL_KIND_CLUSTER:peirates-kubectl-try-all-integration:test/kubectl-try-all-kind-integration.sh \
+	kubectl-can-i-kind-test:PEIRATES_KUBECTL_CAN_I_KIND_CLUSTER:peirates-kubectl-can-i-integration:test/kubectl-can-i-kind-integration.sh \
 	curl-kind-test:PEIRATES_CURL_KIND_CLUSTER:peirates-curl-integration:test/curl-kind-integration.sh
 KIND_TEST_TARGETS := $(foreach test_case,$(KIND_TEST_CASES),$(word 1,$(subst :, ,$(test_case))))
 
@@ -161,6 +162,9 @@ exec-via-api-kind-test:
 
 kubectl-try-all-kind-test:
 	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) ./test/kubectl-try-all-kind-integration.sh
+
+kubectl-can-i-kind-test:
+	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) ./test/kubectl-can-i-kind-integration.sh
 
 curl-kind-test:
 	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) ./test/curl-kind-integration.sh

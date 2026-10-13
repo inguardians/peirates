@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -45,6 +46,9 @@ func TestMainSafeModuleHelper(t *testing.T) {
 	launchConfigMapScan = func(context.Context, ServerInfo, []ServiceAccount, []ClientCertificateKeyPair, io.Writer) error {
 		return errors.New("ConfigMap scan unavailable in smoke test")
 	}
+	launchKubectlCanI = func(_ ServerInfo, _ []ServiceAccount, _ []ClientCertificateKeyPair, args []string, _ io.Writer) error {
+		return fmt.Errorf("authorization query smoke arguments: %q", args)
+	}
 	// Keep cloud-module smoke tests local and deterministic. These helpers are
 	// used only by code paths that already support dependency injection.
 	awsMetadataBaseURL = "http://127.0.0.1:1"
@@ -80,6 +84,8 @@ func TestMainRunsSafeModulesFromMFlag(t *testing.T) {
 		{"aws-empty-assumed-role", "Attempting menu option"}, {"8", "Attempting menu option"},
 		{"exit", "Attempting menu option"}, {"quit", "Attempting menu option"},
 		{"kubectl version", "certificate authority path not defined"},
+		{"kubectl-can-i", "authorization query smoke arguments: []"},
+		{"kubectl-can-i -n namespace create pods", `authorization query smoke arguments: ["-n" "namespace" "create" "pods"]`},
 		{"kubectl-try-all get pods", "Trying the command as every service account."},
 		{"kubectl-try-all-until-success get pods", "until we find one that works."},
 		{"curl -d invalid", "Could not create request."}, {"curl -X", "Could not create request."},
@@ -266,7 +272,7 @@ func TestMainMenuCompletionIncludesEveryCanonicalModule(t *testing.T) {
 		"exec-via-kubelet", "leakyvessels", "hostpid-breakout", "hostpid-ptrace-breakout", "container-escape-scan", "docker-socket-breakout",
 		"hostroot-breakout", "hostlog-symlink-read", "hostlog-read", "nodes-proxy-exec", "scan-configmaps", "nodefs-steal-secrets", "nodefs-secrets-list",
 		"inject-and-exec",
-		"kubectl", "kubectl-try-all", "kubectl-try-all-until-success", "curl",
+		"kubectl", "kubectl-can-i", "kubectl-try-all", "kubectl-try-all-until-success", "curl",
 		"set-auth-can-i", "tcpscan", "enumerate-dns", "cd", "pwd", "ls", "cat", "json-cat",
 		"shell", "short", "full", "outputfile", "exit",
 	}

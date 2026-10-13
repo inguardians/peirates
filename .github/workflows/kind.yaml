@@ -64,6 +64,8 @@ jobs:
             cluster-env: PEIRATES_EXEC_API_KIND_CLUSTER
           - target: kubectl-try-all-kind-test
             cluster-env: PEIRATES_KUBECTL_TRY_ALL_KIND_CLUSTER
+          - target: kubectl-can-i-kind-test
+            cluster-env: PEIRATES_KUBECTL_CAN_I_KIND_CLUSTER
           - target: curl-kind-test
             cluster-env: PEIRATES_CURL_KIND_CLUSTER
 

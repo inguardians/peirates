@@ -56,6 +56,7 @@ Commands can normally be selected interactively by number, canonical name, or al
 | Menu | Command | Reference |
 | --- | --- | --- |
 | 90 | `kubectl` | [Run kubectl with the current context](kubectl.md) |
+| — | `kubectl-can-i` | [Find identities permitted to perform an action](kubectl-can-i.md) |
 | — | `kubectl-try-all-until-success` | [Try contexts until one succeeds](kubectl-try-all-until-success.md) |
 | — | `kubectl-try-all` | [Run with every context](kubectl-try-all.md) |
 | 91 | `curl` | [Make an HTTP request](curl.md) |

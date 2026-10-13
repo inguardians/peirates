@@ -173,6 +173,14 @@ func Main() {
 		//                  items["kubectl "] = &handleKubectlSpace()
 		////////////////////////////////////////////////////////////////////////////////
 
+		if handleKubectlCanI(input, session, os.Stdout) {
+			pauseToHitEnter(session.Interactive)
+			if !session.Interactive {
+				return
+			}
+			continue
+		}
+
 		// Handle kubectl commands before the switch menu.
 		const kubectlSpace = "kubectl "
 		if strings.HasPrefix(input, kubectlSpace) {

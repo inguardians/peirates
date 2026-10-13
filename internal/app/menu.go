@@ -26,6 +26,7 @@ Menu |
 [cert-menu]                           Switch certificate-based authentication (kubelet or manually-entered)
 
 [ kubectl ________________________ ]  Run a kubectl command using the current authorization context
+[ kubectl-can-i _________________ ]  Print stored identities permitted to perform an action (try: kubectl-can-i -n namespace create pods)
 [ kubectl-try-all-until-success __ ]  Run a kubectl command using EVERY authorization context until one works
 [ kubectl-try-all ________________ ]  Run a kubectl command using EVERY authorization context
 
@@ -95,6 +96,7 @@ Node Attacks |
 Off-Menu         +
 -----------------+
 [90] Run a kubectl command using the current authorization context [kubectl [arguments]]
+[] Print stored identities permitted to perform an action [kubectl-can-i [arguments]]
 [] Run a kubectl command using EVERY authorization context until one works [kubectl-try-all-until-success [arguments]]
 [] Run a kubectl command using EVERY authorization context [kubectl-try-all [arguments]]
 [91] Make an HTTP request (GET or POST) to a user-specified URL [curl]
@@ -308,6 +310,7 @@ func setUpCompletionMainMenu() *readline.PrefixCompleter {
 		readline.PcItem("inject-and-exec"),
 		// [90] Run a kubectl command using the current authorization context [kubectl [arguments]]
 		readline.PcItem("kubectl"),
+		readline.PcItem("kubectl-can-i"),
 		// [] Run a kubectl command using EVERY authorization context until one works [kubectl-try-all-until-success [arguments]]
 		readline.PcItem("kubectl-try-all-until-success"),
 		// [] Run a kubectl command using EVERY authorization context [kubectl-try-all [arguments]]
