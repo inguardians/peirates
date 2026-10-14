@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 )
 
 var azureMetadataClient = azure.NewMetadataClient()
+var azureConfigPath = azure.DefaultConfigPath
 
 // AzureTokenKey identifies one requested audience and resolved identity.
 type AzureTokenKey struct{ IdentityType, Identity, Resource string }
@@ -67,19 +69,46 @@ func printAzureTokenStatus(out io.Writer, session *Session, now time.Time) {
 }
 
 const azureTokenUsage = `Usage: azure-get-token [--resource URI] [--client-id ID | --object-id ID | --msi-res-id ID]
+                       [--list-identities | --no-discovery]
 Aliases: 36, get-azure-token
 Bare interactive invocation prompts for resource and identity. Options and -m skip prompts.
-Default resource: https://management.azure.com/; default identity: IMDS selection.
+Without an explicit identity, discover client IDs from /etc/kubernetes/azure.json and AKS IMDS tags.
+A single candidate is the default; multiple candidates require a choice or --client-id.
+--list-identities shows candidates and their sources without requesting a token.
+--no-discovery uses IMDS default selection when no explicit identity is provided.
+Default resource: https://management.azure.com/; no candidates: IMDS default selection.
 `
 
-func azureTokenSelection(args []string, interactive bool, in io.Reader, out io.Writer) (azure.TokenRequest, error) {
-	selection := azure.TokenRequest{Resource: azure.DefaultResource}
+type azureTokenOptions struct {
+	azure.TokenRequest
+	listIdentities bool
+	noDiscovery    bool
+}
+
+func printAzureIdentityDiscovery(out io.Writer, discovery azure.IdentityDiscovery) {
+	for _, warning := range discovery.Warnings {
+		fmt.Fprintf(out, "[!] Azure identity discovery: %v\n", warning)
+	}
+	if len(discovery.Candidates) == 0 {
+		fmt.Fprintln(out, "[*] No Azure client IDs discovered from node config or AKS IMDS tags; identities may still be assigned.")
+		return
+	}
+	fmt.Fprintln(out, "[+] Azure identity candidates (IMDS availability is confirmed when requesting a token):")
+	for i, candidate := range discovery.Candidates {
+		fmt.Fprintf(out, "  %d. %s\n     Source: %s\n", i+1, candidate.ClientID, strings.Join(candidate.Sources, "; "))
+	}
+}
+
+func azureTokenSelection(args []string, interactive bool, in io.Reader, out io.Writer) (azureTokenOptions, error) {
+	selection := azureTokenOptions{TokenRequest: azure.TokenRequest{Resource: azure.DefaultResource}}
 	flags := flag.NewFlagSet("azure-get-token", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	flags.StringVar(&selection.Resource, "resource", azure.DefaultResource, "resource URI")
 	flags.StringVar(&selection.ClientID, "client-id", "", "managed identity client ID")
 	flags.StringVar(&selection.ObjectID, "object-id", "", "managed identity object ID")
 	flags.StringVar(&selection.MSIResourceID, "msi-res-id", "", "managed identity resource ID")
+	flags.BoolVar(&selection.listIdentities, "list-identities", false, "list discovered identity candidates without requesting a token")
+	flags.BoolVar(&selection.noDiscovery, "no-discovery", false, "skip identity discovery")
 	if err := flags.Parse(args); err != nil {
 		return selection, err
 	}
@@ -101,19 +130,30 @@ func azureTokenSelection(args []string, interactive bool, in io.Reader, out io.W
 	if emptyOption {
 		return selection, errors.New("options require nonempty values")
 	}
-	if len(args) == 0 && interactive {
-		reader := bufio.NewReader(&singleByteReader{reader: in})
-		read := func(prompt string) (string, error) {
-			fmt.Fprint(out, prompt)
-			line, err := reader.ReadString('\n')
-			if err != nil {
-				return "", fmt.Errorf("Azure token request cancelled: %w", err)
-			}
-			if strings.ContainsAny(line, "\x03\x1b") {
-				return "", errors.New("Azure token request cancelled")
-			}
-			return strings.TrimSpace(line), nil
+	if err := selection.Validate(); err != nil {
+		return selection, err
+	}
+	identityKind, _ := azureIdentity(selection.TokenRequest)
+	if selection.listIdentities && (selection.noDiscovery || identityKind != "default") {
+		return selection, errors.New("--list-identities cannot be combined with an identity selector or --no-discovery")
+	}
+	if identityKind != "default" {
+		return selection, nil
+	}
+	prompt := len(args) == 0 && interactive
+	reader := bufio.NewReader(&singleByteReader{reader: in})
+	read := func(prompt string) (string, error) {
+		fmt.Fprint(out, prompt)
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			return "", fmt.Errorf("Azure token request cancelled: %w", err)
 		}
+		if strings.ContainsAny(line, "\x03\x1b") {
+			return "", errors.New("Azure token request cancelled")
+		}
+		return strings.TrimSpace(line), nil
+	}
+	if prompt {
 		resource, err := read("Resource URI [" + azure.DefaultResource + "]: ")
 		if err != nil {
 			return selection, err
@@ -121,12 +161,34 @@ func azureTokenSelection(args []string, interactive bool, in io.Reader, out io.W
 		if resource != "" {
 			selection.Resource = resource
 		}
-		kind, err := read("Identity [default/client-id/object-id/msi-res-id] [default]: ")
+	}
+	var discovery azure.IdentityDiscovery
+	if !selection.noDiscovery {
+		discovery = azureMetadataClient.DiscoverIdentities(context.Background(), azureConfigPath)
+		printAzureIdentityDiscovery(out, discovery)
+	}
+	if selection.listIdentities {
+		return selection, nil
+	}
+	if prompt {
+		identityPrompt := "Identity [default/client-id/object-id/msi-res-id] [default]: "
+		defaultIdentity := "default"
+		if len(discovery.Candidates) == 1 {
+			identityPrompt = "Identity [1/default/client-id/object-id/msi-res-id] [1]: "
+			defaultIdentity = "1"
+		} else if len(discovery.Candidates) > 1 {
+			identityPrompt = fmt.Sprintf("Identity [1-%d/default/client-id/object-id/msi-res-id] (required): ", len(discovery.Candidates))
+			defaultIdentity = ""
+		}
+		kind, err := read(identityPrompt)
 		if err != nil {
 			return selection, err
 		}
+		if kind == "" {
+			kind = defaultIdentity
+		}
 		switch kind {
-		case "", "default":
+		case "default":
 		case "client-id", "object-id", "msi-res-id":
 			id, err := read("Identity " + kind + ": ")
 			if err != nil {
@@ -144,7 +206,21 @@ func azureTokenSelection(args []string, interactive bool, in io.Reader, out io.W
 				selection.MSIResourceID = id
 			}
 		default:
-			return selection, errors.New("identity must be default, client-id, object-id, or msi-res-id")
+			index, err := strconv.Atoi(kind)
+			if err != nil || index < 1 || index > len(discovery.Candidates) {
+				return selection, errors.New("identity must be a listed number, default, client-id, object-id, or msi-res-id; multiple candidates require an explicit choice")
+			}
+			selection.ClientID = discovery.Candidates[index-1].ClientID
+		}
+	} else {
+		switch len(discovery.Candidates) {
+		case 0:
+			// Preserve default IMDS selection if neither source supplied a candidate.
+		case 1:
+			selection.ClientID = discovery.Candidates[0].ClientID
+			fmt.Fprintf(out, "[*] Using discovered client ID: %s\n", selection.ClientID)
+		default:
+			return selection, errors.New("multiple Azure identity candidates found; select one with --client-id ID")
 		}
 	}
 	return selection, selection.Validate()
@@ -160,13 +236,16 @@ func requestAzureToken(session *Session, args []string, in io.Reader, out io.Wri
 		fmt.Fprintf(out, "[-] Azure token: %v\n", err)
 		return
 	}
-	token, err := azureMetadataClient.RequestToken(context.Background(), selection)
+	if selection.listIdentities {
+		return
+	}
+	token, err := azureMetadataClient.RequestToken(context.Background(), selection.TokenRequest)
 	if err != nil {
 		fmt.Fprintf(out, "[-] Azure token: %v\n", err)
 		return
 	}
-	session.retainAzureToken(selection, token)
-	kind, id := azureIdentity(selection)
+	session.retainAzureToken(selection.TokenRequest, token)
+	kind, id := azureIdentity(selection.TokenRequest)
 	fmt.Fprintf(out, "[+] Azure managed identity token\nResource: %s\nIdentity selection: %s %s\nExpires (UTC): %s\nBearer token: %s\n", selection.Resource, kind, id, token.ExpiresOn.UTC().Format(time.RFC3339), token.AccessToken)
 }
 

@@ -22,6 +22,7 @@ func fixtureClient(t *testing.T, handler http.HandlerFunc) *MetadataClient {
 	t.Cleanup(server.Close)
 	client := NewMetadataClient()
 	client.Endpoint = server.URL + "/metadata/identity/oauth2/token"
+	client.InstanceEndpoint = server.URL + "/metadata/instance"
 	client.Now = func() time.Time { return fixtureNow }
 	t.Cleanup(client.HTTPClient.CloseIdleConnections)
 	return client

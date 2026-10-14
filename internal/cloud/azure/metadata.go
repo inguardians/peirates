@@ -72,9 +72,10 @@ func (e *HTTPError) Error() string {
 
 // MetadataClient supports injectable HTTP transport, endpoint, and clock for fixtures.
 type MetadataClient struct {
-	HTTPClient *http.Client
-	Endpoint   string
-	Now        func() time.Time
+	HTTPClient       *http.Client
+	Endpoint         string
+	InstanceEndpoint string
+	Now              func() time.Time
 }
 
 // NewMetadataClient uses a dedicated direct transport, without environment proxies.
@@ -86,8 +87,9 @@ func NewMetadataClient() *MetadataClient {
 	return &MetadataClient{
 		HTTPClient: &http.Client{Transport: transport, Timeout: requestTimeout,
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
-		Endpoint: DefaultEndpoint,
-		Now:      time.Now,
+		Endpoint:         DefaultEndpoint,
+		InstanceEndpoint: DefaultInstanceEndpoint,
+		Now:              time.Now,
 	}
 }
 
@@ -110,11 +112,20 @@ func (c *MetadataClient) RequestToken(ctx context.Context, selection TokenReques
 		}
 	}
 	endpoint.RawQuery = query.Encode()
+	body, err := c.getMetadata(ctx, endpoint)
+	if err != nil {
+		return Token{}, err
+	}
+	return c.parseToken(body, selection)
+}
+
+// getMetadata applies the same transport limits to token and instance requests.
+func (c *MetadataClient) getMetadata(ctx context.Context, endpoint *url.URL) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
 	if err != nil {
-		return Token{}, err
+		return nil, err
 	}
 	req.Header.Set("Metadata", "true")
 	// Enforce the redirect policy even with an injected fixture client.
@@ -122,15 +133,15 @@ func (c *MetadataClient) RequestToken(ctx context.Context, selection TokenReques
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	response, err := client.Do(req)
 	if err != nil {
-		return Token{}, fmt.Errorf("Azure IMDS request: %w", err)
+		return nil, fmt.Errorf("Azure IMDS request: %w", err)
 	}
 	defer response.Body.Close()
 	body, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBytes+1))
 	if err != nil {
-		return Token{}, fmt.Errorf("read Azure IMDS response: %w", err)
+		return nil, fmt.Errorf("read Azure IMDS response: %w", err)
 	}
 	if len(body) > maxResponseBytes {
-		return Token{}, errors.New("Azure IMDS response exceeds 1 MiB")
+		return nil, errors.New("Azure IMDS response exceeds 1 MiB")
 	}
 	if response.StatusCode != http.StatusOK {
 		var detail struct {
@@ -138,8 +149,12 @@ func (c *MetadataClient) RequestToken(ctx context.Context, selection TokenReques
 			Description string `json:"error_description"`
 		}
 		_ = json.Unmarshal(body, &detail)
-		return Token{}, &HTTPError{StatusCode: response.StatusCode, Code: detail.Code, Description: detail.Description}
+		return nil, &HTTPError{StatusCode: response.StatusCode, Code: detail.Code, Description: detail.Description}
 	}
+	return body, nil
+}
+
+func (c *MetadataClient) parseToken(body []byte, selection TokenRequest) (Token, error) {
 	var wire struct {
 		AccessToken string          `json:"access_token"`
 		TokenType   string          `json:"token_type"`

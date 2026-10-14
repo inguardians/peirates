@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -21,12 +22,34 @@ import (
 
 func useAzureFixture(t *testing.T, handler http.HandlerFunc) {
 	t.Helper()
-	server := httptest.NewServer(handler)
+	useAzureDiscoveryFixture(t, "", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, `{}`) }, handler)
+}
+
+func useAzureDiscoveryFixture(t *testing.T, config string, instance, token http.HandlerFunc) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "azure.json")
+	if config != "" {
+		if err := os.WriteFile(path, []byte(config), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/metadata/instance" {
+			instance(w, r)
+			return
+		}
+		token(w, r)
+	}))
 	t.Cleanup(server.Close)
-	previous := azureMetadataClient
+	previous, previousPath := azureMetadataClient, azureConfigPath
 	azureMetadataClient = azure.NewMetadataClient()
 	azureMetadataClient.Endpoint = server.URL
-	t.Cleanup(func() { azureMetadataClient.HTTPClient.CloseIdleConnections(); azureMetadataClient = previous })
+	azureMetadataClient.InstanceEndpoint = server.URL + "/metadata/instance"
+	azureConfigPath = path
+	t.Cleanup(func() {
+		azureMetadataClient.HTTPClient.CloseIdleConnections()
+		azureMetadataClient, azureConfigPath = previous, previousPath
+	})
 }
 
 func writeAzureFixture(w http.ResponseWriter) {
@@ -34,6 +57,7 @@ func writeAzureFixture(w http.ResponseWriter) {
 }
 
 func TestAzurePromptSelection(t *testing.T) {
+	useAzureFixture(t, func(http.ResponseWriter, *http.Request) { t.Error("unexpected token request") })
 	for _, test := range []struct {
 		name, input string
 		want        azure.TokenRequest
@@ -47,7 +71,7 @@ func TestAzurePromptSelection(t *testing.T) {
 			input := strings.NewReader(test.input + "next-menu-command\n")
 			var out bytes.Buffer
 			selection, err := azureTokenSelection(nil, true, input, &out)
-			if err != nil || selection != test.want {
+			if err != nil || selection.TokenRequest != test.want {
 				t.Fatalf("selection=%+v err=%v", selection, err)
 			}
 			remaining, _ := io.ReadAll(input)
@@ -129,6 +153,8 @@ func TestAzureInvalidAndCancelledNeverRequest(t *testing.T) {
 		{name: "help", args: []string{"--help"}, want: "Usage:"},
 		{name: "unknown option", args: []string{"--unknown"}, want: "flag provided"},
 		{name: "conflict", args: []string{"--client-id", "a", "--object-id", "b"}, want: "only one"},
+		{name: "list with selector", args: []string{"--list-identities", "--client-id", "a"}, want: "cannot be combined"},
+		{name: "list without discovery", args: []string{"--list-identities", "--no-discovery"}, want: "cannot be combined"},
 		{name: "selector as value", args: []string{"--client-id", "--object-id"}, want: "missing option value"},
 		{name: "help as value", args: []string{"--resource", "--help"}, want: "missing option value"},
 		{name: "missing value", args: []string{"--resource"}, want: "needs an argument"},
@@ -245,16 +271,25 @@ func TestAzureMainHelper(t *testing.T) {
 		return
 	}
 	azureMetadataClient.Endpoint = os.Getenv("PEIRATES_AZURE_FIXTURE")
+	azureMetadataClient.InstanceEndpoint = os.Getenv("PEIRATES_AZURE_FIXTURE") + "/metadata/instance"
+	azureConfigPath = os.Getenv("PEIRATES_AZURE_CONFIG")
 	os.Args = []string{"peirates", "-c", "-m", os.Getenv("PEIRATES_AZURE_COMMAND")}
 	Main()
 }
 
 func TestAzureMainMFlag(t *testing.T) {
 	var calls atomic.Int32
+	var discoveries atomic.Int32
+	configPath := filepath.Join(t.TempDir(), "missing-azure.json")
 	requests := make(chan azure.TokenRequest, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/metadata/instance" {
+			discoveries.Add(1)
+			fmt.Fprintf(w, `{"compute":{"tagsList":[{"name":%q,"value":%q}]}}`, azure.KubeletIdentityTag, discoveredClientA)
+			return
+		}
 		calls.Add(1)
-		requests <- azure.TokenRequest{Resource: r.URL.Query().Get("resource"), ObjectID: r.URL.Query().Get("object_id")}
+		requests <- azure.TokenRequest{Resource: r.URL.Query().Get("resource"), ClientID: r.URL.Query().Get("client_id"), ObjectID: r.URL.Query().Get("object_id")}
 		if r.Header.Get("Metadata") != "true" {
 			t.Error("missing metadata header")
 		}
@@ -267,21 +302,24 @@ func TestAzureMainMFlag(t *testing.T) {
 	defer server.Close()
 	for _, alias := range []string{"36", "azure-get-token", "get-azure-token"} {
 		for _, test := range []struct {
-			suffix, want string
-			request      bool
+			suffix, want      string
+			request, discover bool
 		}{
-			{"", "Bearer token: test-bearer-secret", true},
-			{" --resource https://vault.azure.net --object-id object", "Bearer token: test-bearer-secret", true},
-			{" --resource api://failure", "Azure IMDS HTTP 400", true},
-			{" --help", "Usage: azure-get-token", false},
-			{" --unknown", "flag provided", false},
+			{"", "Bearer token: test-bearer-secret", true, true},
+			{" --resource https://vault.azure.net --object-id object", "Bearer token: test-bearer-secret", true, false},
+			{" --resource api://failure", "Azure IMDS HTTP 400", true, true},
+			{" --list-identities", discoveredClientA, false, true},
+			{" --no-discovery", "Bearer token: test-bearer-secret", true, false},
+			{" --help", "Usage: azure-get-token", false, false},
+			{" --unknown", "flag provided", false, false},
 		} {
 			t.Run(alias+test.suffix, func(t *testing.T) {
 				before := calls.Load()
+				beforeDiscovery := discoveries.Load()
 				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()
 				cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestAzureMainHelper$")
-				cmd.Env = append(os.Environ(), "PEIRATES_AZURE_MAIN_HELPER=1", "PEIRATES_AZURE_FIXTURE="+server.URL, "PEIRATES_AZURE_COMMAND="+alias+test.suffix)
+				cmd.Env = append(os.Environ(), "PEIRATES_AZURE_MAIN_HELPER=1", "PEIRATES_AZURE_FIXTURE="+server.URL, "PEIRATES_AZURE_CONFIG="+configPath, "PEIRATES_AZURE_COMMAND="+alias+test.suffix)
 				output, err := cmd.CombinedOutput()
 				if err != nil || !strings.Contains(string(output), test.want) {
 					t.Fatalf("err=%v output=%s", err, output)
@@ -294,6 +332,9 @@ func TestAzureMainMFlag(t *testing.T) {
 					want = 1
 					selection := <-requests
 					expected := azure.TokenRequest{Resource: azure.DefaultResource}
+					if test.discover {
+						expected.ClientID = discoveredClientA
+					}
 					if strings.Contains(test.suffix, "vault.azure.net") {
 						expected.Resource = "https://vault.azure.net"
 						expected.ObjectID = "object"
@@ -307,6 +348,13 @@ func TestAzureMainMFlag(t *testing.T) {
 				}
 				if calls.Load()-before != want {
 					t.Fatalf("requests=%d want=%d", calls.Load()-before, want)
+				}
+				wantDiscovery := int32(0)
+				if test.discover {
+					wantDiscovery = 1
+				}
+				if discoveries.Load()-beforeDiscovery != wantDiscovery {
+					t.Fatalf("discovery requests=%d want=%d", discoveries.Load()-beforeDiscovery, wantDiscovery)
 				}
 			})
 		}

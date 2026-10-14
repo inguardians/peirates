@@ -18,15 +18,19 @@ The token is a sensitive credential and is printed in full. Use this command onl
 Enter `36`, `azure-get-token`, or `get-azure-token` in the menu. A bare interactive command prompts for:
 
 1. Resource URI, default `https://management.azure.com/`.
-2. Identity selector: `default`, `client-id`, `object-id`, or `msi-res-id`.
+2. Identity selector: a discovered candidate's number, `default`, `client-id`, `object-id`, or `msi-res-id`.
 3. The identifier, if selecting an explicit identity.
 
-Blank default selections accept the defaults. EOF or an input error cancels without requesting a token. An entered line containing a Ctrl-C or Escape character also cancels; terminal Ctrl-C handling may instead terminate the process. IMDS chooses the default identity; environments with multiple user-assigned identities can require an explicit selector.
+After the resource prompt, Peirates discovers identity candidates and prints their client IDs and sources. A single candidate is the default choice. Multiple candidates require an explicit choice; blank input cancels the request with an error. If there are no candidates, the identity prompt defaults to `default`, letting IMDS choose. You can also enter `default` explicitly to use IMDS selection even when candidates exist. Environments with multiple user-assigned identities can reject that choice.
 
-Options skip prompts, even in the interactive menu. The resource and identity default independently when omitted. The three selector options are mutually exclusive. `--help` prints usage without a request.
+EOF or an input error cancels without requesting a token. An entered line containing a Ctrl-C or Escape character also cancels; terminal Ctrl-C handling may instead terminate the process.
+
+Options skip prompts, even in the interactive menu. Explicit `--client-id`, `--object-id`, or `--msi-res-id` bypass discovery; the three selector options are mutually exclusive. Without a selector, one discovered candidate is selected automatically. Multiple candidates are listed and require rerunning with an explicit selector. With no candidates, IMDS default selection is attempted. `--no-discovery` skips discovery and preserves IMDS default selection when no selector is supplied. `--help` prints usage without file or network access.
 
 ```sh
 peirates -c -m azure-get-token
+peirates -c -m 'azure-get-token --list-identities'
+peirates -c -m 'azure-get-token --no-discovery'
 peirates -c -m '36 --resource https://vault.azure.net --client-id <client-id>'
 peirates -c -m 'get-azure-token --object-id <object-id>'
 peirates -c -m 'azure-get-token --msi-res-id /subscriptions/<subscription>/resourceGroups/<group>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<identity>'
@@ -34,9 +38,28 @@ peirates -c -m 'azure-get-token --msi-res-id /subscriptions/<subscription>/resou
 
 `-m` always runs without prompts, including the bare command. Inline arguments support quotes and backslash escaping without shell execution or variable expansion by Peirates. Explicitly empty values, extra positional arguments, unknown options, malformed quotes, and conflicting selectors are errors.
 
+## Identity discovery
+
+Discovery combines these two sources:
+
+1. `/etc/kubernetes/azure.json`: when `useManagedIdentityExtension` is `true`, the `userAssignedIdentityID` field supplies a candidate client ID. The file must be readable by the current process; Peirates does not elevate privileges. Other configuration fields, including service principal credentials, are not displayed or retained.
+2. IMDS instance metadata at `http://169.254.169.254/metadata/instance?api-version=2021-02-01`: values of `compute.tagsList` entries named `aks-managed-kubeletIdentityClientID` supply candidate client IDs. Other tags are ignored.
+
+Candidates must have GUID syntax. IDs are normalized to lowercase, deduplicated across sources, and sorted. Each candidate shows every source that supplied it. These are configuration hints, not a complete inventory of attached identities; an IMDS token request confirms whether a candidate is usable.
+
+`--list-identities` performs discovery and prints the candidates without prompting, requesting a token, or changing retained tokens. It cannot be combined with an identity selector or `--no-discovery`.
+
+```text
+[+] Azure identity candidates (IMDS availability is confirmed when requesting a token):
+  1. aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+     Source: /etc/kubernetes/azure.json (userAssignedIdentityID); IMDS tag aks-managed-kubeletIdentityClientID
+```
+
+A missing configuration file is skipped. Unreadable, malformed, oversized, or invalid source data produces a diagnostic while findings from the other source remain available. Discovery does not try every candidate or retry a failed token request using a different identity. No discoveries does not establish that the node has no managed identity.
+
 ## What it does
 
-The command makes one GET request to `http://169.254.169.254/metadata/identity/oauth2/token`, with `Metadata: true`, API version `2018-02-01`, a URL-encoded `resource`, and the selected `client_id`, `object_id`, or `msi_res_id`. A dedicated direct HTTP transport bypasses environment proxies, rejects redirects, and imposes a five-second overall deadline and 1 MiB response limit. It does not retry.
+When discovery is needed, the command reads the local configuration with a 1 MiB limit and makes one GET to IMDS instance metadata. After selection, it makes one token GET to `http://169.254.169.254/metadata/identity/oauth2/token`, with `Metadata: true`, API version `2018-02-01`, a URL-encoded `resource`, and the selected `client_id`, `object_id`, or `msi_res_id`. Both metadata requests use a dedicated direct HTTP transport that bypasses environment proxies, rejects redirects, and imposes a five-second deadline and 1 MiB response limit per request. Neither request is retried. Listing or an ambiguous candidate selection stops before the token request.
 
 It accepts a nonempty bearer token with a future `expires_on` Unix timestamp (JSON number or numeric string). A nonempty returned resource must match the requested resource. On success it displays:
 
@@ -60,9 +83,9 @@ This metadata operation does not create or modify Azure or Kubernetes resources 
 
 ## Validation
 
-Local HTTP fixtures cover request encoding and headers, every selector, bounded transport, response validation, errors, prompt cancellation, retention, aliases, and `-m` execution. No Azure access is required for automated tests.
+Local files and HTTP fixtures cover discovery from both sources, deduplication, conflicting candidates, partial failures, unrelated-field redaction, listing without token acquisition, explicit overrides, request encoding and headers, every selector, bounded transport, response validation, errors, prompt cancellation, retention, aliases, and `-m` execution. No Azure access is required for automated tests.
 
-For optional live verification on an authorized Azure VM or an AKS workload that can access IMDS, run the default command, then request an assigned identity by client ID for an allowed resource. Confirm the returned token's audience and expiration locally, repeat the request to verify replacement, and confirm the session banner omits the token.
+For optional live verification on an authorized Azure VM or an AKS workload that can access IMDS, run `azure-get-token --list-identities`, confirm the displayed sources, then select an assigned identity for an allowed resource. Compare with `--no-discovery` if testing IMDS default selection. Confirm the returned token's audience and expiration locally, repeat the request to verify replacement, and confirm the session banner omits the token.
 
 ## Implementation and references
 
@@ -70,3 +93,6 @@ For optional live verification on an authorized Azure VM or an AKS workload that
 - Session orchestration and tests: [`internal/app/azure.go`](../../internal/app/azure.go), [`internal/app/azure_test.go`](../../internal/app/azure_test.go)
 - [Microsoft IMDS managed identity token protocol](https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/how-to-use-vm-token)
 - [Microsoft IMDS proxy guidance](https://learn.microsoft.com/en-us/azure/virtual-machines/instance-metadata-service#proxies)
+- [AKS node configuration source](https://github.com/Azure/AgentBaker/blob/master/parts/linux/cloud-init/artifacts/cse_config.sh)
+- [Microsoft IMDS instance metadata and tags](https://learn.microsoft.com/en-us/azure/virtual-machines/instance-metadata-service#instance-metadata)
+- [Observed AKS kubelet identity tag](https://www.danielstechblog.io/restrict-access-to-the-imds-endpoint-on-azure-kubernetes-service-with-cilium/)
