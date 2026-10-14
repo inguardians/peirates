@@ -68,8 +68,26 @@ It accepts a nonempty bearer token with a future `expires_on` Unix timestamp (JS
 Resource: https://management.azure.com/
 Identity selection: default
 Expires (UTC): 2026-10-12T13:00:00Z
+Decoded identity claims (signature not verified):
+  Managed identity: /subscriptions/<subscription>/resourceGroups/<group>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<identity>
+  Client ID:        <client-id>
+  Principal ID:     <principal-id>
+  Tenant ID:        <tenant-id>
+  Source resource:  /subscriptions/<subscription>/resourceGroups/<group>/providers/Microsoft.Compute/virtualMachineScaleSets/<vmss>/virtualMachines/<instance>
 Bearer token: <bearer-token>
 ```
+
+The identity summary decodes these JWT payload claims locally when available:
+
+| Display field | Claim | Meaning |
+| --- | --- | --- |
+| Managed identity | `xms_mirid` | User-assigned identity resource ID, or the owning resource ID for a system-assigned identity. |
+| Client ID | `appid` / `azp` | Client application ID; v1 tokens use `appid`, v2 tokens use `azp`. |
+| Principal ID | `oid` | Service principal object ID. |
+| Tenant ID | `tid` | Microsoft Entra tenant containing the principal. |
+| Source resource | `xms_az_rid` | Resource using the identity, such as the VM or AKS node, when present. |
+
+These are unverified claims for inspection; the decoder does not verify the token signature or use claims to change session identity keys. It shows only available nonempty string fields and escapes terminal control characters. Missing fields are omitted, and the presence or absence of `xms_az_rid` is not used to classify the identity. Opaque or malformed JWTs produce an unavailable-summary message, and JWTs with no supported identity fields say so. In each case, successful token acquisition, printing, and retention continue. Decoding requires no additional network requests.
 
 Tokens remain in the current Peirates session, separate from Kubernetes authentication. Each identity/resource combination retains its most recently acquired token. Identity keys use the returned `client_id` when available, otherwise the original selector or a default marker. Resource keys use the exact requested URI. A later successful acquisition replaces its matching entry; failures preserve all entries. Every invocation requests a token again; there is no automatic refresh.
 
@@ -77,13 +95,13 @@ The session banner shows identity, resource, UTC expiration, and whether each en
 
 ## Failure modes and side effects
 
-Network errors, inaccessible IMDS, unavailable or ambiguous identities, unsupported resources, and non-200 responses produce a command error. HTTP failures include the status and structured Azure `error`/`error_description` fields when available. Raw response bodies are not printed. Malformed tokens, expired tokens, redirects, oversized bodies, and timeouts are rejected.
+Network errors, inaccessible IMDS, unavailable or ambiguous identities, unsupported resources, and non-200 responses produce a command error. HTTP failures include the status and structured Azure `error`/`error_description` fields when available. Raw response bodies are not printed. Malformed IMDS token responses, missing bearer tokens, expired tokens, redirects, oversized bodies, and timeouts are rejected. JWT decoding failures affect only the identity summary.
 
 This metadata operation does not create or modify Azure or Kubernetes resources and needs no resource cleanup. Existing global `-m` exit behavior is preserved; inspect command output for acquisition success or failure.
 
 ## Validation
 
-Local files and HTTP fixtures cover discovery from both sources, deduplication, conflicting candidates, partial failures, unrelated-field redaction, listing without token acquisition, explicit overrides, request encoding and headers, every selector, bounded transport, response validation, errors, prompt cancellation, retention, aliases, and `-m` execution. No Azure access is required for automated tests.
+Local files and HTTP fixtures cover discovery from both sources, deduplication, conflicting candidates, partial failures, unrelated-field redaction, listing without token acquisition, explicit overrides, request encoding and headers, every selector, bounded transport, response validation, errors, prompt cancellation, retention, aliases, and `-m` execution. Identity-summary fixtures cover user-assigned and system-assigned identities, v1/v2 client IDs, missing or incorrectly typed claims, opaque or malformed tokens, and escaped terminal control characters. No Azure access is required for automated tests.
 
 For optional live verification on an authorized Azure VM or an AKS workload that can access IMDS, run `azure-get-token --list-identities`, confirm the displayed sources, then select an assigned identity for an allowed resource. Compare with `--no-discovery` if testing IMDS default selection. Confirm the returned token's audience and expiration locally, repeat the request to verify replacement, and confirm the session banner omits the token.
 
@@ -92,6 +110,8 @@ For optional live verification on an authorized Azure VM or an AKS workload that
 - Provider client and fixtures: [`internal/cloud/azure`](../../internal/cloud/azure)
 - Session orchestration and tests: [`internal/app/azure.go`](../../internal/app/azure.go), [`internal/app/azure_test.go`](../../internal/app/azure_test.go)
 - [Microsoft IMDS managed identity token protocol](https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/how-to-use-vm-token)
+- [Microsoft access token claims reference](https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference)
+- [Microsoft access token formats and inspection](https://learn.microsoft.com/en-us/entra/identity-platform/access-tokens)
 - [Microsoft IMDS proxy guidance](https://learn.microsoft.com/en-us/azure/virtual-machines/instance-metadata-service#proxies)
 - [AKS node configuration source](https://github.com/Azure/AgentBaker/blob/master/parts/linux/cloud-init/artifacts/cse_config.sh)
 - [Microsoft IMDS instance metadata and tags](https://learn.microsoft.com/en-us/azure/virtual-machines/instance-metadata-service#instance-metadata)

@@ -246,7 +246,35 @@ func requestAzureToken(session *Session, args []string, in io.Reader, out io.Wri
 	}
 	session.retainAzureToken(selection.TokenRequest, token)
 	kind, id := azureIdentity(selection.TokenRequest)
-	fmt.Fprintf(out, "[+] Azure managed identity token\nResource: %s\nIdentity selection: %s %s\nExpires (UTC): %s\nBearer token: %s\n", selection.Resource, kind, id, token.ExpiresOn.UTC().Format(time.RFC3339), token.AccessToken)
+	fmt.Fprintf(out, "[+] Azure managed identity token\nResource: %s\nIdentity selection: %s %s\nExpires (UTC): %s\n", selection.Resource, kind, id, token.ExpiresOn.UTC().Format(time.RFC3339))
+	printAzureIdentityClaims(out, token.AccessToken)
+	fmt.Fprintf(out, "Bearer token: %s\n", token.AccessToken)
+}
+
+func printAzureIdentityClaims(out io.Writer, accessToken string) {
+	claims, err := azure.DecodeIdentityClaims(accessToken)
+	if err != nil {
+		fmt.Fprintf(out, "Decoded identity claims: unavailable (%v).\n", err)
+		return
+	}
+	if claims == (azure.IdentityClaims{}) {
+		fmt.Fprintln(out, "Decoded identity claims: no supported identity fields present.")
+		return
+	}
+	fmt.Fprintln(out, "Decoded identity claims (signature not verified):")
+	for _, field := range []struct{ label, value string }{
+		{"Managed identity:", claims.ManagedIdentityResourceID},
+		{"Client ID:", claims.ClientID},
+		{"Principal ID:", claims.PrincipalID},
+		{"Tenant ID:", claims.TenantID},
+		{"Source resource:", claims.SourceResourceID},
+	} {
+		if field.value != "" {
+			// Escape control characters so claims cannot inject terminal output.
+			quoted := strconv.Quote(field.value)
+			fmt.Fprintf(out, "  %-17s %s\n", field.label, quoted[1:len(quoted)-1])
+		}
+	}
 }
 
 // runModuleCommand preserves registry dispatch and handles only Azure's inline options.
