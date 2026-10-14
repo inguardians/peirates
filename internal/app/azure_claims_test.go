@@ -19,6 +19,7 @@ func TestAzureRequestIdentitySummary(t *testing.T) {
 	for _, test := range []struct {
 		name, payload, opaque string
 		want, absent          []string
+		identityName          string
 	}{
 		{
 			name:    "user assigned identity",
@@ -31,13 +32,21 @@ func TestAzureRequestIdentitySummary(t *testing.T) {
 				"  Tenant ID:        claims-tenant\n",
 				"  Source resource:  " + source + "\n",
 			},
-			absent: []string{"do-not-display-this-claim"},
+			absent:       []string{"do-not-display-this-claim"},
+			identityName: "agentpool",
 		},
 		{
-			name:    "system assigned identity",
-			payload: `{"xms_mirid":"` + source + `","appid":"claims-client"}`,
-			want:    []string{"  Managed identity: " + source + "\n", "  Client ID:        claims-client\n"},
-			absent:  []string{"  Source resource:", "  Principal ID:", "  Tenant ID:"},
+			name:         "system assigned identity",
+			payload:      `{"xms_mirid":"` + source + `","appid":"claims-client"}`,
+			want:         []string{"  Managed identity: " + source + "\n", "  Client ID:        claims-client\n"},
+			absent:       []string{"  Source resource:", "  Principal ID:", "  Tenant ID:"},
+			identityName: "3",
+		},
+		{
+			name:         "identity resource with trailing slash",
+			payload:      `{"xms_mirid":"` + identity + `/"}`,
+			want:         []string{"  Managed identity: " + identity + "/\n"},
+			identityName: "agentpool",
 		},
 		{
 			name:    "v2 partial identity",
@@ -68,10 +77,11 @@ func TestAzureRequestIdentitySummary(t *testing.T) {
 			absent:  []string{"do-not-display-this-claim"},
 		},
 		{
-			name:    "escaped terminal control characters",
-			payload: `{"xms_mirid":"identity\nforged line\u001b[31m"}`,
-			want:    []string{"  Managed identity: identity\\nforged line\\x1b[31m\n"},
-			absent:  []string{"\nforged line", "\x1b"},
+			name:         "escaped terminal control characters",
+			payload:      `{"xms_mirid":"` + identity + `\nforged line\u001b[31m"}`,
+			want:         []string{"  Managed identity: " + identity + "\\nforged line\\x1b[31m\n"},
+			absent:       []string{"\nforged line", "\x1b"},
+			identityName: "agentpool\nforged line\x1b[31m",
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -107,6 +117,16 @@ func TestAzureRequestIdentitySummary(t *testing.T) {
 			}
 			var status bytes.Buffer
 			printAzureTokenStatus(&status, session, time.Now())
+			identityLabel := `client_id "response-client"`
+			if test.identityName != "" {
+				identityLabel = fmt.Sprintf("managed identity %q (%s)", test.identityName, identityLabel)
+			}
+			if !strings.Contains(status.String(), "[+] Azure token (available): "+identityLabel+"; resource ") {
+				t.Errorf("menu header missing identity %q: %s", identityLabel, &status)
+			}
+			if strings.Contains(status.String(), "\nforged line") || strings.Contains(status.String(), "\x1b") {
+				t.Fatal("menu header exposed terminal control characters")
+			}
 			if strings.Contains(status.String(), accessToken) {
 				t.Fatal("session status exposed the bearer token")
 			}

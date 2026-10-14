@@ -91,7 +91,13 @@ These are unverified claims for inspection; the decoder does not verify the toke
 
 Tokens remain in the current Peirates session, separate from Kubernetes authentication. Each identity/resource combination retains its most recently acquired token. Identity keys use the returned `client_id` when available, otherwise the original selector or a default marker. Resource keys use the exact requested URI. A later successful acquisition replaces its matching entry; failures preserve all entries. Every invocation requests a token again; there is no automatic refresh.
 
-The session banner shows identity, resource, UTC expiration, and whether each entry is expired, without printing the token again. The collection is lost when Peirates exits. The command does not write tokens to disk, but terminal capture can retain the printed credentials.
+The main menu header shows the managed identity's name from the final segment of the token's `xms_mirid` resource ID, followed by the retained identity selector, resource, UTC expiration, and whether each entry is expired. For a system-assigned identity, this is the owning resource's final name segment. The name is an unverified display hint; if it is unavailable, the existing selector label is used. For example:
+
+```text
+[+] Azure token (available): managed identity "aks-agentpool" (client_id "<client-id>"); resource "https://management.azure.com/"; expires 2026-10-14T13:00:00Z
+```
+
+The header never prints the bearer token. The collection is lost when Peirates exits. The command does not write tokens to disk, but terminal capture can retain the printed credentials.
 
 ## Failure modes and side effects
 

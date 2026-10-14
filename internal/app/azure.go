@@ -60,7 +60,16 @@ func printAzureTokenStatus(out io.Writer, session *Session, now time.Time) {
 		if !entry.Token.ExpiresOn.After(now) {
 			state = "expired"
 		}
-		lines = append(lines, fmt.Sprintf("[+] Azure token (%s): %s %q; resource %q; expires %s\n", state, key.IdentityType, key.Identity, key.Resource, entry.Token.ExpiresOn.UTC().Format(time.RFC3339)))
+		identity := fmt.Sprintf("%s %q", key.IdentityType, key.Identity)
+		if claims, err := azure.DecodeIdentityClaims(entry.Token.AccessToken); err == nil {
+			resourceID := strings.TrimRight(claims.ManagedIdentityResourceID, "/")
+			if slash := strings.LastIndex(resourceID, "/"); slash >= 0 {
+				if name := resourceID[slash+1:]; strings.TrimSpace(name) != "" {
+					identity = fmt.Sprintf("managed identity %q (%s)", name, identity)
+				}
+			}
+		}
+		lines = append(lines, fmt.Sprintf("[+] Azure token (%s): %s; resource %q; expires %s\n", state, identity, key.Resource, entry.Token.ExpiresOn.UTC().Format(time.RFC3339)))
 	}
 	sort.Strings(lines)
 	for _, line := range lines {
