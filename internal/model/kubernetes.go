@@ -4,17 +4,19 @@ import "time"
 
 // ServerInfo describes the active Kubernetes API connection and credential.
 type ServerInfo struct {
-	APIServer      string
-	Token          string
-	TokenName      string
-	ClientCertData string
-	ClientKeyData  string
-	ClientCertName string
-	CAPath         string
-	CACertData     string
-	Namespace      string
-	UseAuthCanI    bool
-	IgnoreTLS      bool
+	APIServer            string
+	Token                string
+	TokenName            string
+	ClientCertData       string
+	ClientKeyData        string
+	ClientCertName       string
+	CAPath               string
+	CACertData           string
+	Namespace            string
+	UseAuthCanI          bool
+	IgnoreTLS            bool
+	ActiveTokenKind      string
+	ActiveTokenExpiresAt time.Time
 }
 
 // PodNamespaceContainerTuple identifies a container in a Kubernetes pod.

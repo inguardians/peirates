@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/inguardians/peirates/internal/kube"
 	kubectl "k8s.io/kubectl/pkg/cmd"
 )
 
@@ -84,8 +85,8 @@ func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) er
 						"\n"+
 						"And here are the arguments that were passed to the failing kubectl command:\n"+
 						"\t%s\n",
-					os.Args,
-					append([]string{"kubectl"}, cmdArgs...))
+					redactCredentialArgs(os.Args),
+					redactCredentialArgs(append([]string{"kubectl"}, cmdArgs...)))
 				err = cmd.Process.Kill()
 				return
 			}
@@ -101,6 +102,14 @@ func runKubectl(stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) er
 //
 // NOTE: You should generally use runKubectlSimple() to call this.
 func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Writer, cmdArgs ...string) error {
+	if err := kube.CheckActiveToken(cfg); err != nil {
+		return err
+	}
+	if cfg.ActiveTokenKind != "" {
+		client := kube.NewClient()
+		client.RunCommand, client.Verbose = runKubectl, Verbose
+		return client.RunWithConfig(cfg, stdin, stdout, stderr, cmdArgs...)
+	}
 
 	// Confirm that we have an API Server URL
 	if len(cfg.APIServer) == 0 {
@@ -198,7 +207,7 @@ func runKubectlWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Wri
 
 	if Verbose {
 		println("DEBUG: Running kubectl with the following arguments: ")
-		for _, arg := range connArgs {
+		for _, arg := range redactCredentialArgs(connArgs) {
 			println("DEBUG: " + arg)
 		}
 	}

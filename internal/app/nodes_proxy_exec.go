@@ -47,6 +47,9 @@ func (reviewer nodesProxyAccessReviewer) ReviewAccess(ctx context.Context, conne
 type nodesProxyKubeletFactory struct{ options kube.KubeletClientOptions }
 
 func (factory nodesProxyKubeletFactory) NewKubelet(_ context.Context, connection model.ServerInfo) (nodesproxyexec.Kubelet, error) {
+	if err := kube.CheckActiveToken(connection); err != nil {
+		return nil, err
+	}
 	options := factory.options
 	options.BearerToken = connection.Token
 	client, err := kube.NewKubeletClient(options)

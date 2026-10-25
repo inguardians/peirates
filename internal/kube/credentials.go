@@ -30,6 +30,7 @@ func NewClientCertificateKeyPair(name, certificate, key, apiServer, ca string) C
 
 // AssignServiceAccount switches cfg to token authentication.
 func AssignServiceAccount(account ServiceAccount, cfg *ServerInfo) {
+	cfg.ActiveTokenKind, cfg.ActiveTokenExpiresAt = "", time.Time{}
 	cfg.TokenName, cfg.Token = account.Name, account.Token
 	cfg.ClientCertData, cfg.ClientKeyData, cfg.ClientCertName = "", "", ""
 }
@@ -51,6 +52,7 @@ func AssignClientCertificate(pair ClientCertificateKeyPair, cfg *ServerInfo) err
 	cfg.ClientCertData, cfg.ClientKeyData, cfg.ClientCertName = pair.ClientCertificateData, pair.ClientKeyData, pair.Name
 	cfg.APIServer, cfg.Namespace = pair.APIServer, "default"
 	cfg.TokenName, cfg.Token = "", ""
+	cfg.ActiveTokenKind, cfg.ActiveTokenExpiresAt = "", time.Time{}
 	return nil
 }
 

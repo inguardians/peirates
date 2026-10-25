@@ -10,12 +10,27 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/inguardians/peirates/internal/model"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 type exitStatus int
+
+func TestStoredIdentitiesDoNotInheritNodeExpiry(t *testing.T) {
+	base := model.ServerInfo{APIServer: "https://api", Token: "node-token", ActiveTokenKind: "eks-node", ActiveTokenExpiresAt: time.Now().Add(-time.Minute)}
+	ids := identities(base, []model.ServiceAccount{{Name: "stored", Token: "stored-token"}}, nil)
+	if len(ids) != 2 || ids[0].cfg.ActiveTokenKind != "" || !ids[0].cfg.ActiveTokenExpiresAt.IsZero() || ids[1].cfg.ActiveTokenKind != "eks-node" {
+		t.Fatal("stored service account inherited active node token metadata")
+	}
+	if _, err := check(ids[1].cfg, []string{"auth", "can-i", "get", "pods"}, func(io.Reader, io.Writer, io.Writer, ...string) error {
+		t.Fatal("expired active token reached kubectl")
+		return nil
+	}); err == nil || !strings.Contains(err.Error(), "expired") {
+		t.Fatalf("expiry check = %v", err)
+	}
+}
 
 func (e exitStatus) Error() string { return "secret-bearing error" }
 func (e exitStatus) ExitCode() int { return int(e) }

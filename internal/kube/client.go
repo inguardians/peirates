@@ -2,6 +2,7 @@ package kube
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -61,9 +62,23 @@ func DoHTTPRequestAndGetBody(req *http.Request, https, ignoreTLSErrors bool, caC
 
 // DoAPIRequest sends a JSON request using cfg and decodes the JSON response.
 func DoAPIRequest(cfg ServerInfo, method, apiPath string, query, response any) error {
+	if err := CheckActiveToken(cfg); err != nil {
+		return err
+	}
 	queryJSON, err := json.Marshal(query)
 	if err != nil {
 		return err
+	}
+	if cfg.ActiveTokenKind != "" {
+		cfg.ClientCertData, cfg.ClientKeyData, cfg.ClientCertName = "", "", ""
+		body, err := RawRequest(context.Background(), cfg, RawRequestOptions{
+			Method: method, APIPath: apiPath, Body: queryJSON, ContentType: "application/json",
+			Timeout: requestTimeout, MaxResponseBytes: DefaultRawResponseLimit, MaxErrorBodyBytes: DefaultRawErrorBodyLimit,
+		})
+		if err != nil {
+			return err
+		}
+		return json.Unmarshal(body, response)
 	}
 	remotePath := strings.TrimRight(cfg.APIServer, "/") + "/" + strings.TrimLeft(apiPath, "/")
 	req, err := http.NewRequest(method, remotePath, bytes.NewReader(queryJSON))

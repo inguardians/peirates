@@ -45,7 +45,10 @@ peirates -m aws-get-token
 3. Parses `AccessKeyId`, `SecretAccessKey`, and `Token` from the metadata response.
 4. Prints all three credential values to standard output.
 
-The current module-registry handler has a maturity defect: its success check is reversed, so credentials from a successful run are **not** saved into the interactive session's AWS credential field. Use `aws-enter-credentials` if a later interactive command must consume credentials reliably.
+When retrieval succeeds, the module-registry handler saves the credentials in
+the interactive session's AWS credential field for later AWS commands. A failed
+retrieval preserves the previous credentials. One-shot module invocations do
+not retain credentials after the process exits.
 
 ## Expected output
 

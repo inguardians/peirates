@@ -28,6 +28,17 @@ func testJWT() string {
 	return base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256"}`)) + "." + base64.RawURLEncoding.EncodeToString([]byte(`{"sub":"test"}`)) + ".c2ln"
 }
 
+func TestStoredIdentitiesDoNotInheritNodeExpiry(t *testing.T) {
+	base := model.ServerInfo{APIServer: "https://api", Token: "node-token", ActiveTokenKind: "eks-node", ActiveTokenExpiresAt: time.Now().Add(-time.Minute)}
+	ids := identities(base, []model.ServiceAccount{{Name: "stored", Token: "stored-token"}}, nil)
+	if len(ids) != 2 || ids[0].cfg.ActiveTokenKind != "eks-node" || ids[1].cfg.ActiveTokenKind != "" || !ids[1].cfg.ActiveTokenExpiresAt.IsZero() {
+		t.Fatal("stored service account inherited active node token metadata")
+	}
+	if _, err := listPage(context.Background(), base, "", ""); err == nil || !strings.Contains(err.Error(), "expired") {
+		t.Fatalf("expiry check = %v", err)
+	}
+}
+
 func TestDetectCredentialFormats(t *testing.T) {
 	cases := []struct{ name, value, want string }{
 		{"embedded JWT", "prefix=" + testJWT() + ";tail", "JWT-shaped token"},

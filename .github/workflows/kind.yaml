@@ -66,6 +66,8 @@ jobs:
             cluster-env: PEIRATES_KUBECTL_TRY_ALL_KIND_CLUSTER
           - target: kubectl-can-i-kind-test
             cluster-env: PEIRATES_KUBECTL_CAN_I_KIND_CLUSTER
+          - target: aws-node-token-kind-test
+            cluster-env: PEIRATES_AWS_NODE_TOKEN_KIND_CLUSTER
           - target: curl-kind-test
             cluster-env: PEIRATES_CURL_KIND_CLUSTER
 
@@ -118,6 +120,7 @@ jobs:
             env '${{ matrix.cluster-env }}'="${KIND_CI_CLUSTER}" \
             make --no-print-directory '${{ matrix.target }}' 2>&1 |
             sed -E 's/eyJ[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+){2}/[REDACTED SERVICE ACCOUNT TOKEN]/g' |
+            sed -E 's/k8s-aws-v1\.[A-Za-z0-9_-]+/[REDACTED EKS TOKEN]/g' |
             tee "${RUNNER_TEMP}/kind-test.log"
           test_status=$?
           set -e

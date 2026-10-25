@@ -96,6 +96,7 @@ func acceptServiceAccountFromUser() (ServiceAccount, error) {
 func assignServiceAccountToConnection(account ServiceAccount, info *ServerInfo) {
 	info.TokenName = account.Name
 	info.Token = account.Token
+	info.ActiveTokenKind, info.ActiveTokenExpiresAt = "", time.Time{}
 
 	if Verbose {
 		println("DEBUG: Setting token to %s", info.Token)
@@ -144,6 +145,7 @@ func assignAuthenticationCertificateAndKeyToConnection(keypair ClientCertificate
 	// Zero out any service account token, so it's clear what to authenticate with.
 	info.TokenName = ""
 	info.Token = ""
+	info.ActiveTokenKind, info.ActiveTokenExpiresAt = "", time.Time{}
 
 }
 

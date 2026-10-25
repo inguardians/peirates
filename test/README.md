@@ -49,7 +49,7 @@ deletes only a cluster positively owned by the current invocation.
 make kind-test
 ```
 
-`make kind-test` remains the short namespace API smoke test. To run all 23
+`make kind-test` remains the short namespace API smoke test. To run all 24
 automated Kind scenarios serially, use:
 
 ```sh
@@ -596,3 +596,27 @@ receive that grant, solely in the target namespace. The test refuses a
 pre-existing `peirates-kubectl-can-i-integration` cluster and uses the shared
 claim, private kubeconfig, provenance, and cleanup helpers to delete only its
 own cluster. Override the name with `PEIRATES_KUBECTL_CAN_I_KIND_CLUSTER`.
+
+## AWS node token controlled integration
+
+```sh
+make aws-node-token-kind-test
+```
+
+This scenario creates a disposable Kind cluster with a temporary authentication
+webhook on the control-plane node's loopback interface. It uses fixed fake AWS
+credentials and mocked IMDS/EC2 discovery, runs the production token signing
+and application handler, and independently verifies the SigV4 signature in the
+webhook. Independent HTTPS requests to the real Kubernetes SelfSubjectReview
+API check the exact node username and groups, tampered signatures, wrong cluster
+binding, activation, competing-certificate isolation, failure preservation,
+and expiry. No AWS endpoint or AWS resource is involved. Test injection is
+limited to Go test code; the production command has no metadata-endpoint flag.
+
+Docker, Kind, kubectl, Go, openssl, base64, and timeout are required. The script
+refuses an existing `peirates-aws-node-token-integration` cluster (override with
+`PEIRATES_AWS_NODE_TOKEN_KIND_CLUSTER`) and deletes only its own cluster using
+private kubeconfig provenance. Its temporary webhook configuration and fake
+credentials disappear at cleanup. This validates controlled Kubernetes
+integration, not real EKS IAM acceptance. See [EKS validation](aws-node-token-eks-validation.md)
+for the separate, opt-in cloud test.

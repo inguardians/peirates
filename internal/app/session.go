@@ -18,6 +18,7 @@ type Session struct {
 	AWSCredentials     AWSCredentials
 	AssumedAWSRole     AWSCredentials
 	AzureTokens        map[AzureTokenKey]AzureSessionToken
+	AWSNodeTokens      map[model.AWSNodeTokenKey]model.AWSNodeToken
 }
 
 // NewSession returns the historical interactive defaults.

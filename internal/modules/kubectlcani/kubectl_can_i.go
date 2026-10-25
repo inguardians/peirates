@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/inguardians/peirates/internal/kube"
 	"github.com/inguardians/peirates/internal/model"
@@ -132,6 +133,7 @@ func identities(base model.ServerInfo, accounts []model.ServiceAccount, certs []
 	}
 	for i, account := range accounts {
 		cfg := base
+		cfg.ActiveTokenKind, cfg.ActiveTokenExpiresAt = "", time.Time{}
 		cfg.Token = account.Token
 		cfg.ClientCertData, cfg.ClientKeyData = "", ""
 		name := account.Name
@@ -142,6 +144,7 @@ func identities(base model.ServerInfo, accounts []model.ServiceAccount, certs []
 	}
 	for i, cert := range certs {
 		cfg := base
+		cfg.ActiveTokenKind, cfg.ActiveTokenExpiresAt = "", time.Time{}
 		cfg.Token = ""
 		cfg.ClientCertData, cfg.ClientKeyData = cert.ClientCertificateData, cert.ClientKeyData
 		if cert.APIServer != "" {
@@ -163,7 +166,11 @@ func identities(base model.ServerInfo, accounts []model.ServiceAccount, certs []
 		if name == "" {
 			name = "active"
 		}
-		add("service account", name, cfg, true)
+		kind := "service account"
+		if cfg.ActiveTokenKind != "" {
+			kind = "node token"
+		}
+		add(kind, name, cfg, true)
 	}
 	if base.ClientCertData != "" || base.ClientKeyData != "" {
 		cfg := base
@@ -178,6 +185,9 @@ func identities(base model.ServerInfo, accounts []model.ServiceAccount, certs []
 }
 
 func check(cfg model.ServerInfo, args []string, runner kube.CommandRunner) (bool, error) {
+	if err := kube.CheckActiveToken(cfg); err != nil {
+		return false, err
+	}
 	if cfg.APIServer == "" {
 		return false, errors.New("API server is not configured")
 	}

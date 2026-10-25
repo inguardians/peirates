@@ -73,6 +73,9 @@ func (e *HTTPStatusError) Unwrap() error { return e.DetailReadError }
 // RawRequest sends one bounded arbitrary-byte request to the Kubernetes API
 // server using the credentials and TLS configuration in cfg.
 func RawRequest(ctx context.Context, cfg ServerInfo, options RawRequestOptions) ([]byte, error) {
+	if err := CheckActiveToken(cfg); err != nil {
+		return nil, err
+	}
 	if ctx == nil {
 		return nil, errors.New("kubernetes API request context is nil")
 	}

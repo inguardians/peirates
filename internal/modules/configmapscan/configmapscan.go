@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/inguardians/peirates/internal/kube"
 	"github.com/inguardians/peirates/internal/model"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
@@ -113,6 +114,9 @@ func identities(base model.ServerInfo, accounts []model.ServiceAccount, certs []
 	if base.Token != "" || (base.ClientCertData != "" && base.ClientKeyData != "") {
 		key := credentialKey(base)
 		label := "active service account"
+		if base.ActiveTokenKind != "" {
+			label = "active node token"
+		}
 		if base.ClientCertData != "" {
 			label = "active certificate"
 			if base.ClientCertName != "" {
@@ -128,6 +132,7 @@ func identities(base model.ServerInfo, accounts []model.ServiceAccount, certs []
 			continue
 		}
 		cfg := base
+		cfg.ActiveTokenKind, cfg.ActiveTokenExpiresAt = "", time.Time{}
 		cfg.Token = account.Token
 		cfg.TokenName = account.Name
 		cfg.ClientCertData, cfg.ClientKeyData, cfg.ClientCertName = "", "", ""
@@ -142,6 +147,7 @@ func identities(base model.ServerInfo, accounts []model.ServiceAccount, certs []
 			continue
 		}
 		cfg := base
+		cfg.ActiveTokenKind, cfg.ActiveTokenExpiresAt = "", time.Time{}
 		cfg.Token, cfg.TokenName = "", ""
 		cfg.ClientCertData, cfg.ClientKeyData, cfg.ClientCertName = cert.ClientCertificateData, cert.ClientKeyData, cert.Name
 		if cert.APIServer != "" {
@@ -305,6 +311,9 @@ var (
 
 func listPage(ctx context.Context, cfg model.ServerInfo, namespace, continueToken string) (corev1.ConfigMapList, error) {
 	var empty corev1.ConfigMapList
+	if err := kube.CheckActiveToken(cfg); err != nil {
+		return empty, err
+	}
 	apiURL, err := url.Parse(cfg.APIServer)
 	if err != nil || (apiURL.Scheme != "https" && apiURL.Scheme != "http") || apiURL.Host == "" || apiURL.User != nil || apiURL.RawQuery != "" || apiURL.Fragment != "" {
 		return empty, errInvalidResponse

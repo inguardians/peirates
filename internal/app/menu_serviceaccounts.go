@@ -51,7 +51,9 @@ func saMenu(serviceAccounts *[]ServiceAccount, connectionString *ServerInfo, int
 	defer l.Close()
 	// l.CaptureExitSignal()
 
-	if len(connectionString.TokenName) != 0 {
+	if connectionString.ActiveTokenKind != "" {
+		println("Current EKS node identity: ", connectionString.TokenName)
+	} else if len(connectionString.TokenName) != 0 {
 		println("Current primary service account: ", connectionString.TokenName)
 	}
 

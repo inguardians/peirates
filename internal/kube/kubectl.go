@@ -68,6 +68,12 @@ func runCommand(stdin io.Reader, stdout, stderr io.Writer, args ...string) error
 
 // RunWithConfig executes kubectl with connection and authentication arguments.
 func (c *Client) RunWithConfig(cfg ServerInfo, stdin io.Reader, stdout, stderr io.Writer, args ...string) error {
+	if err := CheckActiveToken(cfg); err != nil {
+		return err
+	}
+	if cfg.ActiveTokenKind != "" {
+		return c.runWithNodeToken(cfg, stdin, stdout, stderr, args...)
+	}
 	if cfg.APIServer == "" {
 		return errors.New("api server not set")
 	}
@@ -139,6 +145,9 @@ func (c *Client) Run(cfg ServerInfo, args ...string) ([]byte, []byte, error) {
 
 // AuthCanI performs a SelfSubjectAccessReview when that check is enabled.
 func (c *Client) AuthCanI(cfg ServerInfo, verb, resource string) bool {
+	if err := CheckActiveToken(cfg); err != nil {
+		return false
+	}
 	if !cfg.UseAuthCanI || cfg.ClientCertData != "" {
 		return true
 	}
@@ -189,6 +198,9 @@ type ResourceAttributes struct {
 // in-memory client-certificate authentication follow the same path as the
 // operation being authorized.
 func (c *Client) AuthCanIResource(ctx context.Context, cfg ServerInfo, attributes ResourceAttributes) (bool, error) {
+	if err := CheckActiveToken(cfg); err != nil {
+		return false, err
+	}
 	if !cfg.UseAuthCanI {
 		return true, nil
 	}

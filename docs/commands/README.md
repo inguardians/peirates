@@ -27,6 +27,7 @@ Commands can normally be selected interactively by number, canonical name, or al
 | --- | --- | --- |
 | 12 | `aws-get-token` | [Request AWS metadata credentials](aws-get-token.md) |
 | 13 | `gcp-get-token` | [Request a GCP metadata token](gcp-get-token.md) |
+| 37 | `aws-get-eks-node-token` | [Authenticate as an EKS node](aws-get-eks-node-token.md) |
 | 36 | `azure-get-token` | [Request an Azure managed identity token](azure-get-token.md) |
 | 14 | `gcp-attack-kube-env` | [Request GKE kube-env metadata](gcp-attack-kube-env.md) |
 | 15 | `gcp-attack-kops-1` | [Read kOps data from GCS](gcp-attack-kops-1.md) |

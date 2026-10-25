@@ -23,6 +23,17 @@ Packages below `internal/` are implementation details, not a supported public
 API. Capability packages must not import `internal/app`; dependencies point
 toward `internal/model`, and app supplies mutable state or narrow callbacks.
 
+`aws-get-eks-node-token` uses the AWS provider's bounded IMDS, discovery, and signing
+client, with app orchestration retaining typed `model.AWSNodeToken` entries.
+These credentials are separate from service-account JWTs. Kubernetes helpers
+resolve in-cluster trust and perform isolated SelfSubjectReview verification.
+Explicit activation records expiry on `ServerInfo`; API and kubectl paths
+reject expired generated credentials, and identity switches clear that state.
+Active node-token kubectl calls use a private temporary kubeconfig, removed
+after the call, to avoid ambient credentials and bearer tokens in process
+arguments. Module-mode node-token invocation bypasses legacy startup credential
+discovery so its metadata requests use only the dedicated bounded provider.
+
 Build and deployment paths remain unchanged. Use `go build ./cmd/peirates`,
 `make build`, and `make test` from the repository root. The Kind test remains
 opt-in through `make kind-test`.

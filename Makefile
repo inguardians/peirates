@@ -40,6 +40,7 @@ KIND_TEST_CASES := \
 	exec-via-api-kind-test:PEIRATES_EXEC_API_KIND_CLUSTER:peirates-exec-api-integration:test/exec-via-api-kind-integration.sh \
 	kubectl-try-all-kind-test:PEIRATES_KUBECTL_TRY_ALL_KIND_CLUSTER:peirates-kubectl-try-all-integration:test/kubectl-try-all-kind-integration.sh \
 	kubectl-can-i-kind-test:PEIRATES_KUBECTL_CAN_I_KIND_CLUSTER:peirates-kubectl-can-i-integration:test/kubectl-can-i-kind-integration.sh \
+	aws-node-token-kind-test:PEIRATES_AWS_NODE_TOKEN_KIND_CLUSTER:peirates-aws-node-token-integration:test/aws-node-token-kind-integration.sh \
 	curl-kind-test:PEIRATES_CURL_KIND_CLUSTER:peirates-curl-integration:test/curl-kind-integration.sh
 KIND_TEST_TARGETS := $(foreach test_case,$(KIND_TEST_CASES),$(word 1,$(subst :, ,$(test_case))))
 
@@ -173,3 +174,6 @@ update-deps:
 	go clean -modcache
 	go get -u ./...
 	go mod tidy
+
+aws-node-token-kind-test:
+	GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) ./test/aws-node-token-kind-integration.sh

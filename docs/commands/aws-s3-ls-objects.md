@@ -19,7 +19,9 @@ List object metadata from a named S3 bucket using the current AWS credentials. T
 - Access to AWS placement metadata at `169.254.169.254`, because the S3 client always derives its region from the instance availability zone.
 - AWS authorization to list objects in the named bucket and explicit authorization to enumerate it.
 
-Due to the current `aws-get-token` handler's reversed success check, a successful item 12 run does not populate the interactive session. Manually entered or environment credentials are the reliable choices for this command.
+A successful `aws-get-token` invocation (item 12) also populates the interactive
+session's AWS credentials for this command. A failed retrieval preserves the
+previous session credentials.
 
 ## Usage
 

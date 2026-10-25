@@ -47,3 +47,4 @@ short	short	menu-visibility.md
 full	full	menu-visibility.md
 outputfile	outputfile	outputfile.md
 exit	exit	exit.md
+aws-get-eks-node-token	37,aws-get-eks-node-token	aws-get-eks-node-token.md

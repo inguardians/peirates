@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/ergochat/readline"
 )
@@ -65,6 +66,7 @@ Steal Service Accounts   |
 [12] Request IAM credentials from AWS Metadata API [aws-get-token] *
 [13] Request IAM credentials from GCP Metadata API [gcp-get-token] *
 [36] Request a managed identity token from Azure IMDS [azure-get-token] *
+[37] Request an EKS node authentication token from AWS IMDS [aws-get-eks-node-token] *
 [14] Request kube-env from GCP Metadata API [gcp-attack-kube-env] 
 [15] Pull Kubernetes service account tokens from kops' GCS bucket (Google Cloud only) [gcp-attack-kops-gcs-1]  *
 [16] Pull Kubernetes service account tokens from kops' S3 bucket (AWS only) [attack-kops-aws-1] 
@@ -176,8 +178,9 @@ func banner(connectionString ServerInfo, detectCloud string, eth0IP string, awsC
 		panic(err)
 	}
 
-	if connectionString.Token != "" {
-
+	if connectionString.ActiveTokenKind != "" {
+		fmt.Printf("[+] Active EKS node identity           : %q; expires %s\n", connectionString.TokenName, connectionString.ActiveTokenExpiresAt.UTC().Format(time.RFC3339))
+	} else if connectionString.Token != "" {
 		fmt.Println("[+] Service Account Loaded            :", connectionString.TokenName)
 	}
 	if connectionString.ClientCertData != "" {
@@ -257,6 +260,7 @@ func setUpCompletionMainMenu() *readline.PrefixCompleter {
 		readline.PcItem("get-gcp-token"),
 		readline.PcItem("gcp-get-token"),
 		readline.PcItem("azure-get-token"),
+		readline.PcItem("aws-get-eks-node-token"),
 		readline.PcItem("get-azure-token"),
 		// [14] Request kube-env from GCP Metadata API [gcp-attack-kube-env]
 		readline.PcItem("attack-kube-env-gcp"),

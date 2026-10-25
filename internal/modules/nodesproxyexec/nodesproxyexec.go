@@ -235,6 +235,7 @@ func ReviewCredentials(ctx context.Context, base model.ServerInfo, stored []mode
 		}
 		access := CredentialAccess{Credential: ref, GetProxy: AccessUnchecked, CreateProxy: AccessUnchecked}
 		connection := base
+		connection.ActiveTokenKind, connection.ActiveTokenExpiresAt = "", time.Time{}
 		connection.Token = account.Token
 		connection.TokenName = account.Name
 		connection.ClientCertData = ""

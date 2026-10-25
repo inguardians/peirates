@@ -54,6 +54,13 @@ func Main() {
 	// Run the option parser to initialize connectionStrings
 	parseOptions(&cmdOpts)
 	session.Verbose = cmdOpts.verbose
+	// The node-token module acquires its own credentials through bounded IMDS.
+	// Dispatch before legacy startup probes or unrelated credential enumeration.
+	if fields := strings.Fields(cmdOpts.moduleToRun); len(fields) > 0 && canonicalModuleCommand(fields[0]) == "aws-get-eks-node-token" {
+		session.Interactive = false
+		_, _ = runModuleCommand(newModuleRegistry(session), session, strings.TrimSpace(cmdOpts.moduleToRun))
+		return
+	}
 
 	// Skip cloud detection if -c is passed on the command line.
 	var detectCloud string
@@ -121,6 +128,7 @@ func Main() {
 	for ok := true; ok; ok = (input != 2) {
 		banner(session.Connection, detectCloud, eth0IP, session.AWSCredentials, session.AssumedAWSRole)
 		printAzureTokenStatus(os.Stdout, session, time.Now())
+		printAWSNodeTokenStatus(os.Stdout, session, time.Now())
 
 		var input string
 

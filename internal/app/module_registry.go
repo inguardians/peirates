@@ -16,6 +16,8 @@ var launchHostPIDBreakout = func() error {
 
 var launchConfigMapScan = configmapscan.Run
 
+var acquireAWSMetadataCredentials = getAWSToken
+
 func newModuleRegistry(session *Session) *modules.Registry {
 	registry := modules.NewRegistry()
 	registry.Register(func() modules.Result { os.Exit(0); return modules.Continue }, "exit", "quit")
@@ -87,12 +89,13 @@ func newModuleRegistry(session *Session) *modules.Registry {
 		return modules.Continue
 	}, "attack-pod-hostpath-mount")
 	registry.Register(func() modules.Result {
-		result, err := getAWSToken(session.Interactive)
-		if err != nil {
+		result, err := acquireAWSMetadataCredentials(session.Interactive)
+		if err == nil {
 			session.AWSCredentials = result
 		}
 		return modules.Continue
 	}, "aws-get-token")
+	registry.Register(func() modules.Result { requestAWSNodeToken(session, nil, os.Stdout); return modules.Continue }, "aws-get-eks-node-token")
 	registry.Register(func() modules.Result { requestAzureToken(session, nil, os.Stdin, os.Stdout); return modules.Continue }, "azure-get-token")
 	registry.Register(func() modules.Result { getGCPToken(session.Interactive); return modules.Continue }, "gcp-get-token")
 	registry.Register(func() modules.Result { attackKubeEnvGCP(session.Interactive); return modules.Continue }, "gcp-attack-kube-env")
