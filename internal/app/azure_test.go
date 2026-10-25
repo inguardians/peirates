@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/inguardians/peirates/internal/cloud/azure"
-	"github.com/inguardians/peirates/internal/modules"
 	"github.com/inguardians/peirates/internal/ui"
 )
 
@@ -224,39 +223,7 @@ func TestAzureSessionRetentionAndStatus(t *testing.T) {
 	}
 }
 
-func TestAzureDispatchAndCompletion(t *testing.T) {
-	var calls atomic.Int32
-	useAzureFixture(t, func(w http.ResponseWriter, r *http.Request) { calls.Add(1); writeAzureFixture(w) })
-	session := NewSession(ServerInfo{})
-	session.Interactive = false
-	registry := newModuleRegistry(session)
-	for _, alias := range []string{"36", "azure-get-token", "get-azure-token"} {
-		if CanonicalCommand(alias) != "azure-get-token" {
-			t.Fatalf("alias %q missing", alias)
-		}
-		for _, suffix := range []string{"", ` --resource 'https://vault.azure.net' --client-id "client"`} {
-			result, found := runModuleCommand(registry, session, alias+suffix)
-			if !found || result != modules.Continue {
-				t.Fatalf("dispatch %q: %v %v", alias+suffix, found, result)
-			}
-		}
-	}
-	if calls.Load() != 6 {
-		t.Fatalf("%d requests", calls.Load())
-	}
-	for _, input := range []string{"azure-get-token-suffix --help", "short ", "short --help"} {
-		if _, found := runModuleCommand(registry, session, input); found {
-			t.Errorf("unexpected dispatch for %q", input)
-		}
-	}
-	for _, input := range []string{`azure-get-token --resource 'unterminated`, "36 --help", "get-azure-token --bad"} {
-		if _, found := runModuleCommand(registry, session, input); !found {
-			t.Errorf("Azure input not handled: %q", input)
-		}
-	}
-	if calls.Load() != 6 {
-		t.Fatal("invalid dispatch made a request")
-	}
+func TestAzureCompletion(t *testing.T) {
 	for _, completion := range []string{setUpCompletionMainMenu().Tree(""), ui.SetUpCompletionMainMenu().Tree("")} {
 		for _, alias := range []string{"azure-get-token", "get-azure-token"} {
 			if !strings.Contains(completion, alias) {

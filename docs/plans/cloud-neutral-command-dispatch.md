@@ -1,6 +1,7 @@
 # Cloud-neutral command dispatch refactor
 
-Status: Proposed for review. This document does not implement the refactor.
+Status: Implemented after review. Shared routing and argument parsing now live
+in neutral files; provider-specific behavior remains in its existing files.
 
 ## Purpose
 
@@ -8,7 +9,7 @@ Move shared command dispatch and argument parsing into files named for their
 responsibility. Keep Azure-specific behavior in `azure.go` and AWS-specific
 behavior in `aws_node_token.go`, preserving all existing CLI behavior.
 
-## Current structure
+## Structure before the refactor
 
 - `internal/app/azure.go` defines `runModuleCommand`, although it dispatches both
   `azure-get-token` and `aws-get-eks-node-token` with inline options, then falls
@@ -24,7 +25,7 @@ behavior in `aws_node_token.go`, preserving all existing CLI behavior.
   request and completion checks. AWS command-mode coverage lives in
   `aws_node_token_test.go`.
 
-## Proposed changes
+## Approved changes
 
 ### 1. Move shared dispatch into `module_dispatch.go`
 
@@ -108,4 +109,5 @@ shared parsing has a neutral name and file, and existing command behavior passes
 regression checks. Live Kind or cloud testing is not required for this relocation;
 if implementation changes Kubernetes API behavior, run the applicable Kind tests.
 
-Implementation should begin after review of this plan.
+The dispatcher and parser bodies were compared against the pre-refactor commit
+and are unchanged apart from the parser's name.

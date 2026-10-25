@@ -23,6 +23,13 @@ Packages below `internal/` are implementation details, not a supported public
 API. Capability packages must not import `internal/app`; dependencies point
 toward `internal/model`, and app supplies mutable state or narrow callbacks.
 
+Within `internal/app`, `module_dispatch.go` owns shared command routing, including
+cloud token commands with inline options. `command_args.go` parses quoted and
+escaped arguments for that dispatcher and nodes-proxy commands without shell
+expansion. Provider-specific files such as `azure.go` and `aws_node_token.go`
+own option validation and provider operations; shared routing belongs in the
+neutral dispatcher.
+
 `aws-get-eks-node-token` uses the AWS provider's bounded IMDS, discovery, and signing
 client, with app orchestration retaining typed `model.AWSNodeToken` entries.
 These credentials are separate from service-account JWTs. Kubernetes helpers
