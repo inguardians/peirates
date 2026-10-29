@@ -29,6 +29,7 @@ verification requires permission to request the caller's identity.
 
 ```text
 aws-get-eks-node-token
+aws-get-eks-node-token --check
 aws-get-eks-node-token --verify
 aws-get-eks-node-token --activate
 aws-get-eks-node-token --cluster-name recovery-name --region us-west-2
@@ -38,14 +39,19 @@ aws-get-eks-node-token --help
 
 ```sh
 peirates -c -m aws-get-eks-node-token
+peirates -c -m 'aws-get-eks-node-token --check'
 peirates -c -m 'aws-get-eks-node-token --verify'
 peirates -c -m '37 --activate'
 ```
 
-Bare interactive and one-shot invocations discover the target without prompts.
-`--verify` reports the returned Kubernetes identity without switching the
-active connection. `--activate` implies verification, then switches the active
-connection if a node username and group are confirmed. `--cluster-name` and
+Bare interactive and one-shot invocations discover the target without prompts,
+print and retain the token, verify its node identity, then activate it if a node
+username and group are confirmed. `--check` only generates, prints, and retains
+the token; it skips Kubernetes identity verification and leaves the active
+connection unchanged. `--verify` reports the returned Kubernetes identity
+without switching the active connection. `--activate` explicitly selects the
+default verification-and-activation behavior. `--check` cannot be combined with
+enabled `--verify` or `--activate` flags. `--cluster-name` and
 `--region` are optional recovery overrides. `--allow-imdsv1` explicitly permits
 bounded compatibility fallback when IMDSv2 is unavailable. `--help` makes no
 metadata or Kubernetes requests. A one-shot process exits after the command;

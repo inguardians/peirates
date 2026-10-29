@@ -38,8 +38,80 @@ func stubNodeTokenOperations(t *testing.T) {
 	}
 }
 
-func TestAWSNodeTokenGenerationAndRetention(t *testing.T) {
+func TestAWSNodeTokenModes(t *testing.T) {
+	for _, test := range []struct {
+		name             string
+		args             []string
+		verify, activate bool
+		invalid          bool
+	}{
+		{"default", nil, true, true, false},
+		{"discovery-options", []string{"--region", "us-east-1"}, true, true, false},
+		{"check", []string{"--check"}, false, false, false},
+		{"verify", []string{"--verify"}, true, false, false},
+		{"activate", []string{"--activate"}, true, true, false},
+		{"verify-and-activate", []string{"--verify", "--activate"}, true, true, false},
+		{"activate-and-verify", []string{"--activate", "--verify"}, true, true, false},
+		{"disabled-activation", []string{"--activate=false"}, false, false, false},
+		{"disabled-check", []string{"--check=false"}, true, true, false},
+		{"disabled-verify", []string{"--verify=false"}, true, true, false},
+		{"check-disabled-activation", []string{"--check", "--activate=false"}, false, false, false},
+		{"check-and-verify", []string{"--check", "--verify"}, false, false, true},
+		{"verify-and-check", []string{"--verify", "--check"}, false, false, true},
+		{"check-and-activate", []string{"--check", "--activate"}, false, false, true},
+		{"activate-and-check", []string{"--activate", "--check"}, false, false, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stubNodeTokenOperations(t)
+			selection, err := parseAWSNodeTokenOptions(test.args)
+			if (err != nil) != test.invalid {
+				t.Fatalf("parse error = %v, want invalid = %t", err, test.invalid)
+			}
+			if !test.invalid && (selection.verify != test.verify || selection.activate != test.activate) {
+				t.Fatalf("mode = verify:%t activate:%t", selection.verify, selection.activate)
+			}
+			for _, interactive := range []bool{false, true} {
+				session := NewSession(ServerInfo{Token: "original", Namespace: "app", ClientCertData: "cert", ClientKeyData: "key"})
+				session.Interactive = interactive
+				original := session.Connection
+				generated, verified := 0, 0
+				generateAWSNodeToken = func(context.Context, awscloud.NodeTokenOptions) (awscloud.NodeTokenResult, error) {
+					generated++
+					return nodeTokenFixture(), nil
+				}
+				verifyAWSNodeToken = func(context.Context, model.ServerInfo, string) (kube.NodeTokenIdentity, error) {
+					verified++
+					return kube.NodeTokenIdentity{Username: "system:node:" + nodeTokenFixture().PrivateDNSName, Groups: []string{"system:nodes"}}, nil
+				}
+				var output bytes.Buffer
+				requestAWSNodeToken(session, test.args, &output)
+				if test.invalid {
+					if generated != 0 || verified != 0 || session.Connection != original || len(session.AWSNodeTokens) != 0 || !strings.Contains(output.String(), "cannot be combined") {
+						t.Fatalf("conflicting modes performed work: %s", &output)
+					}
+					continue
+				}
+				if generated != 1 || len(session.AWSNodeTokens) != 1 || (verified == 1) != test.verify {
+					t.Fatalf("generation/verification counts = %d/%d, entries = %d", generated, verified, len(session.AWSNodeTokens))
+				}
+				if test.activate {
+					if session.Connection.Token != nodeTokenFixture().Token || session.Connection.ActiveTokenKind != "eks-node" || session.Connection.ClientCertData != "" || session.Connection.ClientKeyData != "" || session.Connection.Namespace != original.Namespace {
+						t.Fatalf("activation failed: %s", &output)
+					}
+				} else if session.Connection != original {
+					t.Fatalf("non-activating mode changed the active connection: %s", &output)
+				}
+			}
+		})
+	}
+}
+
+func TestAWSNodeTokenCheckGenerationAndRetention(t *testing.T) {
 	stubNodeTokenOperations(t)
+	verifyAWSNodeToken = func(context.Context, model.ServerInfo, string) (kube.NodeTokenIdentity, error) {
+		t.Fatal("--check attempted identity verification")
+		return kube.NodeTokenIdentity{}, nil
+	}
 	for _, interactive := range []bool{false, true} {
 		session := NewSession(ServerInfo{APIServer: "https://api.example", Token: "original", Namespace: "application"})
 		session.Interactive = interactive
@@ -55,23 +127,23 @@ func TestAWSNodeTokenGenerationAndRetention(t *testing.T) {
 			return nodeTokenFixture(), nil
 		}
 		var out bytes.Buffer
-		requestAWSNodeToken(session, nil, &out)
+		requestAWSNodeToken(session, []string{"--check"}, &out)
 		if calls != 1 || len(session.AWSNodeTokens) != 1 || len(session.ServiceAccounts) != 0 || session.Connection != original || !strings.Contains(out.String(), "Bearer token: k8s-aws-v1.secret") {
-			t.Fatalf("default generation changed session or failed: %s", &out)
+			t.Fatalf("check changed session or failed: %s", &out)
 		}
 		generateAWSNodeToken = func(context.Context, awscloud.NodeTokenOptions) (awscloud.NodeTokenResult, error) {
 			result := nodeTokenFixture()
 			result.Token = "replacement-secret"
 			return result, nil
 		}
-		requestAWSNodeToken(session, nil, io.Discard)
+		requestAWSNodeToken(session, []string{"--check"}, io.Discard)
 		if len(session.AWSNodeTokens) != 1 {
 			t.Fatal("regeneration duplicated the retained identity")
 		}
 		generateAWSNodeToken = func(context.Context, awscloud.NodeTokenOptions) (awscloud.NodeTokenResult, error) {
 			return awscloud.NodeTokenResult{}, errors.New("metadata unavailable")
 		}
-		requestAWSNodeToken(session, nil, io.Discard)
+		requestAWSNodeToken(session, []string{"--check"}, io.Discard)
 		for _, entry := range session.AWSNodeTokens {
 			if entry.Token != "replacement-secret" {
 				t.Fatal("failure replaced the retained credential")
@@ -106,7 +178,7 @@ func TestAWSNodeTokenVerificationAndActivation(t *testing.T) {
 			}
 			args := []string{"--verify"}
 			if test.activate {
-				args = []string{"--activate"}
+				args = nil
 			}
 			var out bytes.Buffer
 			requestAWSNodeToken(session, args, &out)
@@ -144,8 +216,8 @@ func TestAWSNodeTokenTargetErrorsAndOptions(t *testing.T) {
 		{"invalid", []string{"--bad"}, nil, 0},
 		{"positional", []string{"unexpected"}, nil, 0},
 		{"mismatch", nil, kube.ErrNodeTokenTargetMismatch, 0},
-		{"missing-connection-generation", nil, kube.ErrNodeTokenTargetUnavailable, 1},
-		{"missing-connection-activation", []string{"--activate"}, kube.ErrNodeTokenTargetUnavailable, 1},
+		{"missing-connection-check", []string{"--check"}, kube.ErrNodeTokenTargetUnavailable, 1},
+		{"missing-connection-default-activation", nil, kube.ErrNodeTokenTargetUnavailable, 1},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			calls := 0
@@ -180,7 +252,7 @@ func TestAWSNodeTokenRejectsExpiredGeneration(t *testing.T) {
 	}
 	session := NewSession(ServerInfo{Token: "original"})
 	var out bytes.Buffer
-	requestAWSNodeToken(session, []string{"--activate"}, &out)
+	requestAWSNodeToken(session, nil, &out)
 	if len(session.AWSNodeTokens) != 0 || session.Connection.Token != "original" || strings.Contains(out.String(), "k8s-aws-v1.secret") {
 		t.Fatal("expired result was retained, activated, or printed")
 	}
@@ -271,7 +343,7 @@ func (transport nodeTokenForbiddenStartupTransport) RoundTrip(*http.Request) (*h
 }
 
 func TestAWSNodeTokenCommandSurfaces(t *testing.T) {
-	for _, command := range []string{"aws-get-eks-node-token", "37", "aws-get-eks-node-token --help", "37 -h", "37 --cluster-name override --region us-east-1", "aws-get-eks-node-token --verify", "37 --bad-option", "37 --cluster-name 'unterminated"} {
+	for _, command := range []string{"aws-get-eks-node-token", "37", "aws-get-eks-node-token --help", "37 -h", "37 --cluster-name override --region us-east-1", "aws-get-eks-node-token --verify", "aws-get-eks-node-token --check", "37 --check", "37 --activate", "37 --check --verify", "37 --check --activate", "37 --bad-option", "37 --cluster-name 'unterminated"} {
 		t.Run(command, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
@@ -281,11 +353,20 @@ func TestAWSNodeTokenCommandSurfaces(t *testing.T) {
 			want := "Bearer token: k8s-aws-v1.secret"
 			if strings.Contains(command, "--help") || command == "37 -h" {
 				want = "Usage: aws-get-eks-node-token"
-			} else if strings.Contains(command, "--bad-option") || strings.Contains(command, "unterminated") {
+			} else if strings.Contains(command, "--bad-option") || strings.Contains(command, "unterminated") || strings.Contains(command, "--check --") {
 				want = "[-] EKS node token:"
 			}
 			if err != nil || !strings.Contains(string(output), want) {
 				t.Fatalf("-m failed or prompted: %v\n%s", err, output)
+			}
+			if want == "Bearer token: k8s-aws-v1.secret" {
+				wantActivation := !strings.Contains(command, "--check") && !strings.Contains(command, "--verify")
+				if strings.Contains(string(output), "Activated EKS node token.") != wantActivation {
+					t.Fatalf("unexpected activation for %q: %s", command, output)
+				}
+				if strings.Contains(command, "--check") && strings.Contains(string(output), "Verified Kubernetes node identity:") {
+					t.Fatal("--check verified the node identity")
+				}
 			}
 			for _, secret := range []string{"ambient-access-key-sentinel", "ambient-secret-key-sentinel", "ambient-session-token-sentinel"} {
 				if strings.Contains(string(output), secret) {

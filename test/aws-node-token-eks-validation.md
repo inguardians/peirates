@@ -33,11 +33,13 @@ deleted on exit. Do not enable shell tracing or upload that directory.
 Complete these checks in a Peirates interactive session in the same pod:
 
 1. Run `kubectl auth whoami` and record the initial identity without recording
-   credentials. Run `aws-get-eks-node-token --verify`, then `kubectl auth whoami`;
-   the active identity must remain the original identity.
-2. Run `aws-get-eks-node-token --cluster-name peirates-wrong-cluster-control --activate`.
+   credentials. Run `aws-get-eks-node-token --check`, then `kubectl auth whoami`;
+   the token must be retained without verification and the active identity must
+   remain the original identity. Repeat with `--verify`; it must verify the node
+   identity while still preserving the active identity.
+2. Run `aws-get-eks-node-token --cluster-name peirates-wrong-cluster-control`.
    Verification must fail, and `kubectl auth whoami` must remain unchanged.
-3. Run `aws-get-eks-node-token --activate`, then `kubectl auth whoami -o json`.
+3. Run `aws-get-eks-node-token`, then `kubectl auth whoami -o json`.
    The username must match the pod's actual node, the group must include
    `system:nodes`, and the configured namespace/endpoint/trust must remain.
    Main-menu status must omit the bearer token.

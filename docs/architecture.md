@@ -34,7 +34,9 @@ neutral dispatcher.
 client, with app orchestration retaining typed `model.AWSNodeToken` entries.
 These credentials are separate from service-account JWTs. Kubernetes helpers
 resolve in-cluster trust and perform isolated SelfSubjectReview verification.
-Explicit activation records expiry on `ServerInfo`; API and kubectl paths
+The command verifies and activates by default; `--check` only generates and
+retains the token, and `--verify` verifies without switching identities.
+Activation records expiry on `ServerInfo`; API and kubectl paths
 reject expired generated credentials, and identity switches clear that state.
 Active node-token kubectl calls use a private temporary kubeconfig, removed
 after the call, to avoid ambient credentials and bearer tokens in process
