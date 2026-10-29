@@ -138,6 +138,44 @@ this release.
 
 ## Implementation and references
 
+### Standalone kubeconfig script
+
+For a classroom walkthrough using individual copy-paste commands instead of
+the script, see [Build an EKS node kubeconfig by hand](../aws-eks-node-kubeconfig-class.md).
+
+[`scripts/get-aws-eks-token.sh`](../../scripts/get-aws-eks-token.sh) performs
+the instance-role credential and EKS token flow without the Peirates binary.
+Run it on an EC2 worker or in a pod with access to that worker's IMDS:
+
+```sh
+./scripts/get-aws-eks-token.sh --output node.kubeconfig --verify
+kubectl --kubeconfig ./node.kubeconfig auth whoami
+```
+
+Requires Bash, curl, jq, and AWS CLI v2; verification also requires kubectl.
+The script ignores ambient AWS credentials, profiles, and workload roles.
+It uses IMDSv2 by default, with explicit `--allow-imdsv1` compatibility fallback.
+Automatic discovery needs `ec2:DescribeInstances` and `eks:DescribeCluster`
+on the instance role. Unlike the application command, the script does not
+parse bootstrap user data or resolve conflicting tags through CA matching.
+Use `--cluster-name NAME --region REGION` to bypass tag discovery. If EKS
+discovery is unavailable, also supply `--server https://... --ca-file ca.pem`
+from a trusted source; the supplied target is not cross-checked against EKS.
+
+The output is a JSON kubeconfig, accepted by kubectl, containing an embedded
+bearer token and CA. It is portable to another machine with API connectivity,
+contains no AWS credentials, and has mode 0600. Existing files are refused.
+The token is short-lived and does not refresh automatically; rerun the script
+with a new output filename when it expires. The reported expiry is capped at
+the instance credentials' expiry. No kubelet client certificate is extracted.
+The cluster must already map the instance role to a node identity. `--verify`
+requires identity inspection to succeed and confirm `system:node:*` and
+`system:nodes` before writing the file; without it, authentication is unverified.
+
+Run offline script regression coverage with
+`python3 test/aws-eks-token-script-test.py`. These fixtures do not prove live
+AWS/EKS acceptance.
+
 - [AWS provider](../../internal/cloud/aws/)
 - [Application command](../../internal/app/aws_node_token.go)
 - [Controlled Kind harness](../../test/aws-node-token-kind-integration.sh)
