@@ -11,7 +11,8 @@ cluster name and region automatically; neither is required operator input.
 
 Add a Peirates command that obtains an EC2 node's instance-role credentials
 from AWS Instance Metadata Service (IMDS), generates an EKS Kubernetes bearer
-token, and optionally verifies and activates that token.
+token, and verifies and activates that token by default. `--check` preserves the
+original generation-only behavior; `--verify` verifies without activation.
 
 The first release targets Peirates running in a pod inside a regional EKS
 cluster on an EC2 node, with access to that node's IMDS. Host filesystem mounts
@@ -47,9 +48,10 @@ or authorization.
 | Region selection | IMDS instance identity document; optional `--region` override |
 | API connection | Existing in-cluster connection or pod service endpoint and mounted CA |
 | Credential source | The node's instance-role credentials from IMDS |
-| Default result | Print the token and retain it in memory |
+| Default result | Print and retain the token, verify its node identity, then activate it |
+| Check only | `--check` prints and retains without verification or activation |
 | Verification | `--verify` checks the identity against the configured API |
-| Activation | `--activate` implies verification and explicitly switches identity |
+| Activation | Default behavior; `--activate` remains an explicit equivalent |
 | IMDS compatibility | IMDSv2 first; IMDSv1 fallback requires `--allow-imdsv1` |
 | Refresh | Explicitly rerun the command; no automatic refresh in this release |
 
@@ -57,6 +59,7 @@ Examples in the interactive Peirates command prompt:
 
 ```text
 aws-get-eks-node-token
+aws-get-eks-node-token --check
 aws-get-eks-node-token --verify
 aws-get-eks-node-token --activate
 ```
@@ -218,7 +221,7 @@ routine diagnostics show identity, cluster, expiry, and verification state
 without redisplaying it. Audit command execution and timeout diagnostics so
 active generated tokens are not exposed through argument logging.
 
-For `--verify`, use an isolated Kubernetes client with only the new token and
+For default activation and `--verify`, use an isolated Kubernetes client with only the new token and
 the configured target connection. Submit a `SelfSubjectReview` and report the
 server-returned username and groups. A successful node check requires a
 `system:node:<nodeName>` username and `system:nodes` group. Compare the node
@@ -230,7 +233,7 @@ unexpected identities, and transport/TLS failures as distinct outcomes. Do
 not infer successful node authentication from token generation or an unrelated
 request made with ambient credentials.
 
-For `--activate`, require successful node-identity verification before changing
+For default activation or explicit `--activate`, require successful node-identity verification before changing
 the active connection. Clear competing client-certificate credentials, retain
 the configured endpoint, CA/TLS settings, and namespace, and label the active
 identity as a node token. Verification or activation failure preserves the

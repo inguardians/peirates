@@ -112,9 +112,9 @@ func TestAWSNodeTokenKind(t *testing.T) {
 	original = session.Connection
 	session.AssumedAWSRole = AWSCredentials{AccessKeyID: "assumed-must-not-be-used"}
 	var output bytes.Buffer
-	requestAWSNodeToken(session, nil, &output)
+	requestAWSNodeToken(session, []string{"--check"}, &output)
 	if len(session.AWSNodeTokens) != 1 || !reflect.DeepEqual(original, session.Connection) {
-		t.Fatal("zero-argument discovery did not retain one token and preserve connection")
+		t.Fatal("--check discovery did not retain one token and preserve connection")
 	}
 	var generated model.AWSNodeToken
 	for _, entry := range session.AWSNodeTokens {
@@ -181,7 +181,7 @@ func TestAWSNodeTokenKind(t *testing.T) {
 		}
 	}
 	output.Reset()
-	requestAWSNodeToken(session, []string{"--activate"}, &output)
+	requestAWSNodeToken(session, nil, &output)
 	active := session.Connection
 	if active.Token == "" || active.ClientCertData != "" || active.ClientKeyData != "" || active.ClientCertName != "" || active.APIServer != original.APIServer || active.CACertData != original.CACertData || active.Namespace != original.Namespace || active.ActiveTokenKind != "eks-node" {
 		t.Fatal("activation did not isolate node credentials while retaining target and namespace")
@@ -195,7 +195,7 @@ func TestAWSNodeTokenKind(t *testing.T) {
 	// cluster verification must still fail and preserve the full prior state.
 	session.Connection = original
 	output.Reset()
-	requestAWSNodeToken(session, []string{"--cluster-name", "wrong-cluster", "--activate"}, &output)
+	requestAWSNodeToken(session, []string{"--cluster-name", "wrong-cluster"}, &output)
 	if !reflect.DeepEqual(original, session.Connection) {
 		t.Fatal("wrong-cluster activation changed the original admin connection")
 	}
@@ -246,7 +246,7 @@ func TestAWSNodeTokenKind(t *testing.T) {
 	}
 	broken.Store(true)
 	output.Reset()
-	requestAWSNodeToken(session, []string{"--activate"}, &output)
+	requestAWSNodeToken(session, nil, &output)
 	if !reflect.DeepEqual(session.AWSNodeTokens, retained) || !reflect.DeepEqual(original, session.Connection) {
 		t.Fatal("metadata failure changed retained tokens or active identity")
 	}

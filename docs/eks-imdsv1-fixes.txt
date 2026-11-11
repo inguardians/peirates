@@ -1,0 +1,31 @@
+EKS IMDSv1 provisioning follow-up fixes
+Recorded: 2026-10-25
+Script: scripts/create-eks-imdsv1-cluster.sh
+
+Reported run: eksctl 0.230.0, us-west-1, cluster peirates-imdsv1,
+node group workers, one worker, AmazonLinux2023 / Kubernetes 1.34.
+Control-plane deployment began at 10:46:39; node-group deployment began
+at 10:56:45 and was still waiting at 11:09:06. The supplied log contains
+no terminal failure or confirmed reason for the delay.
+
+Follow-up work:
+- Explicitly set autoModeConfig.enabled: false, as requested by the warning.
+- Investigate the vpc-cni IAM warning without enabling IRSA. Verify the node
+  role's CNI permissions. The warning alone does not prove missing permissions.
+- Collect node-group health issues, CloudFormation events, and Auto Scaling
+  launch activities when provisioning stalls; distinguish launch failures
+  from node-join failures. Recent script changes already print failure events.
+- Retain generated configuration for recovery. Earlier failure handling called
+  the launch template unused despite possible partial resources. Current
+  changes add --delete and partial-resource instructions; verify those fixes.
+- Bind cleanup to a verified cluster context and a namespace created by this
+  invocation. cluster_created is set before kubeconfig update succeeds.
+- Strengthen privileged admission verification: a dry run in one namespace
+  cannot establish cluster-wide policy behavior or unchanged privilege fields.
+- Validate a complete successful IMDS credential response without logging
+  secrets; remove stale readiness on failure and verify coverage of every node.
+
+Preserve requirements: default one worker, configurable count, IMDSv1 enabled,
+pod access to node credentials, no IRSA, and privileged containers allowed.
+This file records deferred work; it does not establish a root cause or claim
+live EKS verification.

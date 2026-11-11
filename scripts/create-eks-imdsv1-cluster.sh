@@ -16,21 +16,43 @@ aws_error_file=""
 launch_template_id=""
 check_namespace="peirates-imds-check"
 cluster_created=false
+delete_mode=false
+addons=(aws-efs-csi-driver)
+required_addons=(vpc-cni kube-proxy coredns metrics-server)
+addons_explicit=false
+enable_ebs=false
+enable_efs=false
 
 usage() {
     cat <<EOF
-Create an EKS cluster whose worker-node instance role is reachable from pods.
+Create or delete an EKS cluster whose worker-node role is reachable from pods.
 
 Usage: $(basename "$0") [options]
 
 Options:
+      --delete                Delete the named cluster, its eksctl CloudFormation
+                              stacks, and this node group's external launch template
   -n, --name NAME             Cluster name (default: ${cluster_name})
   -r, --region REGION         AWS region (default: AWS_REGION, AWS_DEFAULT_REGION,
                               or the AWS CLI configured region)
   -c, --nodes COUNT           Worker-node count (default: ${node_count})
       --node-group NAME       Managed node-group name (default: ${node_group_name})
   -t, --instance-type TYPE    EC2 worker instance type (default: ${instance_type})
+      --addon NAME           Enable an EKS add-on; repeat for multiple add-ons.
+                              Default: aws-efs-csi-driver. Explicit selections
+                              replace this default. Supports aws-efs-csi-driver,
+                              aws-ebs-csi-driver, vpc-cni, kube-proxy, coredns,
+                              and metrics-server.
   -h, --help                  Show this help
+
+Always installed: vpc-cni, kube-proxy, coredns, metrics-server.
+--addon changes optional selections only; it cannot remove these four add-ons.
+With no --addon options, aws-efs-csi-driver is installed in addition to them.
+
+When the AWS account plan can be read, Free-plan worker instance eligibility is
+checked before resources are created. Paid-plan instance selection is unchanged.
+Deletion waits for completion and also handles stacks left by failed creation.
+Use the same --name, --region, and --node-group values used during creation.
 
 The script creates a managed node group with these deliberate security settings:
   * IAM OIDC association/IRSA is disabled.
@@ -52,6 +74,64 @@ require_command() {
     command -v "$1" >/dev/null 2>&1 || fail "required command not found: $1"
 }
 
+print_delete_command() {
+    printf '  bash %q --delete --name %q --region %q --node-group %q\n' \
+        "$0" "${cluster_name}" "${region}" "${node_group_name}"
+}
+
+# Distinguish an absent cluster from authentication, permission, or API errors.
+cluster_exists() {
+    if aws eks describe-cluster --name "${cluster_name}" --region "${region}" \
+        >/dev/null 2>"${aws_error_file}"; then
+        return 0
+    fi
+    grep -q 'ResourceNotFoundException' "${aws_error_file}" || \
+        fail "could not determine whether EKS cluster ${cluster_name} exists"
+    return 1
+}
+
+# Match ownership tags exactly so similarly named clusters are never selected.
+cluster_stacks() {
+    aws cloudformation describe-stacks --region "${region}" \
+        --query "Stacks[?Tags[?Key=='alpha.eksctl.io/cluster-name' && Value=='${cluster_name}'] || Tags[?Key=='eksctl.cluster.k8s.io/v1alpha1/cluster-name' && Value=='${cluster_name}']].StackName" \
+        --output text --no-cli-pager
+}
+
+delete_cluster() {
+    local cluster_present=false stacks template_id
+    local delete_args=(delete cluster --name "${cluster_name}" --region "${region}" --wait)
+    if cluster_exists; then
+        cluster_present=true
+    fi
+    stacks=$(cluster_stacks) || fail "could not discover CloudFormation stacks for ${cluster_name}"
+    if [[ "${cluster_present}" == true || -n "${stacks}" ]]; then
+        # A failed control-plane creation can leave stacks without an EKS cluster.
+        if [[ "${cluster_present}" == false ]]; then
+            delete_args+=(--force)
+        fi
+        printf '[*] Deleting EKS cluster %s and its CloudFormation stacks...\n' "${cluster_name}"
+        eksctl "${delete_args[@]}" || fail "cluster deletion failed; fix the reported error and rerun --delete"
+    fi
+
+    # Do not remove a template that workers could still be using after a failure.
+    if cluster_exists; then
+        fail "EKS cluster ${cluster_name} still exists after deletion"
+    fi
+    stacks=$(cluster_stacks) || fail "could not verify CloudFormation stack deletion"
+    [[ -z "${stacks}" ]] || fail "CloudFormation stacks remain: ${stacks}; rerun --delete after resolving their errors"
+    template_id=$(aws ec2 describe-launch-templates --region "${region}" \
+        --filters "Name=launch-template-name,Values=${launch_template_name}" \
+        --query 'LaunchTemplates[0].LaunchTemplateId' --output text)
+    if [[ "${template_id}" != None ]]; then
+        [[ "${template_id}" == lt-* ]] || fail "AWS did not return a valid launch-template ID"
+        printf '[*] Deleting external launch template %s...\n' "${launch_template_name}"
+        aws ec2 delete-launch-template --region "${region}" \
+            --launch-template-id "${template_id}" >/dev/null
+    fi
+    printf '[+] Cluster %s, its CloudFormation stacks, and launch template %s are deleted or already absent.\n' \
+        "${cluster_name}" "${launch_template_name}"
+}
+
 cleanup() {
     status=$?
 
@@ -70,9 +150,9 @@ cleanup() {
     fi
 
     if [[ ${status} -ne 0 && -n "${launch_template_id}" && "${cluster_created}" == false ]]; then
-        printf '\nCluster creation did not finish. Remove the unused launch template with:\n' >&2
-        printf '  aws ec2 delete-launch-template --region %q --launch-template-id %q\n' \
-            "${region}" "${launch_template_id}" >&2
+        printf '\nCluster creation did not finish. Partial AWS resources may remain.\n' >&2
+        printf 'Delete the cluster, its CloudFormation stacks, and external launch template with:\n' >&2
+        print_delete_command >&2
     fi
 
     exit "${status}"
@@ -80,6 +160,27 @@ cleanup() {
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --delete)
+            delete_mode=true
+            shift
+            ;;
+        --addon)
+            [[ $# -ge 2 ]] || fail "$1 requires a value"
+            if [[ "${addons_explicit}" == false ]]; then
+                addons=()
+                addons_explicit=true
+            fi
+            case "$2" in
+                aws-ebs-csi-driver) enable_ebs=true ;;
+                aws-efs-csi-driver) enable_efs=true ;;
+                vpc-cni|kube-proxy|coredns|metrics-server) ;;
+                *) fail "unsupported add-on: $2" ;;
+            esac
+            if [[ " ${addons[*]-} " != *" $2 "* ]]; then
+                addons+=("$2")
+            fi
+            shift 2
+            ;;
         -n|--name)
             [[ $# -ge 2 ]] || fail "$1 requires a value"
             cluster_name=$2
@@ -115,6 +216,17 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+if [[ "${addons_explicit}" == false ]]; then
+    enable_efs=true
+fi
+
+# Explicitly request the baseline instead of relying on eksctl version defaults.
+for addon in "${required_addons[@]}"; do
+    if [[ " ${addons[*]} " != *" ${addon} "* ]]; then
+        addons+=("${addon}")
+    fi
+done
+
 [[ "${node_count}" =~ ^[1-9][0-9]*$ ]] || fail "worker-node count must be a positive integer"
 [[ "${cluster_name}" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$ ]] || fail "invalid EKS cluster name"
 [[ "${node_group_name}" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,62}$ ]] || fail "invalid EKS node-group name"
@@ -122,7 +234,6 @@ done
 
 require_command aws
 require_command eksctl
-require_command kubectl
 
 if [[ -z "${region}" ]]; then
     region=$(aws configure get region || true)
@@ -135,6 +246,39 @@ aws_error_file=$(mktemp /tmp/peirates-eks-aws-error.XXXXXX)
 
 printf '[*] Checking AWS identity and cluster name...\n'
 aws sts get-caller-identity --region "${region}" --output json >/dev/null
+
+launch_template_name="${cluster_name}-${node_group_name}-imdsv1"
+[[ ${#launch_template_name} -le 128 ]] || \
+    fail "combined cluster and node-group names make the launch-template name longer than 128 characters"
+if [[ "${delete_mode}" == true ]]; then
+    delete_cluster
+    exit 0
+fi
+require_command kubectl
+
+# Free-plan accounts cannot launch arbitrary instance types, even when an EKS
+# control plane can be created. Catch that before creating billable resources.
+# Older CLI versions or restricted IAM identities may not expose the plan API.
+printf '[*] Checking worker instance eligibility...\n'
+if account_plan=$(aws freetier get-account-plan-state --region us-east-1 \
+    --query accountPlanType --output text 2>"${aws_error_file}"); then
+    if [[ "${account_plan}" == FREE ]]; then
+        eligible_types=$(aws ec2 describe-instance-types --region "${region}" \
+            --filters Name=free-tier-eligible,Values=true \
+            --query 'InstanceTypes[].InstanceType' --output text)
+        eligible=false
+        for candidate in ${eligible_types}; do
+            if [[ "${candidate}" == "${instance_type}" ]]; then
+                eligible=true
+                break
+            fi
+        done
+        [[ "${eligible}" == true ]] || \
+            fail "instance type ${instance_type} is not eligible for this AWS Free plan. Use --instance-type with an eligible type: ${eligible_types}"
+    fi
+else
+    printf 'warning: could not check the AWS account plan; worker instance eligibility is unverified.\n' >&2
+fi
 if aws eks describe-cluster --name "${cluster_name}" --region "${region}" \
     >/dev/null 2>"${aws_error_file}"; then
     fail "EKS cluster already exists: ${cluster_name}"
@@ -142,9 +286,6 @@ fi
 grep -q 'ResourceNotFoundException' "${aws_error_file}" || \
     fail "could not determine whether EKS cluster ${cluster_name} already exists"
 
-launch_template_name="${cluster_name}-${node_group_name}-imdsv1"
-[[ ${#launch_template_name} -le 128 ]] || \
-    fail "combined cluster and node-group names make the launch-template name longer than 128 characters"
 existing_launch_template=$(aws ec2 describe-launch-templates --region "${region}" \
     --filters "Name=launch-template-name,Values=${launch_template_name}" \
     --query 'LaunchTemplates[0].LaunchTemplateId' --output text)
@@ -152,8 +293,8 @@ if [[ "${existing_launch_template}" != None ]]; then
     fail "EC2 launch template already exists: ${launch_template_name}"
 fi
 
-launch_template_data_file=$(mktemp /tmp/peirates-eks-launch-template.XXXXXX.json)
-config_file=$(mktemp /tmp/peirates-eks-cluster.XXXXXX.yaml)
+launch_template_data_file=$(mktemp /tmp/peirates-eks-launch-template.XXXXXX)
+config_file=$(mktemp /tmp/peirates-eks-cluster.XXXXXX)
 
 printf '{\n  "InstanceType": "%s",\n  "MetadataOptions": {\n    "HttpEndpoint": "enabled",\n    "HttpTokens": "optional",\n    "HttpPutResponseHopLimit": 2\n  }\n}\n' \
     "${instance_type}" >"${launch_template_data_file}"
@@ -185,14 +326,38 @@ managedNodeGroups:
     desiredCapacity: ${node_count}
     maxSize: ${node_count}
     disablePodIMDS: false
+    iam:
+      withAddonPolicies:
+        ebs: ${enable_ebs}
+        efs: ${enable_efs}
     launchTemplate:
       id: ${launch_template_id}
       version: "1"
 EOF
 
+# Keep the drivers on the instance role: do not create IRSA or Pod Identity roles.
+printf '[*] Always-installed add-ons: %s\n' "${required_addons[*]}"
+printf '[*] Selected add-ons (including required): %s\n' "${addons[*]}"
+printf '\naddons:\n' >>"${config_file}"
+for addon in "${addons[@]}"; do
+    printf '  - name: %s\n    useDefaultPodIdentityAssociations: false\n' "${addon}" >>"${config_file}"
+done
+
 printf '[*] Creating EKS cluster %s with %s worker node(s)...\n' "${cluster_name}" "${node_count}"
-eksctl create cluster --config-file "${config_file}"
-cluster_created=true
+if eksctl create cluster --config-file "${config_file}"; then
+    cluster_created=true
+else
+    create_status=$?
+    printf '\nEKS creation failed. CloudFormation failure events:\n' >&2
+    for stack_name in "eksctl-${cluster_name}-cluster" "eksctl-${cluster_name}-nodegroup-${node_group_name}"; do
+        printf '\n%s\n' "${stack_name}" >&2
+        aws cloudformation describe-stack-events --region "${region}" \
+            --stack-name "${stack_name}" \
+            --query "StackEvents[?ResourceStatus=='CREATE_FAILED'].[Timestamp,LogicalResourceId,ResourceStatusReason]" \
+            --output json --no-cli-pager >&2 || true
+    done
+    exit "${create_status}"
+fi
 
 printf '[*] Selecting the new cluster kubeconfig context...\n'
 aws eks update-kubeconfig --name "${cluster_name}" --region "${region}" \
@@ -214,13 +379,18 @@ for provider_arn in ${oidc_provider_arns}; do
         fail "an IAM OIDC provider is associated with the cluster, so IRSA is enabled"
 done
 
-mapfile -t instance_ids < <(
-    kubectl --context "${cluster_name}" get nodes \
-        -o jsonpath='{range .items[*]}{.spec.providerID}{"\n"}{end}' |
-        awk -F/ 'NF { print $NF }'
-)
-[[ ${#instance_ids[@]} -eq ${node_count} ]] || \
-    fail "expected ${node_count} EC2 worker instances, found ${#instance_ids[@]}"
+# Capture first so kubectl errors propagate; Bash 3.2 on macOS has no mapfile.
+provider_ids=$(kubectl --context "${cluster_name}" get nodes \
+    -o jsonpath='{range .items[*]}{.spec.providerID}{"\n"}{end}')
+instance_ids=()
+instance_count=0
+while IFS= read -r provider_id; do
+    [[ -n "${provider_id}" ]] || continue
+    instance_ids+=("${provider_id##*/}")
+    instance_count=$((instance_count + 1))
+done <<<"${provider_ids}"
+[[ ${instance_count} -eq ${node_count} ]] || \
+    fail "expected ${node_count} EC2 worker instances, found ${instance_count}"
 
 printf '[*] Verifying worker metadata options...\n'
 metadata_rows=$(aws ec2 describe-instances --region "${region}" \
@@ -301,7 +471,8 @@ printf '\n[+] EKS cluster %s is ready in %s.\n' "${cluster_name}" "${region}"
 printf '[+] Verified %s worker node(s): IMDSv1 enabled, node-role credentials reachable from pods, and privileged pods admitted.\n' \
     "${node_count}"
 printf '[+] Verified that IRSA has no IAM OIDC provider; no policy admission controller was installed.\n'
-printf '\nDelete the cluster, then its external launch template, with:\n'
-printf '  eksctl delete cluster --name %q --region %q\n' "${cluster_name}" "${region}"
-printf '  aws ec2 delete-launch-template --region %q --launch-template-id %q\n' \
-    "${region}" "${launch_template_id}"
+printf '\nConfigure kubectl to access this cluster (using AWS credentials with cluster access):\n'
+printf '  aws eks update-kubeconfig --name %q --region %q --alias %q\n' \
+    "${cluster_name}" "${region}" "${cluster_name}"
+printf '\nDelete the cluster, its CloudFormation stacks, and external launch template with:\n'
+print_delete_command

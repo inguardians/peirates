@@ -26,3 +26,24 @@ CloudFormation resources; `eksctl`; and `kubectl`.
 ./scripts/create-eks-imdsv1-cluster.sh --region us-west-2
 ./scripts/create-eks-imdsv1-cluster.sh --region us-west-2 --nodes 3
 ```
+
+The Amazon EFS CSI Driver (`aws-efs-csi-driver`) is installed by default.
+Repeat `--addon NAME` to select add-ons explicitly; explicit selections replace
+the EFS default. For example, install both storage drivers:
+
+```sh
+./scripts/create-eks-imdsv1-cluster.sh --region us-west-2 \
+  --addon aws-efs-csi-driver --addon aws-ebs-csi-driver
+```
+
+Supported names are `aws-efs-csi-driver`, `aws-ebs-csi-driver`, `vpc-cni`,
+`kube-proxy`, `coredns`, and `metrics-server`. Duplicate selections are ignored;
+`vpc-cni`, `kube-proxy`, `coredns`, and `metrics-server` are always explicitly
+included in the cluster configuration, regardless of `--addon` selections.
+Selecting one of these names does not duplicate it or remove the others.
+Storage-driver permissions
+are added to the worker instance role through eksctl's `withAddonPolicies`,
+preserving the cluster's no-IRSA configuration. Pods with IMDS access inherit
+these additional permissions too. Installing a driver does not create an EFS
+file system, mount targets, StorageClass, or PVC. Provision those separately
+before testing storage. These options apply to cluster creation, not updates.

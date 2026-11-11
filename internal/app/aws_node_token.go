@@ -19,11 +19,13 @@ var generateAWSNodeToken = awscloud.GenerateNodeToken
 var resolveAWSNodeTokenTarget = kube.ResolveNodeTokenTarget
 var verifyAWSNodeToken = kube.VerifyNodeToken
 
-const awsNodeTokenUsage = `Usage: aws-get-eks-node-token [--cluster-name NAME] [--region REGION] [--verify | --activate] [--allow-imdsv1]
+const awsNodeTokenUsage = `Usage: aws-get-eks-node-token [--cluster-name NAME] [--region REGION] [--check | --verify | --activate] [--allow-imdsv1]
 Alias: 37
 Automatically discovers the EKS cluster and region from the node's IMDS and AWS APIs.
-Prints and retains the generated bearer token without changing the active identity.
---verify reports the Kubernetes identity; --activate verifies then switches to the node token.
+Prints and retains the generated bearer token, verifies its node identity, then activates it by default.
+--check only generates, prints, and retains the token; it skips verification and preserves the active identity.
+--verify reports the Kubernetes identity without activating; --activate explicitly selects the default behavior.
+--check cannot be combined with --verify or --activate.
 IMDSv1 fallback is disabled unless explicitly enabled. Rerun to refresh an expired token.
 `
 
@@ -34,18 +36,34 @@ type awsNodeTokenSelection struct {
 
 func parseAWSNodeTokenOptions(args []string) (awsNodeTokenSelection, error) {
 	var selection awsNodeTokenSelection
+	var check bool
 	flags := flag.NewFlagSet("aws-get-eks-node-token", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	flags.StringVar(&selection.ClusterName, "cluster-name", "", "optional cluster-name override")
 	flags.StringVar(&selection.Region, "region", "", "optional region override")
 	flags.BoolVar(&selection.AllowIMDSv1, "allow-imdsv1", false, "allow IMDSv1 fallback")
 	flags.BoolVar(&selection.verify, "verify", false, "verify node identity")
-	flags.BoolVar(&selection.activate, "activate", false, "verify and activate node identity")
+	flags.BoolVar(&selection.activate, "activate", true, "verify and activate node identity (default)")
+	flags.BoolVar(&check, "check", false, "generate and retain token without verification or activation")
 	if err := flags.Parse(args); err != nil {
 		return selection, err
 	}
 	if flags.NArg() != 0 {
 		return selection, errors.New("unexpected positional arguments; use --help")
+	}
+	explicitActivation := false
+	flags.Visit(func(option *flag.Flag) {
+		if option.Name == "activate" {
+			explicitActivation = selection.activate
+		}
+	})
+	if check && (selection.verify || explicitActivation) {
+		return selection, errors.New("--check cannot be combined with --verify or --activate")
+	}
+	// Non-activating modes override the default, while explicit --activate
+	// retains its existing behavior when combined with --verify.
+	if (check || selection.verify) && !explicitActivation {
+		selection.activate = false
 	}
 	selection.verify = selection.verify || selection.activate
 	return selection, nil
