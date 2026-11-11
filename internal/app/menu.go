@@ -34,7 +34,7 @@ Menu |
 [ set-auth-can-i ]                    Deactivate "auth can-i" checking before attempting actions 
 [ curl ]                              Make an HTTP request (GET or POST) to a user-specified URL 
 [ tcpscan ]                           Run a simple all-ports TCP port scan against an IP address 
-[ cd , pwd , ls , cat , json-cat ]      Manipulate the filesystem via Golang-native commands
+[ cd , pwd , ls , cat , json-cat , create-file ]      Manipulate the filesystem via Golang-native commands
 [ shell <command> ]                   Run a shell command 
 
 [ full ]                              Switch to full (classic menu) with a longer list of commands
@@ -105,7 +105,7 @@ Off-Menu         +
 [92] Deactivate "auth can-i" checking before attempting actions [set-auth-can-i] 
 [93] Run a simple all-ports TCP port scan against an IP address [tcpscan]
 [94] Enumerate services via DNS (for CoreDNS version < 1.9.0) [enumerate-dns] *
-[] Manipulate the filesystem [ cd , pwd , ls , cat , json-cat ]
+[] Manipulate the filesystem [ cd , pwd , ls , cat , json-cat , create-file ]
 []  Run a shell command [shell <command and arguments>]
 []  Run a Bash or Bourne shell [bash or sh]
 
@@ -327,12 +327,13 @@ func setUpCompletionMainMenu() *readline.PrefixCompleter {
 		readline.PcItem("tcpscan"),
 		// [94] Enumerate services via DNS [enumerate-dns] *
 		readline.PcItem("enumerate-dns"),
-		// [ cd __ , pwd , ls ___ , cat ___ , json-cat ___ ] Manipulate the filesystem via Golang-native commands
+		// [ cd __ , pwd , ls ___ , cat ___ , json-cat ___ , create-file ___ ] Manipulate the filesystem via Golang-native commands
 		readline.PcItem("cd"),
 		readline.PcItem("pwd"),
 		readline.PcItem("ls"),
 		readline.PcItem("cat"),
 		readline.PcItem("json-cat"),
+		readline.PcItem("create-file"),
 		// []  Run a shell command [shell <command and arguments>]
 		readline.PcItem("shell"),
 		// [short] Reduce the set of visible commands in this menu

@@ -4,9 +4,27 @@ package filesystem
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 )
+
+// CreateFile creates an empty file before calling writeContents with its open
+// handle. Existing paths (including symlinks) are rejected. On failure, the
+// empty or partially written file remains so the caller can inspect it.
+func CreateFile(path string, writeContents func(io.Writer) error) error {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return fmt.Errorf("failed creating file: %w", err)
+	}
+	writeErr := writeContents(file)
+	closeErr := file.Close()
+	if err := errors.Join(writeErr, closeErr); err != nil {
+		return fmt.Errorf("failed writing or closing file: %w", err)
+	}
+	return nil
+}
 
 // DisplayFile prints the contents of the file at filePath.
 func DisplayFile(filePath string) error {

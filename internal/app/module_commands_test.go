@@ -273,7 +273,7 @@ func TestMainMenuCompletionIncludesEveryCanonicalModule(t *testing.T) {
 		"hostroot-breakout", "hostlog-symlink-read", "hostlog-read", "nodes-proxy-exec", "scan-configmaps", "nodefs-steal-secrets", "nodefs-secrets-list",
 		"inject-and-exec",
 		"kubectl", "kubectl-can-i", "kubectl-try-all", "kubectl-try-all-until-success", "curl",
-		"set-auth-can-i", "tcpscan", "enumerate-dns", "cd", "pwd", "ls", "cat", "json-cat",
+		"set-auth-can-i", "tcpscan", "enumerate-dns", "cd", "pwd", "ls", "cat", "json-cat", "create-file",
 		"shell", "short", "full", "outputfile", "exit",
 	}
 	for _, command := range want {

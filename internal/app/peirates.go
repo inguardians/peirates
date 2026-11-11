@@ -264,6 +264,13 @@ func Main() {
 		// Handle built-in filesystem commands before the switch menu
 		//
 
+		if handleCreateFile(input, os.Stdin, os.Stdout) {
+			if !session.Interactive {
+				return
+			}
+			continue
+		}
+
 		const pwd = "pwd"
 		if input == pwd {
 			// Print the current working directory
